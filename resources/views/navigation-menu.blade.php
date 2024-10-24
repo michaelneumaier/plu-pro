@@ -162,21 +162,23 @@
             </div>
         </div>
     </div>
-    @if(Auth::check())
+
     <!-- Responsive Navigation Menu -->
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
         <div class="pt-2 pb-3 space-y-1">
-            <x-responsive-nav-link href="{{ route('dashboard') }}" :active="request()->routeIs('dashboard')">
-                {{ __('Dashboard') }}
-            </x-responsive-nav-link>
             <x-responsive-nav-link href="{{ route('home') }}" :active="request()->routeIs('home')">
                 {{ __('Search PLU Codes') }}
             </x-responsive-nav-link>
+            @if(Auth::check())
             <x-responsive-nav-link href="{{ route('lists.index') }}" :active="request()->routeIs('lists.*')">
                 {{ __('My Lists') }}
             </x-responsive-nav-link>
+            <x-responsive-nav-link href="{{ route('dashboard') }}" :active="request()->routeIs('dashboard')">
+                {{ __('Dashboard') }}
+            </x-responsive-nav-link>
+            @endif
         </div>
-
+        @if(Auth::check())
         <!-- Responsive Settings Options -->
         <div class="pt-4 pb-1 border-t border-gray-200">
             <div class="flex items-center px-4">
@@ -250,6 +252,17 @@
                 @endif
             </div>
         </div>
+        @else
+        <div class="pt-2 pb-3 space-y-1">
+
+            <x-responsive-nav-link href="{{ route('login') }}" :active="request()->routeIs('login')">
+                {{ __('Login') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link href="{{ route('register') }}" :active="request()->routeIs('register')">
+                {{ __('Register') }}
+            </x-responsive-nav-link>
+
+        </div>
+        @endif
     </div>
-    @endif
 </nav>

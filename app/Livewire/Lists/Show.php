@@ -28,12 +28,12 @@ class Show extends Component
             return;
         }
 
-        $searchTerm = '%' . addcslashes(trim($this->searchTerm), '%_') . '%';
+        //$searchTerm = '%' . addcslashes(trim($this->searchTerm), '%_') . '%';
 
-        $this->availablePLUCodes = PLUCode::whereRaw(
-            'plu LIKE ? OR variety LIKE ? OR commodity LIKE ? OR aka LIKE ?',
-            [$searchTerm, $searchTerm, $searchTerm, $searchTerm]
-        )
+        $this->availablePLUCodes = PLUCode::where('plu', 'like', '%' . $this->searchTerm . '%')
+            ->orWhere('variety', 'like', '%' . $this->searchTerm . '%')
+            ->orWhere('commodity', 'like', '%' . $this->searchTerm . '%')
+            ->orWhere('aka', 'like', '%' . $this->searchTerm . '%')
             ->limit(30)
             ->get();
     }
