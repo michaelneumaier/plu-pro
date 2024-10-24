@@ -169,6 +169,12 @@
             <x-responsive-nav-link href="{{ route('dashboard') }}" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
+            <x-responsive-nav-link href="{{ route('home') }}" :active="request()->routeIs('home')">
+                {{ __('Search PLU Codes') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link href="{{ route('lists.index') }}" :active="request()->routeIs('lists.*')">
+                {{ __('My Lists') }}
+            </x-responsive-nav-link>
         </div>
 
         <!-- Responsive Settings Options -->
