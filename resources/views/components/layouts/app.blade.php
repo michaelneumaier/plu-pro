@@ -36,7 +36,7 @@
 
         <!-- Page Content -->
         <div class="flex justify-center">
-            <main class="p-4 md:p-6 md:w-2/3 max-w-4xl">
+            <main class="p-2 md:p-6 md:w-2/3 max-w-4xl">
                 {{ $slot }}
             </main>
         </div>

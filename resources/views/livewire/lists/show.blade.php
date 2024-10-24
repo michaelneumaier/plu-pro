@@ -63,22 +63,33 @@
         class="border p-1 w-full mb-4">
 
     @if($availablePLUCodes->count())
-    <ul>
-        @foreach($availablePLUCodes as $pluCode)
-        <div
-            class="grid grid-cols-[auto,1fr,1fr,1fr,1fr,auto] gap-4 bg-white hover:bg-gray-50 border-b border-gray-200 py-2 overflow-x-auto">
-            <div class="px-1 text-xs font-mono bg-gray-100 rounded flex items-center justify-center w-10">
-                {{ $pluCode->plu }}
+    @foreach($availablePLUCodes as $pluCode)
+    <div
+        class="grid grid-cols-[3rem,5rem,1fr,4rem,4rem,1rem] bg-white hover:bg-gray-50 border-b border-gray-200 last:border-b-0 overflow-x-auto">
+        <div class="flex items-center p-1">
+            <div
+                class="flex items-center justify-center w-10 h-7 sm:w-12 sm:h-8 bg-blue-100 text-blue-800 rounded overflow-hidden">
+                <span class="text-xs font-mono font-semibold">{{ $pluCode->plu }}</span>
             </div>
-            <div class="px-2 flex items-center">{{ $pluCode->commodity }}</div>
-            <div class="px-2 flex items-center">{{ $pluCode->variety }}</div>
-            <div class="px-2 flex items-center">{{ $pluCode->size }}</div>
-            <div class="px-2 flex items-center">{{ $pluCode->aka }}</div>
-            <div class="px-2 flex items-center"><button wire:click="addPLUCode({{ $pluCode->id }})"
-                    class="text-green-500">Add</button></div>
         </div>
-        @endforeach
-    </ul>
+        <div class="flex items-center p-1  text-xs sm:text-sm overflow-hidden text-ellipsis whitespace-nowrap">
+            {{ $pluCode->commodity }}
+        </div>
+        <div
+            class="flex items-center p-1  text-xs sm:text-sm md:text-base font-bold overflow-hidden text-ellipsis whitespace-nowrap">
+            {{ $pluCode->variety }}
+        </div>
+        <div class="flex items-center p-1  text-xs sm:text-sm overflow-hidden text-ellipsis whitespace-nowrap">
+            {{ $pluCode->size }}
+        </div>
+        <div class="flex items-center p-1  text-xs sm:text-sm overflow-hidden text-ellipsis whitespace-nowrap">
+            {{ $pluCode->aka }}
+        </div>
+        <div class="flex items-center justify-center p-1 ">
+            <button wire:click="addPLUCode({{ $pluCode->id }})" class="text-green-500">+</button>
+        </div>
+    </div>
+    @endforeach
     @else
     @if($searchTerm)
     <p>No PLU Codes found.</p>
