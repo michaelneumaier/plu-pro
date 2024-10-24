@@ -6,7 +6,6 @@
                 <!-- Logo -->
                 <div class="shrink-0 flex items-center font-bold text-2xl">
                     <a href="{{ route('home') }}">
-                        <!-- <x-application-mark class="block h-9 w-auto" /> -->
                         PLUPro
                     </a>
                 </div>
@@ -24,7 +23,7 @@
                     </x-nav-link>
                 </div>
             </div>
-
+            @if(Auth::check())
             <div class="hidden sm:flex sm:items-center sm:ms-6">
                 <!-- Teams Dropdown -->
                 @if (Laravel\Jetstream\Jetstream::hasTeamFeatures())
@@ -137,7 +136,17 @@
                     </x-dropdown>
                 </div>
             </div>
-
+            @else
+            <!-- Links for unauthenticated users -->
+            <div class="hidden sm:flex sm:items-center sm:ms-6">
+                <x-nav-link href="{{ route('login') }}" :active="request()->routeIs('login')">
+                    {{ __('Log In') }}
+                </x-nav-link>
+                <x-nav-link href="{{ route('register') }}" :active="request()->routeIs('register')">
+                    {{ __('Register') }}
+                </x-nav-link>
+            </div>
+            @endif
             <!-- Hamburger -->
             <div class="-me-2 flex items-center sm:hidden">
                 <button @click="open = ! open"
@@ -153,7 +162,7 @@
             </div>
         </div>
     </div>
-
+    @if(Auth::check())
     <!-- Responsive Navigation Menu -->
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
         <div class="pt-2 pb-3 space-y-1">
@@ -236,4 +245,5 @@
             </div>
         </div>
     </div>
+    @endif
 </nav>
