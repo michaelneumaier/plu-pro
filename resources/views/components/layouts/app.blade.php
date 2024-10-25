@@ -36,12 +36,12 @@
 
         <!-- Page Content -->
         <div class="flex justify-center">
-            <main class="p-2 md:p-6 md:w-2/3 max-w-4xl">
+            <main class="p-2 md:p-6 md:w-5/6 w-full max-w-4xl">
                 {{ $slot }}
             </main>
         </div>
     </div>
-
+    @livewire('plu-code-detail-modal')
     @stack('modals')
 
     @livewireScripts

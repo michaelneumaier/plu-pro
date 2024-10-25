@@ -9,6 +9,7 @@ use App\Models\ListItem;
 
 class Show extends Component
 {
+    public $userId;
     public $userList;
     public $searchTerm;
     public $availablePLUCodes;
@@ -50,12 +51,35 @@ class Show extends Component
         $this->dispatch('refreshComponent');
     }
 
-    public function removePLUCode($listItemId)
+    public function removePLUCode($pluCodeId)
     {
-        $listItem = ListItem::findOrFail($listItemId);
-        $listItem->delete();
+        // Find the ListItem corresponding to the given PLU Code ID
+        $listItem = $this->userList->listItems()->where('plu_code_id', $pluCodeId)->first();
 
-        $this->dispatch('refreshComponent');
+        // Check if the ListItem exists
+        if ($listItem) {
+            $listItem->delete(); // Delete the ListItem
+            session()->flash('message', 'PLU Code removed from your list.'); // Optional: Flash message for success
+        } else {
+            session()->flash('error', 'PLU Code not found in your list.'); // Optional: Flash message for error
+        }
+
+        $this->dispatch('refreshComponent'); // Refresh the component
+    }
+
+    public function deletePlu($pluCodeId)
+    {
+        // Find the ListItem corresponding to this PLU Code for the user
+        $listItem = ListItem::where('user_id', $this->userId)
+            ->where('plu_id', $pluCodeId)
+            ->first();
+
+        if ($listItem) {
+            $listItem->delete();
+            session()->flash('message', 'PLU Code removed from your list.');
+        } else {
+            session()->flash('error', 'PLU Code not found in your list.');
+        }
     }
 
     public function render()

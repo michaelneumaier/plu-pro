@@ -14,12 +14,19 @@ class SearchPLUCode extends Component
 
     protected $queryString = ['searchTerm'];
 
+    /**
+     * Reset to the first page when the search term is updated.
+     */
     public function updatingSearchTerm()
     {
-
         $this->resetPage();
     }
 
+    /**
+     * Render the search input and PLU codes table.
+     *
+     * @return \Illuminate\View\View
+     */
     public function render()
     {
         $pluCodes = PLUCode::where('plu', 'like', '%' . $this->searchTerm . '%')
@@ -27,7 +34,6 @@ class SearchPLUCode extends Component
             ->orWhere('commodity', 'like', '%' . $this->searchTerm . '%')
             ->orWhere('aka', 'like', '%' . $this->searchTerm . '%')
             ->paginate(10);
-
 
         return view('livewire.search-p-l-u-code', [
             'pluCodes' => $pluCodes,
