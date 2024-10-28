@@ -11,55 +11,23 @@ class PluCodeTable extends Component
 {
     public $collection;
 
-    /**
-     * The processed collection of PLU Codes.
-     *
-     * @var \Illuminate\Support\Collection
-     */
+    public $selectedCategory;
+    public $selectedCommodity;
+
     public $pluCodes;
-
-    /**
-     * Determine if the collection contains PLU Codes or List Items.
-     *
-     * @return void
-     */
-
-    /**
-     * The method name to call when deleting a PLU Code.
-     *
-     * @var string|null
-     */
     public $onDelete;
-
-    /**
-     * The method name to call when adding a PLU Code.
-     *
-     * @var string|null
-     */
     public $onAdd;
 
-    /**
-     * Create a new component instance.
-     *
-     * @param \Illuminate\Support\Collection $collection
-     * @param string|null $onDelete
-     * @param string|null $onAdd
-     * @return void
-     */
-    public function __construct($collection, $onDelete = null, $onAdd = null)
+    public function __construct($collection, $onDelete = null, $onAdd = null, $selectedCategory = null, $selectedCommodity = null)
     {
         $this->collection = $collection;
         $this->pluCodes = $this->processCollection($collection);
         $this->onDelete = $onDelete;
         $this->onAdd = $onAdd;
+        $this->selectedCategory = $selectedCategory;
+        $this->selectedCommodity = $selectedCommodity;
     }
 
-    /**
-     * Process the incoming collection to ensure it's a collection of PLU Codes.
-     *
-     * @param \Illuminate\Support\Collection $collection
-     * @return \Illuminate\Support\Collection
-     */
     protected function processCollection($collection)
     {
         // Check if the first item is a PLUCode instance
@@ -71,8 +39,17 @@ class PluCodeTable extends Component
         // Extract PLU IDs
         $pluIds = $collection->pluck('plu_code_id')->unique();
 
+        $collection = PLUCode::whereIn('id', $pluIds)->get();
+        if ($this->selectedCommodity) {
+            $collection->where('commodity', $this->selectedCommodity);
+        }
+
+        // Apply category filter if selected
+        if ($this->selectedCategory) {
+            $collection->where('category', $this->selectedCategory);
+        }
         // Fetch PLU Codes based on IDs
-        return PLUCode::whereIn('id', $pluIds)->get();
+        return $collection;
     }
     /**
      * Get the view / contents that represent the component.

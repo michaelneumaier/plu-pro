@@ -14,12 +14,65 @@ class Show extends Component
     public $searchTerm;
     public $availablePLUCodes;
 
-    protected $listeners = ['refreshComponent' => '$refresh'];
+    public $selectedCommodity = '';
+    public $selectedCategory = '';
+
+    // Available filter options
+    public $commodities = [];
+    public $categories = [];
+
+    protected $listeners = [
+        'refreshComponent' => '$refresh',
+        'filtersUpdated' => 'handleFiltersUpdated',
+    ];
+
+    protected $queryString = [
+        'searchTerm' => ['except' => ''],
+        'selectedCommodity' => ['except' => ''],
+        'selectedCategory' => ['except' => ''],
+    ];
 
     public function mount(UserList $userList)
     {
         $this->userList = $userList;
         $this->availablePLUCodes = collect();
+    }
+
+    protected function initializeFilterOptions()
+    {
+
+        $userList = $this->userList->listItems()->with('pluCode')->get();
+        $this->commodities =
+            array_column($this->processCollection($userList)->select('commodity')->unique('commodity')->sortBy('commodity')->toArray(), 'commodity');
+        $this->categories =
+            array_column($this->processCollection($userList)->select('category')->unique('category')->sortBy('category')->toArray(), 'category');
+    }
+
+    public function handleFiltersUpdated($filters)
+    {
+        $this->selectedCategory = $filters['selectedCategory'];
+        $this->selectedCommodity = $filters['selectedCommodity'];
+        $this->dispatch('refreshComponent');
+    }
+
+    public function updatedSelectedCategory()
+    {
+        $this->resetPage();
+    }
+
+    protected function processCollection($collection)
+    {
+        // Check if the first item is a PLUCode instance
+        if ($collection->first() instanceof PLUCode) {
+            return $collection;
+        }
+
+        // Otherwise, assume it's a collection of List Items with 'plu_id'
+        // Extract PLU IDs
+        $pluIds = $collection->pluck('plu_code_id')->unique();
+
+        // Fetch PLU Codes based on IDs
+        return PLUCode::whereIn('id', $pluIds)->get();
     }
 
     public function updatedSearchTerm()
@@ -47,7 +100,7 @@ class Show extends Component
                 'plu_code_id' => $pluCodeId,
             ]);
         }
-
+        $this->initializeFilterOptions();
         $this->dispatch('refreshComponent');
     }
 
@@ -64,7 +117,8 @@ class Show extends Component
             session()->flash('error', 'PLU Code not found in your list.'); // Optional: Flash message for error
         }
 
-        $this->dispatch('refreshComponent'); // Refresh the component
+        $this->initializeFilterOptions();
+        $this->dispatch('refreshComponent');
     }
 
     public function deletePlu($pluCodeId)
@@ -84,7 +138,24 @@ class Show extends Component
 
     public function render()
     {
-        $listItems = $this->userList->listItems()->with('pluCode')->get();
+        // Start with the list items associated with the user list
+        $listItemsQuery = $this->userList->listItems();
+
+        // Apply the commodity filter if selected
+        if ($this->selectedCommodity) {
+            $listItemsQuery->whereHas('pluCode', function ($query) {
+                $query->where('commodity', $this->selectedCommodity);
+            });
+        }
+
+        if ($this->selectedCategory) {
+            $listItemsQuery->whereHas('pluCode', function ($query) {
+                $query->where('category', $this->selectedCategory);
+            });
+        }
+
+        // Eager load the pluCode relationship and retrieve the filtered list items
+        $listItems = $listItemsQuery->with('pluCode')->get();
 
         return view('livewire.lists.show', [
             'listItems' => $listItems,

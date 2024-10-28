@@ -5,8 +5,9 @@
             <div class="flex">
                 <!-- Logo -->
                 <div class="shrink-0 flex items-center font-bold text-2xl">
-                    <a href="{{ route('home') }}">
-                        PLUPro
+                    <a href="{{ route('home') }}" class="flex items-center">
+                        <span class="text-green-600">PLU</span>
+                        <span class="text-blue-500">Pro</span>
                     </a>
                 </div>
 
