@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use Livewire\Component;
+use Livewire\Attributes\On;
 
 class FilterSection extends Component
 {
@@ -30,9 +31,13 @@ class FilterSection extends Component
         $this->selectedCommodity = $selectedCommodity;
     }
 
-    /**
-     * Emit an event whenever a filter is updated.
-     */
+    #[On('refreshFilters')]
+    public function refreshFilters($categories, $commodities)
+    {
+        $this->categories = $categories;
+        $this->commodities = $commodities;
+    }
+
     public function updatedSelectedCategory()
     {
         $this->emitFiltersUpdated();

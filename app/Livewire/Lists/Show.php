@@ -36,16 +36,34 @@ class Show extends Component
     {
         $this->userList = $userList;
         $this->availablePLUCodes = collect();
+        $this->initializeFilterOptions();
+    }
+
+    protected function updatedUserList()
+    {
+        $this->initializeFilterOptions();
     }
 
     protected function initializeFilterOptions()
     {
-
         $userList = $this->userList->listItems()->with('pluCode')->get();
-        $this->commodities =
-            array_column($this->processCollection($userList)->select('commodity')->unique('commodity')->sortBy('commodity')->toArray(), 'commodity');
-        $this->categories =
-            array_column($this->processCollection($userList)->select('category')->unique('category')->sortBy('category')->toArray(), 'category');
+
+        // Update commodities
+        $this->commodities = $this->processCollection($userList)
+            ->pluck('commodity')
+            ->unique()
+            ->sort()
+            ->values()
+            ->toArray();
+
+        // Update categories
+        $this->categories = $this->processCollection($userList)
+            ->pluck('category')
+            ->unique()
+            ->sort()
+            ->values()
+            ->toArray();
+        $this->dispatch('refreshFilters', commodities: $this->commodities, categories: $this->categories);
     }
 
     public function handleFiltersUpdated($filters)
