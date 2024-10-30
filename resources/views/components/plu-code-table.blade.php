@@ -21,23 +21,27 @@ $colCount = $hasActions ? 4 : 3;
 
         <!-- PLU Code Items -->
         @foreach($pluCodes as $pluCode)
-        <div class="grid grid-cols-[3rem,1fr,7rem,auto] bg-white hover:bg-gray-50 cursor-pointer border-b border-gray-200 last:border-b-0"
+        <div class="grid grid-cols-[3rem,1fr,7rem,auto] min-h-12 bg-white hover:bg-gray-50 cursor-pointer border-b border-gray-200 last:border-b-0"
             wire:click="$dispatch('pluCodeSelected', [{{ $pluCode->id }}])">
             <div class="flex items-center p-1">
                 <div
-                    class="flex items-center justify-center w-10 h-7 sm:w-12 sm:h-8 bg-green-100 text-sm text-green-800 rounded overflow-hidden">
+                    class="flex items-center justify-center w-10 h-7 sm:w-12 sm:h-8 bg-green-100 text-sm text-green-800 border border-green-200 rounded overflow-hidden">
                     <span class="font-mono font-semibold">{{ $pluCode->plu }}</span>
                 </div>
             </div>
-            <div class="flex flex-col p-1 text-sm overflow-hidden text-ellipsis whitespace-nowrap flex-grow">
+            <div class="flex flex-col p-1 text-sm self-end overflow-hidden text-ellipsis whitespace-nowrap flex-grow">
                 <span class="font-bold">{{ $pluCode->variety }}
                     @if(!empty($pluCode->aka))
                     <span class="text-gray-500"> - {{ $pluCode->aka }}</span>
                     @endif
                 </span>
-                <div class="flex justify-between">
-                    <span class="text-gray-500 capitalize">{{ ucwords(strtolower($pluCode->commodity)) }}</span>
-                    <span class="text-gray-500">{{ $pluCode->size }}</span> <!-- Size displayed on the right -->
+                <div class="flex justify-between ">
+                    <span class="text-gray-500 capitalize inline-flex">
+                        <div class="mr-1"><x-consumer-usage-indicator :tier="$pluCode->consumer_usage_tier" /></div>
+                        {{ ucwords(strtolower($pluCode->commodity))}}
+                    </span>
+                    <span class="text-gray-500">{{ $pluCode->size }}</span>
+                    <!-- Size displayed on the right -->
                 </div>
             </div>
             <div class="flex items-center p-1 text-sm overflow-hidden text-ellipsis whitespace-nowrap">

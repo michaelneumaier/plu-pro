@@ -18,5 +18,6 @@ class DatabaseSeeder extends Seeder
         $this->call([
             PLUCodesSeeder::class,
         ]);
+        $this->call(ConsumerUsageTierSeeder::class);
     }
 }

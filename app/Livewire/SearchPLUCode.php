@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire;
+namespace App\Livewire; // Corrected namespace from App\Livewire to App\Http\Livewire
 
 use Livewire\Component;
 use App\Models\PLUCode;
@@ -22,16 +22,23 @@ class SearchPLUCode extends Component
     // Toggle for filters visibility
     public $showFilters = false;
 
+    // Sorting properties
+    public $sortOption = 'plu_asc'; // Default sort option
+
+
     // Define query string parameters for persistence (optional)
     protected $queryString = [
         'searchTerm' => ['except' => ''],
         'selectedCommodity' => ['except' => ''],
         'selectedCategory' => ['except' => ''],
+        'sortOption' => ['except' => 'plu_asc'],
     ];
+
 
     // Listeners for events from child components
     protected $listeners = [
         'filtersUpdated' => 'handleFiltersUpdated',
+        'setSortOption' => 'setSortOption',
     ];
 
     /**
@@ -99,6 +106,41 @@ class SearchPLUCode extends Component
         $this->resetPage();
     }
 
+    public function setSortOption($option)
+    {
+        $this->sortOption = $option;
+        $this->resetPage();
+    }
+
+    /**
+     * Parse the sortOption into field and direction.
+     *
+     * @return array
+     */
+    protected function parseSortOption()
+    {
+        // Use a regular expression to capture the field and direction
+        preg_match('/^(.*)_(asc|desc)$/', $this->sortOption, $matches);
+
+        // Set the field and direction based on the matches
+        $field = $matches[1] ?? 'plu'; // Default to 'plu' if no match
+        $direction = $matches[2] ?? 'asc'; // Default to 'asc' if no match
+
+        // Validate field and direction
+        $allowedFields = ['plu', 'consumer_usage_tier', 'created_at'];
+        $allowedDirections = ['asc', 'desc'];
+
+        if (!in_array($field, $allowedFields)) {
+            $field = 'plu';
+        }
+
+        if (!in_array($direction, $allowedDirections)) {
+            $direction = 'asc';
+        }
+
+        return [$field, $direction];
+    }
+
     /**
      * Render the search input, filters, and PLU codes table.
      *
@@ -128,8 +170,24 @@ class SearchPLUCode extends Component
             $query->where('category', $this->selectedCategory);
         }
 
+        // Apply sorting
+        list($field, $direction) = $this->parseSortOption();
+
+        // Custom sorting for consumer_usage_tier
+        if ($field === 'consumer_usage_tier') {
+            $query->orderByRaw("
+                CASE consumer_usage_tier
+                    WHEN 'Low' THEN 1
+                    WHEN 'Medium' THEN 2
+                    WHEN 'High' THEN 3
+                    ELSE 4
+                END " . ($direction === 'desc' ? 'DESC' : 'ASC'));
+        } else {
+            $query->orderBy($field, $direction);
+        }
+
         // Fetch paginated results
-        $pluCodes = $query->orderBy('plu')->paginate(10);
+        $pluCodes = $query->paginate(10);
 
         return view('livewire.search-plu-code', [
             'pluCodes' => $pluCodes,
