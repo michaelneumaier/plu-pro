@@ -85,12 +85,14 @@ class Show extends Component
             return $collection;
         }
 
-        // Otherwise, assume it's a collection of List Items with 'plu_id'
+        // Otherwise, assume it's a collection of List Items with 'plu_code_id'
         // Extract PLU IDs
         $pluIds = $collection->pluck('plu_code_id')->unique();
 
-        // Fetch PLU Codes based on IDs
-        return PLUCode::whereIn('id', $pluIds)->get();
+        // Fetch PLU Codes based on IDs with ListItems loaded
+        return PLUCode::whereIn('id', $pluIds)->with(['listItems' => function ($query) {
+            $query->where('user_list_id', $this->userList->id);
+        }])->get();
     }
 
     public function updatedSearchTerm()
@@ -116,6 +118,7 @@ class Show extends Component
         if (!$exists) {
             $this->userList->listItems()->create([
                 'plu_code_id' => $pluCodeId,
+                'inventory_level' => 0.0, // Initialize inventory level
             ]);
         }
         $this->initializeFilterOptions();
@@ -142,8 +145,8 @@ class Show extends Component
     public function deletePlu($pluCodeId)
     {
         // Find the ListItem corresponding to this PLU Code for the user
-        $listItem = ListItem::where('user_id', $this->userId)
-            ->where('plu_id', $pluCodeId)
+        $listItem = ListItem::where('user_list_id', $this->userList->id) // Corrected field
+            ->where('plu_code_id', $pluCodeId)
             ->first();
 
         if ($listItem) {
@@ -157,7 +160,7 @@ class Show extends Component
     public function render()
     {
         // Start with the list items associated with the user list
-        $listItemsQuery = $this->userList->listItems();
+        $listItemsQuery = $this->userList->listItems()->with('pluCode');
 
         // Apply the commodity filter if selected
         if ($this->selectedCommodity) {
@@ -172,12 +175,29 @@ class Show extends Component
             });
         }
 
-        // Eager load the pluCode relationship and retrieve the filtered list items
-        $listItems = $listItemsQuery->with('pluCode')->get();
+        // Apply search term if provided
+        if ($this->searchTerm) {
+            $listItemsQuery->where(function ($q) {
+                $q->whereHas('pluCode', function ($query) {
+                    $query->where('plu', 'like', '%' . $this->searchTerm . '%')
+                        ->orWhere('variety', 'like', '%' . $this->searchTerm . '%')
+                        ->orWhere('commodity', 'like', '%' . $this->searchTerm . '%')
+                        ->orWhere('aka', 'like', '%' . $this->searchTerm . '%');
+                });
+            });
+        }
+
+        // Paginate the results
+        $listItems = $listItemsQuery->paginate(10);
+
+        // Fetch available PLU Codes based on search
+        // (Assuming you have logic for this elsewhere)
 
         return view('livewire.lists.show', [
             'listItems' => $listItems,
             'availablePLUCodes' => $this->availablePLUCodes,
+            'categories' => $this->categories,
+            'commodities' => $this->commodities,
         ]);
     }
 }

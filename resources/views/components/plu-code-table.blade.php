@@ -2,7 +2,7 @@
 @php
 // Determine the number of columns based on the presence of actions
 $hasActions = $onDelete || $onAdd;
-$colCount = $hasActions ? 4 : 3;
+$colCount = $hasActions ? 5 : 4;
 @endphp
 
 <div class="w-full">
@@ -10,10 +10,11 @@ $colCount = $hasActions ? 4 : 3;
     <div class="bg-white shadow-sm rounded-lg overflow-hidden border border-gray-200">
         <!-- Header -->
         <div
-            class="grid grid-cols-[3rem,1fr,7rem,auto] bg-gray-50 text-gray-700 font-semibold text-sm border-b border-gray-200">
+            class="grid grid-cols-[3rem,1fr,7rem,auto,auto] bg-gray-50 text-gray-700 font-semibold text-sm border-b border-gray-200">
             <div class="p-1">PLU</div>
             <div class="p-1 overflow-hidden text-ellipsis whitespace-nowrap">Variety</div>
-            <div class="p-1 overflow-hidden text-ellipsis whitespace-nowrap">UPC</div>
+            <!-- <div class="p-1 overflow-hidden text-ellipsis whitespace-nowrap">UPC</div>
+            <div class="p-1">Inventory</div> -->
             @if($hasActions)
             <div class="p-1">Actions</div>
             @endif
@@ -21,7 +22,7 @@ $colCount = $hasActions ? 4 : 3;
 
         <!-- PLU Code Items -->
         @foreach($pluCodes as $pluCode)
-        <div class="grid grid-cols-[3rem,1fr,7rem,auto] min-h-12 bg-white hover:bg-gray-50 cursor-pointer border-b border-gray-200 last:border-b-0"
+        <div class="grid grid-cols-[3rem,1fr,auto] min-h-12 bg-white hover:bg-gray-50 cursor-pointer border-b border-gray-200 last:border-b-0"
             wire:click="$dispatch('pluCodeSelected', [{{ $pluCode->id }}])">
             <div class="flex items-center p-1">
                 <div
@@ -44,11 +45,16 @@ $colCount = $hasActions ? 4 : 3;
                     <!-- Size displayed on the right -->
                 </div>
             </div>
-            <div class="flex items-center p-1 text-sm overflow-hidden text-ellipsis whitespace-nowrap">
-                <x-barcode code="{{ $pluCode->plu }}" />
+            <!-- Inventory Level Component -->
+            <div class="flex items-center p-1">
+                @if($pluCode->listItem)
+                <livewire:inventory-level :listItem="$pluCode->listItem"
+                    wire:key="inventory-level-{{ $pluCode->id }}" />
+                @endif
             </div>
+
             @if($hasActions)
-            <div class="flex items-center">
+            <div class="flex hidden items-center">
                 @if($onDelete)
                 <button onclick="if(!confirm('Are you sure you want to remove this PLU Code from your list?')) return;"
                     wire:click.stop="{{ $onDelete }}({{ $pluCode->id }})"

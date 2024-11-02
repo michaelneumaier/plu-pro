@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ListItem extends Model
 {
-    protected $fillable = ['plu_code_id', 'user_list_id'];
+    protected $fillable = ['plu_code_id', 'user_list_id', 'inventory_level'];
 
     public function userList()
     {

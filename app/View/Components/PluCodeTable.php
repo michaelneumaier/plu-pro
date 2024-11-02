@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Contracts\View\View;
 use Illuminate\View\Component;
 use App\Models\PLUCode;
+use App\Models\ListItem;
 
 class PluCodeTable extends Component
 {
@@ -17,10 +18,12 @@ class PluCodeTable extends Component
     public $pluCodes;
     public $onDelete;
     public $onAdd;
+    public $userListId;
 
-    public function __construct($collection, $onDelete = null, $onAdd = null, $selectedCategory = null, $selectedCommodity = null)
+    public function __construct($collection, $onDelete = null, $onAdd = null, $selectedCategory = null, $selectedCommodity = null, $userListId = null)
     {
         $this->collection = $collection;
+        $this->userListId = $userListId;
         $this->pluCodes = $this->processCollection($collection);
         $this->onDelete = $onDelete;
         $this->onAdd = $onAdd;
@@ -32,24 +35,45 @@ class PluCodeTable extends Component
     {
         // Check if the first item is a PLUCode instance
         if ($collection->first() instanceof PLUCode) {
-            return $collection;
+            // Eager load the ListItems filtered by userListId
+            $collection->load(['listItems' => function ($query) {
+                $query->where('user_list_id', $this->userListId);
+            }]);
+
+            // Attach the specific ListItem to each PLUCode
+            return $collection->map(function ($pluCode) {
+                $pluCode->listItem = $pluCode->listItems->first();
+                return $pluCode;
+            });
         }
 
-        // Otherwise, assume it's a collection of List Items with 'plu_id'
+        // Otherwise, assume it's a collection of List Items with 'plu_code_id'
         // Extract PLU IDs
         $pluIds = $collection->pluck('plu_code_id')->unique();
 
-        $collection = PLUCode::whereIn('id', $pluIds)->get();
+        // Fetch PLUCodes with their corresponding ListItems for the userListId
+        $pluCodes = PLUCode::whereIn('id', $pluIds)
+            ->with(['listItems' => function ($query) {
+                $query->where('user_list_id', $this->userListId);
+            }])
+            ->get();
+
+        // Apply filters if any
         if ($this->selectedCommodity) {
-            $collection->where('commodity', $this->selectedCommodity);
+            $pluCodes = $pluCodes->where('commodity', $this->selectedCommodity);
         }
 
-        // Apply category filter if selected
         if ($this->selectedCategory) {
-            $collection->where('category', $this->selectedCategory);
+            $pluCodes = $pluCodes->where('category', $this->selectedCategory);
         }
-        // Fetch PLU Codes based on IDs
-        return $collection;
+
+        // Attach the specific ListItem to each PLUCode
+        $pluCodes = $pluCodes->map(function ($pluCode) {
+            $pluCode->listItem = $pluCode->listItems->first();
+            return $pluCode;
+        });
+
+        return $pluCodes;
     }
     /**
      * Get the view / contents that represent the component.
