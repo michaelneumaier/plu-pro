@@ -22,7 +22,7 @@ $colCount = $hasActions ? 5 : 4;
 
         <!-- PLU Code Items -->
         @foreach($pluCodes as $pluCode)
-        <div class="grid grid-cols-[3rem,1fr,auto] min-h-12 bg-white hover:bg-gray-50 cursor-pointer border-b border-gray-200 last:border-b-0"
+        <div class="grid grid-cols-[3rem,1fr,auto,auto] min-h-12 bg-white hover:bg-gray-50 cursor-pointer border-b border-gray-200 last:border-b-0"
             wire:click="$dispatch('pluCodeSelected', [{{ $pluCode->id }}])">
             <div class="flex items-center p-1">
                 <div
@@ -54,11 +54,11 @@ $colCount = $hasActions ? 5 : 4;
             </div>
 
             @if($hasActions)
-            <div class="flex hidden items-center">
+            <div class="flex items-center">
                 @if($onDelete)
                 <button onclick="if(!confirm('Are you sure you want to remove this PLU Code from your list?')) return;"
                     wire:click.stop="{{ $onDelete }}({{ $pluCode->id }})"
-                    class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded mr-2">
+                    class="bg-red-500 hidden hover:bg-red-700 text-white font-bold py-1 px-2 rounded mr-2">
                     Delete
                 </button>
                 @endif
