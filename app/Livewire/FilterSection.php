@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use Livewire\Component;
 use Livewire\Attributes\On;
+use Livewire\Attributes\Url;
 
 class FilterSection extends Component
 {
@@ -12,7 +13,10 @@ class FilterSection extends Component
     public $commodities = [];
 
     // Selected filters
+    #[Url]
     public $selectedCategory = '';
+
+    #[Url]
     public $selectedCommodity = '';
 
     /**
@@ -31,32 +35,22 @@ class FilterSection extends Component
         $this->selectedCommodity = $selectedCommodity;
     }
 
-    #[On('refreshFilters')]
-    public function refreshFilters($categories, $commodities)
-    {
-        $this->categories = $categories;
-        $this->commodities = $commodities;
-    }
-
     public function updatedSelectedCategory()
-    {
-        $this->emitFiltersUpdated();
-    }
-
-    public function updatedSelectedCommodity()
-    {
-        $this->emitFiltersUpdated();
-    }
-
-    /**
-     * Emit the 'filtersUpdated' event with current filter selections.
-     */
-    public function emitFiltersUpdated()
     {
         $this->dispatch('filtersUpdated', [
             'selectedCategory' => $this->selectedCategory,
             'selectedCommodity' => $this->selectedCommodity,
         ]);
+        $this->dispatch('filter-changed');
+    }
+
+    public function updatedSelectedCommodity()
+    {
+        $this->dispatch('filtersUpdated', [
+            'selectedCategory' => $this->selectedCategory,
+            'selectedCommodity' => $this->selectedCommodity,
+        ]);
+        $this->dispatch('filter-changed');
     }
 
     /**
@@ -66,7 +60,10 @@ class FilterSection extends Component
     {
         $this->selectedCategory = '';
         $this->selectedCommodity = '';
-        $this->emitFiltersUpdated();
+        $this->dispatch('filtersUpdated', [
+            'selectedCategory' => '',
+            'selectedCommodity' => '',
+        ]);
     }
 
     /**

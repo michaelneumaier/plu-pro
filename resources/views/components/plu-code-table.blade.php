@@ -5,7 +5,8 @@ $hasActions = $onDelete || $onAdd;
 $colCount = $hasActions ? 5 : 4;
 @endphp
 
-<div class="w-full">
+<div class="w-full" x-data="{ showDeleteButtons: false }"
+    @toggle-delete-buttons.window="showDeleteButtons = !showDeleteButtons">
     @if($pluCodes->count())
     <div class="bg-white shadow-sm rounded-lg overflow-hidden border border-gray-200">
         <!-- Header -->
@@ -30,7 +31,7 @@ $colCount = $hasActions ? 5 : 4;
                     <span class="font-mono font-semibold">{{ $pluCode->plu }}</span>
                 </div>
             </div>
-            <div class="flex flex-col p-1 text-sm self-end overflow-hidden text-ellipsis whitespace-nowrap flex-grow">
+            <div class="flex flex-col py-1 text-sm self-end overflow-hidden text-ellipsis whitespace-nowrap flex-grow">
                 <span class="font-bold">{{ $pluCode->variety }}
                     @if(!empty($pluCode->aka))
                     <span class="text-gray-500"> - {{ $pluCode->aka }}</span>
@@ -48,23 +49,34 @@ $colCount = $hasActions ? 5 : 4;
             <!-- Inventory Level Component -->
             <div class="flex items-center p-1">
                 @if($pluCode->listItem)
-                <livewire:inventory-level :listItem="$pluCode->listItem"
-                    wire:key="inventory-level-{{ $pluCode->id }}" />
+                <livewire:inventory-level :listItemId="$pluCode->listItem->id" :userListId="$userListId"
+                    :wire:key="'inventory-level-' . $pluCode->listItem->id . '-' . $userListId" />
                 @endif
             </div>
 
             @if($hasActions)
             <div class="flex items-center">
                 @if($onDelete)
-                <button onclick="if(!confirm('Are you sure you want to remove this PLU Code from your list?')) return;"
+                <button x-show="showDeleteButtons" x-transition:enter="transition ease-out duration-300"
+                    x-transition:enter-start="opacity-0 transform scale-90"
+                    x-transition:enter-end="opacity-100 transform scale-100"
+                    x-transition:leave="transition ease-in duration-200"
+                    x-transition:leave-start="opacity-100 transform scale-100"
+                    x-transition:leave-end="opacity-0 transform scale-90"
+                    onclick="if(!confirm('Are you sure you want to remove this PLU Code from your list?')) return;"
                     wire:click.stop="{{ $onDelete }}({{ $pluCode->id }})"
-                    class="bg-red-500 hidden hover:bg-red-700 text-white font-bold py-1 px-2 rounded mr-2">
-                    Delete
+                    class="w-6 h-6 mr-1 bg-red-500 hover:bg-red-700 text-white text-sm font-bold rounded flex items-center justify-center"
+                    aria-label="Delete">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
                 </button>
                 @endif
                 @if($onAdd)
                 <button wire:click.stop="{{ $onAdd }}({{ $pluCode->id }})"
-                    class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded">
+                    class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded mx-1">
                     Add
                 </button>
                 @endif

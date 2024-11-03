@@ -24,11 +24,11 @@ class PluCodeTable extends Component
     {
         $this->collection = $collection;
         $this->userListId = $userListId;
-        $this->pluCodes = $this->processCollection($collection);
         $this->onDelete = $onDelete;
         $this->onAdd = $onAdd;
         $this->selectedCategory = $selectedCategory;
         $this->selectedCommodity = $selectedCommodity;
+        $this->pluCodes = $this->processCollection($collection);
     }
 
     protected function processCollection($collection)

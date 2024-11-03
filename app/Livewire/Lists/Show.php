@@ -3,6 +3,7 @@
 namespace App\Livewire\Lists;
 
 use Livewire\Component;
+use Livewire\Attributes\Url;
 use App\Models\UserList;
 use App\Models\PLUCode;
 use App\Models\ListItem;
@@ -14,15 +15,17 @@ class Show extends Component
     public $searchTerm;
     public $availablePLUCodes;
 
-    public $selectedCommodity = '';
+    #[Url]
     public $selectedCategory = '';
+
+    #[Url]
+    public $selectedCommodity = '';
 
     // Available filter options
     public $commodities = [];
     public $categories = [];
 
     protected $listeners = [
-        'refreshComponent' => '$refresh',
         'filtersUpdated' => 'handleFiltersUpdated',
     ];
 
@@ -70,7 +73,9 @@ class Show extends Component
     {
         $this->selectedCategory = $filters['selectedCategory'];
         $this->selectedCommodity = $filters['selectedCommodity'];
-        $this->dispatch('refreshComponent');
+
+        // Force a re-render of the entire component
+        $this->render();
     }
 
     public function updatedSelectedCategory()
@@ -118,28 +123,26 @@ class Show extends Component
         if (!$exists) {
             $this->userList->listItems()->create([
                 'plu_code_id' => $pluCodeId,
-                'inventory_level' => 0.0, // Initialize inventory level
+                'inventory_level' => 0.0,
             ]);
         }
         $this->initializeFilterOptions();
-        $this->dispatch('refreshComponent');
+        // Force a complete refresh of the component
+        $this->dispatch('refresh-list')->self();
     }
 
     public function removePLUCode($pluCodeId)
     {
-        // Find the ListItem corresponding to the given PLU Code ID
         $listItem = $this->userList->listItems()->where('plu_code_id', $pluCodeId)->first();
 
-        // Check if the ListItem exists
         if ($listItem) {
-            $listItem->delete(); // Delete the ListItem
-            session()->flash('message', 'PLU Code removed from your list.'); // Optional: Flash message for success
+            $listItem->delete();
+            session()->flash('message', 'PLU Code removed from your list.');
         } else {
-            session()->flash('error', 'PLU Code not found in your list.'); // Optional: Flash message for error
+            session()->flash('error', 'PLU Code not found in your list.');
         }
 
         $this->initializeFilterOptions();
-        $this->dispatch('refreshComponent');
     }
 
     public function deletePlu($pluCodeId)
@@ -160,9 +163,10 @@ class Show extends Component
     public function render()
     {
         // Start with the list items associated with the user list
-        $listItemsQuery = $this->userList->listItems()->with('pluCode');
+        $listItemsQuery = $this->userList->listItems()
+            ->with(['pluCode']); // Eager load relationships
 
-        // Apply the commodity filter if selected
+        // Apply filters
         if ($this->selectedCommodity) {
             $listItemsQuery->whereHas('pluCode', function ($query) {
                 $query->where('commodity', $this->selectedCommodity);
@@ -175,23 +179,8 @@ class Show extends Component
             });
         }
 
-        // Apply search term if provided
-        if ($this->searchTerm) {
-            $listItemsQuery->where(function ($q) {
-                $q->whereHas('pluCode', function ($query) {
-                    $query->where('plu', 'like', '%' . $this->searchTerm . '%')
-                        ->orWhere('variety', 'like', '%' . $this->searchTerm . '%')
-                        ->orWhere('commodity', 'like', '%' . $this->searchTerm . '%')
-                        ->orWhere('aka', 'like', '%' . $this->searchTerm . '%');
-                });
-            });
-        }
-
-        // Paginate the results
-        $listItems = $listItemsQuery->paginate(10);
-
-        // Fetch available PLU Codes based on search
-        // (Assuming you have logic for this elsewhere)
+        // Get the results and ensure PLUCode relationship is loaded
+        $listItems = $listItemsQuery->get();
 
         return view('livewire.lists.show', [
             'listItems' => $listItems,
