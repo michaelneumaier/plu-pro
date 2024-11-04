@@ -1,6 +1,6 @@
 <div>
     @if($listItem && isset($currentValue))
-    <div class="flex items-center space-x-0.5" wire:loading.class="opacity-50">
+    <div class="flex items-center space-x-0.5">
         @php
         $isHalf = ($currentValue - intval($currentValue)) >= 0.5;
         @endphp
