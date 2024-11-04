@@ -25,6 +25,9 @@
                 </div>
             </div>
             @if(Auth::check())
+            <x-nav-link href="{{ route('lists.index') }}" :active="request()->routeIs('lists.*')">
+                {{ __('My Lists') }}
+            </x-nav-link>
             <div class="hidden sm:flex sm:items-center sm:ms-6">
                 <!-- Teams Dropdown -->
                 @if (Laravel\Jetstream\Jetstream::hasTeamFeatures())

@@ -19,6 +19,10 @@ class FilterSection extends Component
     #[Url]
     public $selectedCommodity = '';
 
+    protected $listeners = [
+        'refreshFilters' => 'handleRefreshFilters'
+    ];
+
     /**
      * Mount the component with filter options and initial selections.
      *
@@ -64,6 +68,21 @@ class FilterSection extends Component
             'selectedCategory' => '',
             'selectedCommodity' => '',
         ]);
+    }
+
+    public function handleRefreshFilters($commodities, $categories)
+    {
+        $this->commodities = $commodities;
+        $this->categories = $categories;
+
+        // If the currently selected category/commodity no longer exists in the new lists,
+        // reset those selections
+        if (!in_array($this->selectedCategory, $categories)) {
+            $this->selectedCategory = '';
+        }
+        if (!in_array($this->selectedCommodity, $commodities)) {
+            $this->selectedCommodity = '';
+        }
     }
 
     /**

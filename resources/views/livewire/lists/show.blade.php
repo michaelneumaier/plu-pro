@@ -3,9 +3,9 @@
 
     <h2 class="text-xl font-semibold mb-2">List Items</h2>
     <livewire:filter-section :categories="$categories" :commodities="$commodities" :selectedCategory="$selectedCategory"
-        :selectedCommodity="$selectedCommodity" />
+        :selectedCommodity="$selectedCommodity" :key="'filter-section-' . $userList->id" />
 
-    <div wire:key="list-items-{{ $selectedCategory }}-{{ $selectedCommodity }}">
+    <div>
         <x-plu-code-table :collection="$listItems" :selectedCategory="$selectedCategory"
             :selectedCommodity="$selectedCommodity" :userListId="$userList->id" onDelete="removePLUCode" />
     </div>
@@ -21,7 +21,8 @@
         </button>
     </div>
 
-    <div wire:key="carousel-{{ $userList->id }}">
+    <div wire:key="carousel-{{ $userList->id }}" x-data="{ show: false }" x-cloak x-show="show"
+        @carousel-open.window="show = true" @carousel-close.window="show = false">
         @livewire('item-carousel', ['userListId' => $userList->id])
     </div>
 
@@ -29,8 +30,11 @@
         <h2 class="text-xl font-semibold mb-2">Add PLU Codes</h2>
         <input type="text" wire:model.live.debounce.300ms="searchTerm" placeholder="Search PLU Codes..."
             class="border p-1 w-full mb-4">
-
-        <x-plu-code-table :collection="$availablePLUCodes" :userListId="$userList->id" onAdd="addPLUCode"
-            wire:key="available-plu-codes-table-{{ $userList->id }}-{{ $searchTerm }}" />
+        <x-plu-code-table :collection="$pluCodes" :userListId="$userList->id" onAdd="addPLUCode" />
+        @if($pluCodes instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator)
+        <div class="mt-4">
+            {{ $pluCodes->links(data: ['scrollTo' => false]) }}
+        </div>
+        @endif
     </div>
 </div>

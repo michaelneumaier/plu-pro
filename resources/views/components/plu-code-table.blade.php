@@ -24,7 +24,8 @@ $colCount = $hasActions ? 5 : 4;
         <!-- PLU Code Items -->
         @foreach($pluCodes as $pluCode)
         <div class="grid grid-cols-[3rem,1fr,auto,auto] min-h-12 bg-white hover:bg-gray-50 cursor-pointer border-b border-gray-200 last:border-b-0"
-            wire:click="$dispatch('pluCodeSelected', [{{ $pluCode->id }}])">
+            wire:click="$dispatch('pluCodeSelected', [{{ $pluCode->id }}])"
+            wire:key="plu-code-{{ $pluCode->id }}-{{ $onAdd ? 'add' : ($onDelete ? 'delete' : '') }}">
             <div class="flex items-center p-1">
                 <div
                     class="flex items-center justify-center w-10 h-7 sm:w-12 sm:h-8 bg-green-100 text-sm text-green-800 border border-green-200 rounded overflow-hidden">
@@ -48,9 +49,9 @@ $colCount = $hasActions ? 5 : 4;
             </div>
             <!-- Inventory Level Component -->
             <div class="flex items-center p-1">
-                @if($pluCode->listItem)
+                @if($pluCode->listItem && !$onAdd)
                 <livewire:inventory-level :listItemId="$pluCode->listItem->id" :userListId="$userListId"
-                    :wire:key="'inventory-level-' . $pluCode->listItem->id . '-' . $userListId" />
+                    :key="'inventory-level-' . $pluCode->listItem->id . '-' . $userListId" />
                 @endif
             </div>
 
@@ -64,7 +65,7 @@ $colCount = $hasActions ? 5 : 4;
                     x-transition:leave-start="opacity-100 transform scale-100"
                     x-transition:leave-end="opacity-0 transform scale-90"
                     onclick="if(!confirm('Are you sure you want to remove this PLU Code from your list?')) return;"
-                    wire:click.stop="{{ $onDelete }}({{ $pluCode->id }})"
+                    wire:click.stop="{{ $onDelete }}({{ $pluCode->id }})" wire:key="delete-button-{{ $pluCode->id }}"
                     class="w-6 h-6 mr-1 bg-red-500 hover:bg-red-700 text-white text-sm font-bold rounded flex items-center justify-center"
                     aria-label="Delete">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"

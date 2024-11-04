@@ -54,6 +54,11 @@
     <div>
         @if($pluCodes->count())
         <x-plu-code-table :collection="$pluCodes" />
+        @if($pluCodes instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator)
+        <div class="mt-4">
+            {{ $pluCodes->links() }}
+        </div>
+        @endif
         @else
         <p class="mt-4 p-4 bg-red-100 text-red-700 rounded">No PLU Codes found.</p>
         @endif

@@ -14,7 +14,6 @@ class InventoryLevel extends Component
     public $inventoryLevel;
 
     protected $listeners = [
-        'inventoryUpdated' => '$refresh',
         'filter-changed' => '$refresh'
     ];
 
@@ -54,14 +53,26 @@ class InventoryLevel extends Component
 
     public function saveEdit()
     {
-        $this->validate();
+        $this->validate([
+            'editableValue' => ['required', 'numeric', 'min:0', 'regex:/^\d*\.?[05]$/'],
+        ], [
+            'editableValue.regex' => 'Value must be in .5 increments.',
+        ]);
+
+        $newValue = (float) $this->editableValue;
+        $oldValue = $this->inventoryLevel;
+        $this->inventoryLevel = $newValue;
 
         $listItem = $this->getListItem();
         if ($listItem) {
-            $newValue = (float) $this->editableValue;
-            if ($newValue !== $listItem->inventory_level) {
+            try {
                 $listItem->update(['inventory_level' => $newValue]);
-                $this->dispatch('inventoryUpdated');
+            } catch (\Exception $e) {
+                $this->inventoryLevel = $oldValue;
+                $this->dispatch('notify', [
+                    'type' => 'error',
+                    'message' => 'Failed to update inventory. Please try again.'
+                ]);
             }
         }
 
@@ -71,37 +82,77 @@ class InventoryLevel extends Component
 
     public function increment()
     {
+        $this->inventoryLevel += 1;
+
         $listItem = $this->getListItem();
         if ($listItem) {
-            $listItem->increment('inventory_level', 1);
-            $this->dispatch('inventoryUpdated');
+            try {
+                $listItem->increment('inventory_level', 1);
+            } catch (\Exception $e) {
+                $this->inventoryLevel -= 1;
+                $this->dispatch('notify', [
+                    'type' => 'error',
+                    'message' => 'Failed to update inventory. Please try again.'
+                ]);
+            }
         }
     }
 
     public function decrement()
     {
-        $listItem = $this->getListItem();
-        if ($listItem && $listItem->inventory_level >= 1) {
-            $listItem->decrement('inventory_level', 1);
-            $this->dispatch('inventoryUpdated');
+        if ($this->inventoryLevel >= 1) {
+            $this->inventoryLevel -= 1;
+
+            $listItem = $this->getListItem();
+            if ($listItem) {
+                try {
+                    $listItem->decrement('inventory_level', 1);
+                } catch (\Exception $e) {
+                    $this->inventoryLevel += 1;
+                    $this->dispatch('notify', [
+                        'type' => 'error',
+                        'message' => 'Failed to update inventory. Please try again.'
+                    ]);
+                }
+            }
         }
     }
 
     public function addHalf()
     {
+        $this->inventoryLevel += 0.5;
+
         $listItem = $this->getListItem();
         if ($listItem) {
-            $listItem->increment('inventory_level', 0.5);
-            $this->dispatch('inventoryUpdated');
+            try {
+                $listItem->increment('inventory_level', 0.5);
+            } catch (\Exception $e) {
+                $this->inventoryLevel -= 0.5;
+                $this->dispatch('notify', [
+                    'type' => 'error',
+                    'message' => 'Failed to update inventory. Please try again.'
+                ]);
+            }
         }
     }
 
     public function subtractHalf()
     {
-        $listItem = $this->getListItem();
-        if ($listItem && ($listItem->inventory_level - 0.5) >= 0) {
-            $listItem->decrement('inventory_level', 0.5);
-            $this->dispatch('inventoryUpdated');
+        if (($this->inventoryLevel - 0.5) >= 0) {
+            $this->inventoryLevel -= 0.5;
+
+            $listItem = $this->getListItem();
+            if ($listItem) {
+                try {
+                    $listItem->decrement('inventory_level', 0.5);
+                } catch (\Exception $e) {
+                    $this->inventoryLevel += 0.5;
+                    $this->dispatch('notify', [
+                        'type' => 'error',
+                        'message' => 'Failed to update inventory. Please try again.'
+                    ]);
+                }
+            }
         }
     }
 

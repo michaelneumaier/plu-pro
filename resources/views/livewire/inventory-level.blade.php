@@ -1,6 +1,6 @@
 <div>
     @if($listItem && isset($currentValue))
-    <div class="flex items-center space-x-0.5">
+    <div class="flex items-center space-x-0.5" wire:loading.class="opacity-50">
         @php
         $isHalf = ($currentValue - intval($currentValue)) >= 0.5;
         @endphp
@@ -29,7 +29,7 @@
             @enderror
             @else
             <span class="w-8 text-md font-semibold cursor-pointer hover:text-blue-600 block text-center"
-                wire:click.stop="startEditing" title="Click to edit inventory level">
+                wire:click.stop="startEditing" title="Click to edit inventory level" wire:loading.class="opacity-50">
                 {{ number_format($currentValue, 1) }}
             </span>
             @endif

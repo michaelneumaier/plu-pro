@@ -3,6 +3,7 @@
 namespace App\Livewire\Lists;
 
 use Livewire\Component;
+use Livewire\WithPagination;
 use Livewire\Attributes\Url;
 use App\Models\UserList;
 use App\Models\PLUCode;
@@ -10,10 +11,12 @@ use App\Models\ListItem;
 
 class Show extends Component
 {
+    use WithPagination;
+
     public $userId;
     public $userList;
     public $searchTerm;
-    public $availablePLUCodes;
+    //public $availablePLUCodes;
 
     #[Url]
     public $selectedCategory = '';
@@ -33,12 +36,19 @@ class Show extends Component
         'searchTerm' => ['except' => ''],
         'selectedCommodity' => ['except' => ''],
         'selectedCategory' => ['except' => ''],
+        'page' => ['except' => 1],
     ];
+
+    // Add this property to specify which page parameter to use for available PLU codes
+    protected $paginationTheme = 'tailwind';
+
+    #[Url]
+    public $page = 1;
 
     public function mount(UserList $userList)
     {
         $this->userList = $userList;
-        $this->availablePLUCodes = collect();
+        //$this->availablePLUCodes = collect();
         $this->initializeFilterOptions();
     }
 
@@ -102,19 +112,7 @@ class Show extends Component
 
     public function updatedSearchTerm()
     {
-        if (strlen(trim($this->searchTerm)) < 2) {
-            $this->availablePLUCodes = collect(); // Empty collection
-            return;
-        }
-
-        //$searchTerm = '%' . addcslashes(trim($this->searchTerm), '%_') . '%';
-
-        $this->availablePLUCodes = PLUCode::where('plu', 'like', '%' . $this->searchTerm . '%')
-            ->orWhere('variety', 'like', '%' . $this->searchTerm . '%')
-            ->orWhere('commodity', 'like', '%' . $this->searchTerm . '%')
-            ->orWhere('aka', 'like', '%' . $this->searchTerm . '%')
-            ->limit(30)
-            ->get();
+        $this->page = 1;
     }
 
     public function addPLUCode($pluCodeId)
@@ -162,9 +160,22 @@ class Show extends Component
 
     public function render()
     {
-        // Start with the list items associated with the user list
+        $availablePLUCodesQuery = PLUCode::query();
+        $pluCodes = collect();
+
+        if (strlen(trim($this->searchTerm)) >= 2) {
+            $availablePLUCodesQuery->where(function ($q) {
+                $q->where('plu', 'like', '%' . $this->searchTerm . '%')
+                    ->orWhere('variety', 'like', '%' . $this->searchTerm . '%')
+                    ->orWhere('commodity', 'like', '%' . $this->searchTerm . '%')
+                    ->orWhere('aka', 'like', '%' . $this->searchTerm . '%');
+            });
+            $pluCodes = $availablePLUCodesQuery->paginate(10)->withQueryString();
+        }
+
+        // Get the list items query
         $listItemsQuery = $this->userList->listItems()
-            ->with(['pluCode']); // Eager load relationships
+            ->with(['pluCode']);
 
         // Apply filters
         if ($this->selectedCommodity) {
@@ -179,12 +190,11 @@ class Show extends Component
             });
         }
 
-        // Get the results and ensure PLUCode relationship is loaded
-        $listItems = $listItemsQuery->get();
+        // Get paginated results for available PLU codes
 
         return view('livewire.lists.show', [
-            'listItems' => $listItems,
-            'availablePLUCodes' => $this->availablePLUCodes,
+            'listItems' => $listItemsQuery->get(),
+            'pluCodes' => $pluCodes,
             'categories' => $this->categories,
             'commodities' => $this->commodities,
         ]);
