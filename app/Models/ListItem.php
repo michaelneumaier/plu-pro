@@ -6,7 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class ListItem extends Model
 {
-    protected $fillable = ['plu_code_id', 'user_list_id', 'inventory_level'];
+    protected $fillable = ['plu_code_id', 'user_list_id', 'inventory_level', 'organic'];
+
+    protected $casts = [
+        'organic' => 'boolean',
+    ];
 
     public function userList()
     {

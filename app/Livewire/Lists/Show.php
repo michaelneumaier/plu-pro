@@ -120,17 +120,18 @@ class Show extends Component
         $this->resetPage();
     }
 
-    public function addPLUCode($pluCodeId)
+    public function addPLUCode($pluCodeId, $organic = false)
     {
         $exists = $this->userList->listItems()
             ->where('plu_code_id', $pluCodeId)
             ->exists();
 
         if (!$exists) {
-            DB::transaction(function () use ($pluCodeId) {
+            DB::transaction(function () use ($pluCodeId, $organic) {
                 $listItem = $this->userList->listItems()->create([
                     'plu_code_id' => $pluCodeId,
                     'inventory_level' => 0.0,
+                    'organic' => $organic,
                 ]);
 
                 // Force a refresh of the relationships
@@ -138,8 +139,6 @@ class Show extends Component
                 $this->initializeFilterOptions();
             });
         }
-
-        // Re-enable Add buttons after render
     }
 
     public function retryAddPlu($pluCodeId)
