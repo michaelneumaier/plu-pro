@@ -169,4 +169,10 @@ class InventoryLevel extends Component
             'currentValue' => $this->inventoryLevel
         ]);
     }
+
+    public function dehydrate()
+    {
+        // Ensure clean state when component is serialized
+        $this->isEditing = false;
+    }
 }

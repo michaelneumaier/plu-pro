@@ -8,6 +8,7 @@ use Livewire\Attributes\Url;
 use App\Models\UserList;
 use App\Models\PLUCode;
 use App\Models\ListItem;
+use Illuminate\Support\Facades\DB;
 
 class Show extends Component
 {
@@ -30,6 +31,7 @@ class Show extends Component
 
     protected $listeners = [
         'filtersUpdated' => 'handleFiltersUpdated',
+        'retry-add-plu' => 'retryAddPlu',
     ];
 
     protected $queryString = [
@@ -44,6 +46,8 @@ class Show extends Component
 
     #[Url]
     public $page = 1;
+
+    public $isProcessing = false;
 
     public function mount(UserList $userList)
     {
@@ -76,6 +80,7 @@ class Show extends Component
             ->sort()
             ->values()
             ->toArray();
+
         $this->dispatch('refreshFilters', commodities: $this->commodities, categories: $this->categories);
     }
 
@@ -112,35 +117,52 @@ class Show extends Component
 
     public function updatedSearchTerm()
     {
-        $this->page = 1;
+        $this->resetPage();
     }
 
     public function addPLUCode($pluCodeId)
     {
-        $exists = $this->userList->listItems()->where('plu_code_id', $pluCodeId)->exists();
+        $exists = $this->userList->listItems()
+            ->where('plu_code_id', $pluCodeId)
+            ->exists();
+
         if (!$exists) {
-            $this->userList->listItems()->create([
-                'plu_code_id' => $pluCodeId,
-                'inventory_level' => 0.0,
-            ]);
+            DB::transaction(function () use ($pluCodeId) {
+                $listItem = $this->userList->listItems()->create([
+                    'plu_code_id' => $pluCodeId,
+                    'inventory_level' => 0.0,
+                ]);
+
+                // Force a refresh of the relationships
+                $this->userList->load(['listItems.pluCode']);
+                $this->initializeFilterOptions();
+            });
         }
-        $this->initializeFilterOptions();
-        // Force a complete refresh of the component
-        $this->dispatch('refresh-list')->self();
+
+        // Re-enable Add buttons after render
+    }
+
+    public function retryAddPlu($pluCodeId)
+    {
+        $this->addPLUCode($pluCodeId);
     }
 
     public function removePLUCode($pluCodeId)
     {
-        $listItem = $this->userList->listItems()->where('plu_code_id', $pluCodeId)->first();
+        DB::transaction(function () use ($pluCodeId) {
+            $listItem = $this->userList->listItems()
+                ->where('plu_code_id', $pluCodeId)
+                ->first();
 
-        if ($listItem) {
-            $listItem->delete();
-            session()->flash('message', 'PLU Code removed from your list.');
-        } else {
-            session()->flash('error', 'PLU Code not found in your list.');
-        }
-
-        $this->initializeFilterOptions();
+            if ($listItem) {
+                $listItem->delete();
+                $this->userList->load(['listItems.pluCode']);
+                $this->initializeFilterOptions();
+                session()->flash('message', 'PLU Code removed from your list.');
+            } else {
+                session()->flash('error', 'PLU Code not found in your list.');
+            }
+        });
     }
 
     public function deletePlu($pluCodeId)
@@ -160,41 +182,41 @@ class Show extends Component
 
     public function render()
     {
-        $availablePLUCodesQuery = PLUCode::query();
-        $pluCodes = collect();
+        $query = PLUCode::query();
+        $searchResults = collect();
 
         if (strlen(trim($this->searchTerm)) >= 2) {
-            $availablePLUCodesQuery->where(function ($q) {
+            $query->where(function ($q) {
                 $q->where('plu', 'like', '%' . $this->searchTerm . '%')
                     ->orWhere('variety', 'like', '%' . $this->searchTerm . '%')
                     ->orWhere('commodity', 'like', '%' . $this->searchTerm . '%')
                     ->orWhere('aka', 'like', '%' . $this->searchTerm . '%');
             });
-            $pluCodes = $availablePLUCodesQuery->paginate(10)->withQueryString();
+            $searchResults = $query->paginate(10)->withQueryString();
         }
 
-        // Get the list items query
-        $listItemsQuery = $this->userList->listItems()
-            ->with(['pluCode']);
-
-        // Apply filters
-        if ($this->selectedCommodity) {
-            $listItemsQuery->whereHas('pluCode', function ($query) {
-                $query->where('commodity', $this->selectedCommodity);
-            });
-        }
-
-        if ($this->selectedCategory) {
-            $listItemsQuery->whereHas('pluCode', function ($query) {
-                $query->where('category', $this->selectedCategory);
-            });
-        }
-
-        // Get paginated results for available PLU codes
+        // Get the list items with eager loading
+        $listItems = $this->userList->listItems()
+            ->with(['pluCode'])
+            ->when($this->selectedCommodity, function ($query) {
+                $query->whereHas(
+                    'pluCode',
+                    fn($q) =>
+                    $q->where('commodity', $this->selectedCommodity)
+                );
+            })
+            ->when($this->selectedCategory, function ($query) {
+                $query->whereHas(
+                    'pluCode',
+                    fn($q) =>
+                    $q->where('category', $this->selectedCategory)
+                );
+            })
+            ->get();
 
         return view('livewire.lists.show', [
-            'listItems' => $listItemsQuery->get(),
-            'pluCodes' => $pluCodes,
+            'listItems' => $listItems,
+            'pluCodes' => $searchResults,
             'categories' => $this->categories,
             'commodities' => $this->commodities,
         ]);

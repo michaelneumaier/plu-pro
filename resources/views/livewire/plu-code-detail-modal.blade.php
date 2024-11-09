@@ -21,6 +21,11 @@
                 <span class="text-4xl font-extrabold text-green-800">{{ $pluCode->plu }}</span> <!-- Dark green text -->
             </div>
 
+            <!-- Add this after the PLU number and before the General Information section -->
+            <div class="flex justify-center mb-6">
+                <x-plu-image :plu="$pluCode->plu" size="lg" class="shadow-lg" />
+            </div>
+
             <!-- General Information Section -->
             <div class="bg-gray-50 p-4 rounded-lg shadow-sm mb-4">
                 <h3 class="text-lg font-semibold mb-2">General Information</h3>

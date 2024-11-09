@@ -53,10 +53,12 @@
     <!-- PLU Codes Table -->
     <div>
         @if($pluCodes->count())
-        <x-plu-code-table :collection="$pluCodes" />
+        <div id="plu-code-table">
+            <x-plu-code-table :collection="$pluCodes" />
+        </div>
         @if($pluCodes instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator)
         <div class="mt-4">
-            {{ $pluCodes->links() }}
+            {{ $pluCodes->links(data: ['scrollTo' => '#plu-code-table']) }}
         </div>
         @endif
         @else
