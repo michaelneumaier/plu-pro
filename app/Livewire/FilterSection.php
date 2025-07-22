@@ -12,15 +12,16 @@ class FilterSection extends Component
     public $categories = [];
     public $commodities = [];
 
-    // Selected filters
-    #[Url]
+    // Selected filters - Let parent component handle URL state
     public $selectedCategory = '';
-
-    #[Url]
     public $selectedCommodity = '';
 
+    // Track if we're in the middle of an update to prevent loops
+    private $isUpdating = false;
+
     protected $listeners = [
-        'refreshFilters' => 'handleRefreshFilters'
+        'refreshFilters' => 'handleRefreshFilters',
+        'filter-state-updated' => 'syncWithParent'
     ];
 
     /**
@@ -35,26 +36,78 @@ class FilterSection extends Component
     {
         $this->categories = $categories;
         $this->commodities = $commodities;
-        $this->selectedCategory = $selectedCategory;
-        $this->selectedCommodity = $selectedCommodity;
+        
+        // Normalize empty values to ensure consistency
+        $this->selectedCategory = trim($selectedCategory ?? '') ?: '';
+        $this->selectedCommodity = trim($selectedCommodity ?? '') ?: '';
+    }
+
+    /**
+     * Hydrate method to sync state when component is refreshed
+     */
+    public function hydrate()
+    {
+        // Ensure values are always properly normalized
+        $this->selectedCategory = trim($this->selectedCategory ?? '') ?: '';
+        $this->selectedCommodity = trim($this->selectedCommodity ?? '') ?: '';
     }
 
     public function updatedSelectedCategory()
     {
-        $this->dispatch('filtersUpdated', [
-            'selectedCategory' => $this->selectedCategory,
-            'selectedCommodity' => $this->selectedCommodity,
-        ]);
-        $this->dispatch('filter-changed');
+        // Prevent infinite loops during programmatic updates
+        if ($this->isUpdating) {
+            return;
+        }
+
+        $this->dispatchFiltersUpdated();
     }
 
     public function updatedSelectedCommodity()
     {
+        // Prevent infinite loops during programmatic updates  
+        if ($this->isUpdating) {
+            return;
+        }
+
+        $this->dispatchFiltersUpdated();
+    }
+
+    /**
+     * Dispatch filter updates to parent component
+     */
+    private function dispatchFiltersUpdated()
+    {
+        // Ensure values are normalized before dispatching
+        $category = trim($this->selectedCategory ?? '') ?: '';
+        $commodity = trim($this->selectedCommodity ?? '') ?: '';
+        
         $this->dispatch('filtersUpdated', [
-            'selectedCategory' => $this->selectedCategory,
-            'selectedCommodity' => $this->selectedCommodity,
+            'selectedCategory' => $category,
+            'selectedCommodity' => $commodity,
         ]);
         $this->dispatch('filter-changed');
+    }
+
+    /**
+     * Sync with parent component state updates
+     */
+    public function syncWithParent()
+    {
+        // Just ensure we're not in an updating state
+        $this->isUpdating = false;
+    }
+
+    /**
+     * Force update the filter state from parent
+     */
+    public function updateFromParent($selectedCategory, $selectedCommodity)
+    {
+        $this->isUpdating = true;
+        
+        $this->selectedCategory = trim($selectedCategory ?? '') ?: '';
+        $this->selectedCommodity = trim($selectedCommodity ?? '') ?: '';
+        
+        $this->isUpdating = false;
     }
 
     /**
@@ -62,26 +115,43 @@ class FilterSection extends Component
      */
     public function resetFilters()
     {
+        $this->isUpdating = true;
+        
         $this->selectedCategory = '';
         $this->selectedCommodity = '';
-        $this->dispatch('filtersUpdated', [
-            'selectedCategory' => '',
-            'selectedCommodity' => '',
-        ]);
+        
+        $this->isUpdating = false;
+        
+        // Dispatch the reset
+        $this->dispatchFiltersUpdated();
     }
 
     public function handleRefreshFilters($commodities, $categories)
     {
+        $this->isUpdating = true;
+        
         $this->commodities = $commodities;
         $this->categories = $categories;
 
         // If the currently selected category/commodity no longer exists in the new lists,
         // reset those selections
-        if (!in_array($this->selectedCategory, $categories)) {
+        $filtersChanged = false;
+        
+        if (!in_array($this->selectedCategory, $categories) && $this->selectedCategory !== '') {
             $this->selectedCategory = '';
+            $filtersChanged = true;
         }
-        if (!in_array($this->selectedCommodity, $commodities)) {
+        
+        if (!in_array($this->selectedCommodity, $commodities) && $this->selectedCommodity !== '') {
             $this->selectedCommodity = '';
+            $filtersChanged = true;
+        }
+        
+        $this->isUpdating = false;
+        
+        // Only dispatch if filters actually changed
+        if ($filtersChanged) {
+            $this->dispatchFiltersUpdated();
         }
     }
 

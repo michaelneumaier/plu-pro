@@ -19,25 +19,20 @@ class Show extends Component
     public $searchTerm;
     //public $availablePLUCodes;
 
-    #[Url]
-    public $selectedCategory = '';
-
-    #[Url]
-    public $selectedCommodity = '';
+    // Remove URL-based filtering since we're doing it client-side
+    // public $selectedCategory = '';
+    // public $selectedCommodity = '';
 
     // Available filter options
     public $commodities = [];
     public $categories = [];
 
     protected $listeners = [
-        'filtersUpdated' => 'handleFiltersUpdated',
         'retry-add-plu' => 'retryAddPlu',
     ];
 
     protected $queryString = [
         'searchTerm' => ['except' => ''],
-        'selectedCommodity' => ['except' => ''],
-        'selectedCategory' => ['except' => ''],
         'page' => ['except' => 1],
     ];
 
@@ -52,7 +47,7 @@ class Show extends Component
     public function mount(UserList $userList)
     {
         $this->userList = $userList;
-        //$this->availablePLUCodes = collect();
+        
         $this->initializeFilterOptions();
     }
 
@@ -68,6 +63,7 @@ class Show extends Component
         // Update commodities
         $this->commodities = $this->processCollection($userList)
             ->pluck('commodity')
+            ->filter() // Remove null/empty values
             ->unique()
             ->sort()
             ->values()
@@ -76,6 +72,7 @@ class Show extends Component
         // Update categories
         $this->categories = $this->processCollection($userList)
             ->pluck('category')
+            ->filter() // Remove null/empty values
             ->unique()
             ->sort()
             ->values()
@@ -84,19 +81,7 @@ class Show extends Component
         $this->dispatch('refreshFilters', commodities: $this->commodities, categories: $this->categories);
     }
 
-    public function handleFiltersUpdated($filters)
-    {
-        $this->selectedCategory = $filters['selectedCategory'];
-        $this->selectedCommodity = $filters['selectedCommodity'];
-
-        // Force a re-render of the entire component
-        $this->render();
-    }
-
-    public function updatedSelectedCategory()
-    {
-        $this->resetPage();
-    }
+    // Filter methods removed - using client-side filtering now
 
     protected function processCollection($collection)
     {
@@ -137,7 +122,14 @@ class Show extends Component
                 // Force a refresh of the relationships
                 $this->userList->load(['listItems.pluCode']);
                 $this->initializeFilterOptions();
+                
+                // Notify any listening carousel components that items have changed
+                $this->dispatch('list-items-updated');
             });
+            
+            // For now, force a page refresh to ensure everything works properly
+            session()->flash('message', 'Item added successfully!');
+            $this->dispatch('item-added-refresh');
         }
     }
 
@@ -162,6 +154,8 @@ class Show extends Component
                 session()->flash('error', 'PLU Code not found in your list.');
             }
         });
+        
+        // Simple approach - let Livewire naturally re-render
     }
 
     public function deletePlu($pluCodeId)
@@ -179,6 +173,41 @@ class Show extends Component
         }
     }
 
+    public function clearAllInventoryLevels()
+    {
+        DB::transaction(function () {
+            $updated = $this->userList->listItems()
+                ->update(['inventory_level' => 0.0]);
+
+            if ($updated > 0) {
+                session()->flash('message', "Successfully reset {$updated} items to 0 inventory.");
+            } else {
+                session()->flash('message', 'No items found to update.');
+            }
+
+            // Refresh the list to show updated values
+            $this->userList->load(['listItems.pluCode']);
+        });
+
+        // Dispatch JavaScript event to clear Alpine.js local state and refresh page
+        $this->dispatch('inventory-cleared-refresh');
+    }
+
+    public function prepareAndOpenCarousel()
+    {
+        // Dispatch event to force all inventory components to sync
+        $this->dispatch('force-inventory-sync');
+        
+        // Add a delay to allow syncs to complete
+        sleep(1);
+        
+        // Force a refresh of all list items to get latest values from database
+        $this->userList->load(['listItems.pluCode']);
+        
+        // Dispatch event to open carousel with fresh data
+        $this->dispatch('carousel-ready-to-open');
+    }
+
     public function render()
     {
         $query = PLUCode::query();
@@ -194,30 +223,34 @@ class Show extends Component
             $searchResults = $query->paginate(10)->withQueryString();
         }
 
-        // Get the list items with eager loading
+        // Get all list items for client-side filtering
         $listItems = $this->userList->listItems()
             ->with(['pluCode'])
-            ->when($this->selectedCommodity, function ($query) {
-                $query->whereHas(
-                    'pluCode',
-                    fn($q) =>
-                    $q->where('commodity', $this->selectedCommodity)
-                );
-            })
-            ->when($this->selectedCategory, function ($query) {
-                $query->whereHas(
-                    'pluCode',
-                    fn($q) =>
-                    $q->where('category', $this->selectedCategory)
-                );
-            })
             ->get();
+
+        // Prepare items data for JavaScript
+        $allItemsData = $listItems->map(function($item) {
+            return [
+                'id' => $item->id,
+                'plu_code_id' => $item->plu_code_id,
+                'plu' => $item->pluCode->plu,
+                'variety' => $item->pluCode->variety,
+                'commodity' => $item->pluCode->commodity,
+                'category' => $item->pluCode->category,
+                'organic' => $item->organic,
+                'inventory_level' => $item->inventory_level,
+                'size' => $item->pluCode->size,
+                'retail_price' => $item->pluCode->retail_price,
+                'consumer_usage_tier' => $item->pluCode->consumer_usage_tier
+            ];
+        });
 
         return view('livewire.lists.show', [
             'listItems' => $listItems,
             'pluCodes' => $searchResults,
             'categories' => $this->categories,
             'commodities' => $this->commodities,
+            'allItemsData' => $allItemsData,
         ]);
     }
 }

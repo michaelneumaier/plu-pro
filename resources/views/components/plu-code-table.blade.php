@@ -29,8 +29,9 @@ $colCount = $hasActions ? 5 : 4;
             class="{{ $pluCode->listItem && $pluCode->listItem->organic ? 'bg-green-50 hover:bg-green-100' : 'bg-white hover:bg-gray-50' }} cursor-pointer border-b border-gray-200 last:border-b-0">
             <div class="grid grid-cols-[3.5rem,3rem,1fr,auto,auto] min-h-16 "
                 wire:click="$dispatch('pluCodeSelected', [{{ $pluCode->id }}])"
-                wire:key="plu-row-{{ $pluCode->id }}-{{ $userListId }}-{{ $onAdd ? 'add' : 'delete' }}">
-                <div class="flex items-center p-1">
+                wire:key="plu-row-{{ $pluCode->id }}-{{ $userListId }}"
+                data-plu-id="{{ $pluCode->id }}">
+                <div class="flex flex-col items-center justify-evenly">
                     <div
                         class="flex items-center justify-center w-12 h-7 sm:w-12 sm:h-8 bg-green-100 text-sm text-green-800 border border-green-200 rounded overflow-hidden">
                         <span class="font-mono font-semibold">
@@ -41,20 +42,22 @@ $colCount = $hasActions ? 5 : 4;
                             @endif
                         </span>
                     </div>
+                    <div class="mr-1"><x-consumer-usage-indicator :tier="$pluCode->consumer_usage_tier" /></div>
                 </div>
                 <div class="flex items-center p-1">
                     <x-plu-image :plu="$pluCode->plu" size="sm" />
                 </div>
                 <div
-                    class="flex flex-col py-1 text-sm self-end overflow-hidden text-ellipsis whitespace-nowrap flex-grow">
+                    class="flex flex-col py-1 text-sm justify-between overflow-hidden text-ellipsis whitespace-nowrap flex-grow">
+                    <div></div>
                     <span class="font-bold">{{ $pluCode->variety }}
                         @if(!empty($pluCode->aka))
                         <span class="text-gray-500"> - {{ $pluCode->aka }}</span>
                         @endif
                     </span>
-                    <div class="flex justify-between ">
+                    <div class="flex justify-between">
                         <span class="text-gray-500 capitalize inline-flex">
-                            <div class="mr-1"><x-consumer-usage-indicator :tier="$pluCode->consumer_usage_tier" /></div>
+                            
                             {{ ucwords(strtolower($pluCode->commodity))}}
                         </span>
                         <span class="text-gray-500">{{ $pluCode->size }}</span>
@@ -62,10 +65,10 @@ $colCount = $hasActions ? 5 : 4;
                     </div>
                 </div>
                 <!-- Inventory Level Component -->
-                <div class="flex items-center p-1" wire:key="inventory-wrapper-{{ $pluCode->id }}-{{ $userListId }}">
+                <div class="flex items-center p-1">
                     @if($pluCode->listItem && !$onAdd)
                     <livewire:inventory-level :listItemId="$pluCode->listItem->id" :userListId="$userListId"
-                        :wire:key="'inv-level-' . $pluCode->listItem->id . '-' . $userListId" />
+                        :wire:key="'inv-level-' . $pluCode->listItem->id" />
                     @endif
                 </div>
 
@@ -106,7 +109,7 @@ $colCount = $hasActions ? 5 : 4;
                 x-transition:leave-end="opacity-0 transform scale-90">
                 @if($pluCode->listItem && !$onAdd)
                 <livewire:organic-toggle :list-item="$pluCode->listItem"
-                    :wire:key="'organic-toggle-'.$pluCode->listItem->id" />
+                    :wire:key="'organic-toggle-stable-'.$pluCode->listItem->id" />
                 @endif
                 @if($hasActions && $onDelete)
                 <button x-show="showDeleteButtons" x-cloak

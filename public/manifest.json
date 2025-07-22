@@ -1,0 +1,37 @@
+{
+    "name": "PLUPro - Produce Lookup",
+    "short_name": "PLUPro",
+    "description": "Professional PLU code management for the produce industry",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#10b981",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": ["business", "productivity"],
+    "shortcuts": [
+        {
+            "name": "My Lists",
+            "url": "/lists",
+            "description": "View your PLU lists"
+        },
+        {
+            "name": "Search PLU",
+            "url": "/dashboard",
+            "description": "Search for PLU codes"
+        }
+    ]
+}
