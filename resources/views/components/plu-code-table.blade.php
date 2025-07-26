@@ -29,7 +29,7 @@ $colCount = $hasActions ? 5 : 4;
             class="{{ $pluCode->listItem && $pluCode->listItem->organic ? 'bg-green-50 hover:bg-green-100' : 'bg-white hover:bg-gray-50' }} cursor-pointer border-b border-gray-200 last:border-b-0">
             <div class="grid grid-cols-[3.5rem,3rem,1fr,auto,auto] min-h-16 "
                 wire:click="$dispatch('pluCodeSelected', [{{ $pluCode->id }}])"
-                wire:key="plu-row-{{ $pluCode->id }}-{{ $userListId }}"
+                wire:key="plu-row-{{ $pluCode->id }}-{{ $userListId }}-{{ $refreshToken ?? time() }}"
                 data-plu-id="{{ $pluCode->id }}">
                 <div class="flex flex-col items-center justify-evenly">
                     <div
@@ -68,7 +68,7 @@ $colCount = $hasActions ? 5 : 4;
                 <div class="flex items-center p-1">
                     @if($pluCode->listItem && !$onAdd)
                     <livewire:inventory-level :listItemId="$pluCode->listItem->id" :userListId="$userListId"
-                        :wire:key="'inv-level-' . $pluCode->listItem->id" />
+                        :wire:key="'inv-level-' . $pluCode->listItem->id . '-' . ($refreshToken ?? time())" />
                     @endif
                 </div>
 
@@ -109,7 +109,7 @@ $colCount = $hasActions ? 5 : 4;
                 x-transition:leave-end="opacity-0 transform scale-90">
                 @if($pluCode->listItem && !$onAdd)
                 <livewire:organic-toggle :list-item="$pluCode->listItem"
-                    :wire:key="'organic-toggle-stable-'.$pluCode->listItem->id" />
+                    :wire:key="'organic-toggle-' . $pluCode->listItem->id . '-' . ($refreshToken ?? time())" />
                 @endif
                 @if($hasActions && $onDelete)
                 <button x-show="showDeleteButtons" x-cloak

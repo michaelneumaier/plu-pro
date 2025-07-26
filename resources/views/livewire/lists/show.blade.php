@@ -4,56 +4,34 @@
     showAddSection: false,
     showClearModal: false,
     
-    // Client-side filter state
-    selectedCategory: '',
-    selectedCommodity: '',
-    allItems: @js($allItemsData),
-    categories: @js($categories),
-    commodities: @js($commodities),
-    
     init() {
-        // Apply initial filters if any
-        this.applyClientFilters();
-    },
-    
-    
-    applyClientFilters() {
-        // Get all PLU items on the page
-        const pluItems = document.querySelectorAll('[data-plu-id]');
+        // Initialize list manager store with server data
+        this.$store.listManager.init(@js($allItemsData));
         
-        pluItems.forEach(item => {
-            const pluId = item.getAttribute('data-plu-id');
-            const itemData = this.allItems.find(data => data.plu_code_id == pluId);
-            
-            if (!itemData) {
-                item.style.display = 'none';
-                return;
-            }
-            
-            let shouldShow = true;
-            
-            // Apply category filter
-            if (this.selectedCategory && this.selectedCategory !== '') {
-                shouldShow = shouldShow && (itemData.category === this.selectedCategory);
-            }
-            
-            // Apply commodity filter
-            if (this.selectedCommodity && this.selectedCommodity !== '') {
-                shouldShow = shouldShow && (itemData.commodity === this.selectedCommodity);
-            }
-            
-            if (shouldShow) {
-                item.style.display = '';
-            } else {
-                item.style.display = 'none';
+        // Listen for notifications
+        window.addEventListener('notify', (e) => {
+            const { message, type } = e.detail;
+            // You can integrate with your notification system here
+            console.log(`${type}: ${message}`);
+        });
+        
+        // Listen for add-item events from Alpine store
+        window.addEventListener('trigger-add-item', (e) => {
+            const { pluCodeId, organic } = e.detail;
+            const addButton = document.getElementById(organic ? 'add-organic-btn' : 'add-regular-btn');
+            if (addButton) {
+                // Set the PLU code ID and trigger the click
+                addButton.setAttribute('data-plu-id', pluCodeId);
+                addButton.click();
             }
         });
-    },
-    
-    updateFilters(category = null, commodity = null) {
-        if (category !== null) this.selectedCategory = category;
-        if (commodity !== null) this.selectedCommodity = commodity;
-        this.applyClientFilters();
+        
+        // Handle Livewire events
+        this.$wire.on('item-added-to-list', (pluCodeId) => {
+            // Update the Alpine store to reflect that the item was added successfully
+            // Don't add optimistically, just mark it as no longer temporary
+            console.log('Item added to list:', pluCodeId);
+        });
     },
     
     clearInventoryStorage() {
@@ -64,11 +42,10 @@
                 localStorage.removeItem(key);
             }
         }
-        // Force reload to refresh Alpine.js components
-        window.location.reload();
+        // Update Alpine store
+        this.$store.listManager.clearAllInventory();
     }
-}" @inventory-cleared.window="clearInventoryStorage()" @inventory-cleared-refresh.window="window.location.reload()"
-    @item-added-refresh.window="window.location.reload()"
+}" @inventory-cleared.window="clearInventoryStorage()"
     @force-inventory-sync.window="
     // Force all inventory components to sync immediately
     document.querySelectorAll('[x-data*=inventoryItem]').forEach(el => {
@@ -86,7 +63,7 @@
             <div class="flex items-center justify-between">
                 <div class="flex-1 min-w-0">
                     <h1 class="text-lg font-semibold text-gray-900 truncate">{{ $userList->name }}</h1>
-                    <p class="text-sm text-gray-500 mt-0.5">{{ $listItems->count() }} items</p>
+                    <p class="text-sm text-gray-500 mt-0.5"><span x-text="$store.listManager.items.length"></span> items</p>
                 </div>
                 <div class="flex items-center space-x-2 ml-4">
                     <button @click="showClearModal = true"
@@ -116,15 +93,64 @@
 
         <!-- Filter section - collapsible on mobile -->
         <div class="border-t border-gray-200">
-            <x-client-filter-section :categories="$categories" :commodities="$commodities" />
+            <div class="flex flex-col md:flex-row mb-1 space-y-2 md:space-y-0 bg-black bg-opacity-10 rounded-md p-1">
+                <div class="flex flex-row w-full space-x-1 md:space-x-2 flex-grow">
+                    <!-- Category Filter -->
+                    <div class="flex-1 md:p-1">
+                        <label for="category" class="block text-sm font-medium text-gray-700">Category</label>
+                        <select x-model="$store.listManager.selectedCategory" @change="$store.listManager.applyFilters()" id="category"
+                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="">All Categories</option>
+                            <template x-for="category in $store.listManager.categories" :key="category">
+                                <option :value="category" x-text="category.charAt(0).toUpperCase() + category.slice(1)"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <!-- Commodity Filter -->
+                    <div class="flex-1 md:p-1">
+                        <label for="commodity" class="block text-sm font-medium text-gray-700">Commodity</label>
+                        <select x-model="$store.listManager.selectedCommodity" @change="$store.listManager.applyFilters()" id="commodity"
+                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="">All Commodities</option>
+                            <template x-for="commodity in $store.listManager.commodities" :key="commodity">
+                                <option :value="commodity" x-text="commodity.charAt(0).toUpperCase() + commodity.slice(1)"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <!-- Reset Filters Button -->
+                    <div class="flex-shrink-0 md:p-1 flex items-end">
+                        <button @click="$store.listManager.resetFilters()"
+                            class="bg-gray-500 hover:bg-gray-700 text-white py-1 px-2 rounded">
+                            Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Main content -->
     <div class="pb-20"> <!-- Bottom padding for floating button -->
+        <!-- PLU Items Table -->
         <div wire:key="list-items-table-{{ $userList->id }}" key="stable-list-container">
-            <x-plu-code-table :collection="$listItems" :userListId="$userList->id" onDelete="removePLUCode" />
+            <x-plu-code-table :collection="$listItems" :user-list-id="$userList->id" :refresh-token="$refreshToken" onDelete="removePLUCode" />
         </div>
+    </div>
+
+    <!-- Hidden buttons for triggering add functionality -->
+    <div style="display: none;">
+        <button id="add-regular-btn" 
+                wire:click="addPLUCodeSilent($event.target.getAttribute('data-plu-id'), false)"
+                data-plu-id="">
+            Add Regular
+        </button>
+        <button id="add-organic-btn" 
+                wire:click="addPLUCodeSilent($event.target.getAttribute('data-plu-id'), true)"
+                data-plu-id="">
+            Add Organic
+        </button>
     </div>
 
     <!-- Floating scan button - centered at bottom -->
@@ -207,15 +233,9 @@
 
         <!-- Search Results -->
         <div class="flex-1 overflow-auto pb-20">
-            <div wire:key="search-results-table-{{ $userList->id }}-{{ md5($searchTerm) }}">
-                <x-plu-code-table :collection="$pluCodes" :userListId="$userList->id" onAdd="addPLUCode" />
+            <div wire:key="search-results-{{ $userList->id }}-{{ md5($searchTerm) }}">
+                <x-alpine-search-results :plu-codes="$pluCodes" :user-list-id="$userList->id" />
             </div>
-
-            @if($pluCodes instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator)
-            <div class="p-4">
-                {{ $pluCodes->links(data: ['scrollTo' => false]) }}
-            </div>
-            @endif
         </div>
     </div>
 

@@ -26,6 +26,9 @@ class Show extends Component
     // Available filter options
     public $commodities = [];
     public $categories = [];
+    
+    // Refresh token to prevent snapshot missing errors
+    public $refreshToken;
 
     protected $listeners = [
         'retry-add-plu' => 'retryAddPlu',
@@ -47,6 +50,7 @@ class Show extends Component
     public function mount(UserList $userList)
     {
         $this->userList = $userList;
+        $this->refreshToken = time(); // Initialize refresh token
         
         $this->initializeFilterOptions();
     }
@@ -105,38 +109,64 @@ class Show extends Component
         $this->resetPage();
     }
 
-    public function addPLUCode($pluCodeId, $organic = false)
+    public function addPLUCodeSilent($pluCodeId, $organic = false)
     {
+        // This method adds items without triggering component re-render
         $exists = $this->userList->listItems()
             ->where('plu_code_id', $pluCodeId)
             ->exists();
 
         if (!$exists) {
-            DB::transaction(function () use ($pluCodeId, $organic) {
-                $listItem = $this->userList->listItems()->create([
+            $listItem = DB::transaction(function () use ($pluCodeId, $organic) {
+                return $this->userList->listItems()->create([
                     'plu_code_id' => $pluCodeId,
                     'inventory_level' => 0.0,
                     'organic' => $organic,
                 ]);
-
-                // Force a refresh of the relationships
-                $this->userList->load(['listItems.pluCode']);
-                $this->initializeFilterOptions();
-                
-                // Notify any listening carousel components that items have changed
-                $this->dispatch('list-items-updated');
             });
+
+            // Load the PLU code data for the new item
+            $listItem->load('pluCode');
             
-            // For now, force a page refresh to ensure everything works properly
+            // Update refresh token to reset wire:key values and prevent snapshot errors
+            $this->refreshToken = time();
+            
+            // Dispatch event to manually append the new item to DOM
+            $this->dispatch('manually-append-item', [
+                'listItem' => $listItem->toArray(),
+                'pluCode' => $listItem->pluCode->toArray()
+            ]);
+            
+            // Return success without modifying component properties
+            return ['success' => true, 'listItem' => $listItem];
+        }
+        
+        return ['success' => false, 'message' => 'Item already exists'];
+    }
+
+    public function addPLUCode($pluCodeId, $organic = false)
+    {
+        // Use the silent method to avoid re-render issues
+        $result = $this->addPLUCodeSilent($pluCodeId, $organic);
+        
+        if ($result['success']) {
             session()->flash('message', 'Item added successfully!');
-            $this->dispatch('item-added-refresh');
+            
+            // Update the relationships for subsequent renders
+            $this->userList->load(['listItems.pluCode']);
+            $this->initializeFilterOptions();
+            
+            // Notify any listening carousel components that items have changed
+            $this->dispatch('list-items-updated');
         }
     }
+
 
     public function retryAddPlu($pluCodeId)
     {
         $this->addPLUCode($pluCodeId);
     }
+
 
     public function removePLUCode($pluCodeId)
     {
@@ -156,6 +186,48 @@ class Show extends Component
         });
         
         // Simple approach - let Livewire naturally re-render
+    }
+
+    // Headless version for removing items
+    public function removePLUCodeHeadless($pluCodeId)
+    {
+        try {
+            $listItem = $this->userList->listItems()
+                ->where('plu_code_id', $pluCodeId)
+                ->first();
+
+            if ($listItem) {
+                $listItem->delete();
+                return ['success' => true];
+            } else {
+                return ['success' => false, 'message' => 'Item not found'];
+            }
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Failed to remove item'];
+        }
+    }
+
+    // Headless version for updating list items
+    public function updateListItemHeadless($listItemId, $updates)
+    {
+        try {
+            $listItem = $this->userList->listItems()
+                ->where('id', $listItemId)
+                ->first();
+
+            if ($listItem) {
+                // Only allow specific fields to be updated
+                $allowedFields = ['organic', 'inventory_level'];
+                $filteredUpdates = array_intersect_key($updates, array_flip($allowedFields));
+                
+                $listItem->update($filteredUpdates);
+                return ['success' => true];
+            } else {
+                return ['success' => false, 'message' => 'Item not found'];
+            }
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Failed to update item'];
+        }
     }
 
     public function deletePlu($pluCodeId)
@@ -223,9 +295,10 @@ class Show extends Component
             $searchResults = $query->paginate(10)->withQueryString();
         }
 
-        // Get all list items for client-side filtering
+        // Get all list items for client-side filtering - ordered by ID for consistency
         $listItems = $this->userList->listItems()
             ->with(['pluCode'])
+            ->orderBy('id', 'asc')
             ->get();
 
         // Prepare items data for JavaScript
