@@ -134,7 +134,7 @@
          @touchmove="onTouchMove($event)" 
          @touchend="onTouchEnd($event)"
          @click="$event.target === $event.currentTarget && $wire.close()"
-         style="height: calc(100vh - 140px);"> <!-- Reserve space for header (72px) and navigation (68px) -->
+         style="height: calc(100vh - 160px);"> <!-- Reserve space for header (80px) and navigation (80px) -->
         
         @if($isLoading)
         <!-- Loading State -->
@@ -148,13 +148,17 @@
         <!-- Horizontal Carousel Container -->
         <div class="flex-1 relative overflow-hidden">
             
-            <!-- Show only current item approach -->
-            @if(isset($this->items[$currentIndex]))
-                @php $item = $this->items[$currentIndex]; @endphp
-                <!-- Current Card: PLU {{ optional($item->pluCode)->plu ?? 'N/A' }} (Index: {{ $currentIndex }}) -->
-                <div class="flex-1 flex items-center justify-center p-4"
-                     wire:key="carousel-single-card-{{ $item->id }}-{{ $currentIndex }}">
-                    <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
+            <!-- Carousel Track with All Cards for Animation -->
+            <div class="flex h-full items-center transition-transform duration-300 ease-out"
+                 style="width: calc({{ $this->items->count() }} * 100vw); transform: translateX(-{{ $currentIndex * 100 }}vw);"
+                 wire:key="carousel-track-{{ $this->items->count() }}-{{ md5(json_encode($this->items->pluck('id'))) }}">
+                
+                @foreach($this->items as $index => $item)
+                <!-- Card {{ $index }}: PLU {{ optional($item->pluCode)->plu ?? 'N/A' }} -->
+                <div class="flex-shrink-0 flex items-center justify-center px-4 py-2"
+                     style="width: 100vw; height: 100%;"
+                     wire:key="carousel-card-{{ $item->id }}-{{ $index }}">
+                    <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden max-h-full flex flex-col"
                          @click.stop>
                         
                         <!-- Product Image Section -->
@@ -181,10 +185,10 @@
                         </div>
 
                         <!-- Product Information -->
-                        <div class="p-4 space-y-3">
+                        <div class="p-4 space-y-3 flex-1 flex flex-col justify-between">
                             <!-- Debug Info -->
                             <div class="text-xs text-gray-400 text-center">
-                                Card {{ $currentIndex }} of {{ $this->items->count() }} | Current: {{ $currentIndex }}
+                                Card {{ $index }} of {{ $this->items->count() }} | Current: {{ $currentIndex }}
                             </div>
                             
                             <!-- Product Name -->
@@ -215,16 +219,17 @@
                             </div>
 
                             <!-- Barcode Section -->
-                            <div class="bg-white border border-gray-200 rounded-lg p-3">
-                                <p class="text-sm text-gray-600 text-center mb-2">Barcode</p>
+                            <div class="bg-white border border-gray-200 rounded-lg p-2">
+                                <p class="text-xs text-gray-600 text-center mb-1">Barcode</p>
                                 <div class="flex justify-center items-center">
-                                    <x-barcode code="{{ optional($item->pluCode)->plu }}" size="default" />
+                                    <x-barcode code="{{ optional($item->pluCode)->plu }}" size="sm" />
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            @endif
+                @endforeach
+            </div>
         </div>
 
         @else
