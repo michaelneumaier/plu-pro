@@ -148,16 +148,12 @@
         <!-- Horizontal Carousel Container -->
         <div class="flex-1 relative overflow-hidden">
             
-            <!-- Carousel Track with All Cards -->
-            <div class="flex h-full items-center transition-transform duration-300 ease-out"
-                 style="width: calc({{ $this->items->count() }} * 100vw); transform: translateX(-{{ ($currentIndex || 0) * 100 }}vw);"
-                 wire:key="carousel-track-{{ $this->items->count() }}-{{ md5(json_encode($this->items->pluck('id'))) }}">
-                
-                @foreach($this->items as $index => $item)
-                <!-- Card {{ $index }}: PLU {{ optional($item->pluCode)->plu ?? 'N/A' }} -->
-                <div class="flex-shrink-0 flex items-center justify-center p-4"
-                     style="width: 100vw; height: 100%;"
-                     wire:key="carousel-card-{{ $item->id }}">
+            <!-- Show only current item approach -->
+            @if(isset($this->items[$currentIndex]))
+                @php $item = $this->items[$currentIndex]; @endphp
+                <!-- Current Card: PLU {{ optional($item->pluCode)->plu ?? 'N/A' }} (Index: {{ $currentIndex }}) -->
+                <div class="flex-1 flex items-center justify-center p-4"
+                     wire:key="carousel-single-card-{{ $item->id }}-{{ $currentIndex }}">
                     <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
                          @click.stop>
                         
@@ -186,6 +182,11 @@
 
                         <!-- Product Information -->
                         <div class="p-4 space-y-3">
+                            <!-- Debug Info -->
+                            <div class="text-xs text-gray-400 text-center">
+                                Card {{ $currentIndex }} of {{ $this->items->count() }} | Current: {{ $currentIndex }}
+                            </div>
+                            
                             <!-- Product Name -->
                             <div class="text-center">
                                 <h2 class="text-2xl font-bold text-gray-900 leading-tight truncate">
@@ -223,8 +224,7 @@
                         </div>
                     </div>
                 </div>
-                @endforeach
-            </div>
+            @endif
         </div>
 
         @else
