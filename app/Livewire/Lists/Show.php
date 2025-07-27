@@ -19,9 +19,9 @@ class Show extends Component
     public $searchTerm;
     //public $availablePLUCodes;
 
-    // Remove URL-based filtering since we're doing it client-side
-    // public $selectedCategory = '';
-    // public $selectedCommodity = '';
+    // Server-side filtering to match server-side sorting
+    public $selectedCategory = '';
+    public $selectedCommodity = '';
 
     // Available filter options
     public $commodities = [];
@@ -36,6 +36,8 @@ class Show extends Component
 
     protected $queryString = [
         'searchTerm' => ['except' => ''],
+        'selectedCategory' => ['except' => ''],
+        'selectedCommodity' => ['except' => ''],
         'page' => ['except' => 1],
     ];
 
@@ -106,6 +108,23 @@ class Show extends Component
 
     public function updatedSearchTerm()
     {
+        $this->resetPage();
+    }
+    
+    public function updatedSelectedCategory()
+    {
+        $this->resetPage();
+    }
+    
+    public function updatedSelectedCommodity()
+    {
+        $this->resetPage();
+    }
+    
+    public function resetFilters()
+    {
+        $this->selectedCategory = '';
+        $this->selectedCommodity = '';
         $this->resetPage();
     }
 
@@ -322,12 +341,24 @@ class Show extends Component
             $searchResults = $query->paginate(10)->withQueryString();
         }
 
-        // Get all list items for client-side filtering - ordered by PLU code ascending (numerically)
-        $listItems = $this->userList->listItems()
+        // Get list items with server-side filtering and sorting
+        $query = $this->userList->listItems()
             ->with(['pluCode'])
-            ->join('plu_codes', 'list_items.plu_code_id', '=', 'plu_codes.id')
-            ->orderByRaw('CAST(plu_codes.plu AS UNSIGNED) ASC')
-            ->orderBy('list_items.organic', 'asc') // Regular items first, then organic
+            ->join('plu_codes', 'list_items.plu_code_id', '=', 'plu_codes.id');
+        
+        // Apply filters if selected
+        if (!empty($this->selectedCategory)) {
+            $query->where('plu_codes.category', $this->selectedCategory);
+        }
+        
+        if (!empty($this->selectedCommodity)) {
+            $query->where('plu_codes.commodity', $this->selectedCommodity);
+        }
+        
+        $listItems = $query
+            ->orderBy('plu_codes.commodity', 'asc') // Group by commodity first
+            ->orderBy('list_items.organic', 'asc') // Within commodity: regular first, then organic
+            ->orderByRaw('CAST(plu_codes.plu AS UNSIGNED) ASC') // Within organic status: PLU code ascending
             ->select('list_items.*')
             ->get()
             ->load('pluCode'); // Ensure pluCode relationship is loaded

@@ -31,18 +31,20 @@ class ItemCarousel extends Component
 
     public function fetchItems()
     {
-        $userList = UserList::with(['listItems.pluCode'])->find($this->userListId);
+        $userList = UserList::find($this->userListId);
 
         if ($userList) {
-            // Filter out items with zero or null inventory_level and sort by PLU code
-            $this->items = $userList->listItems
-                ->filter(function ($item) {
-                    return $item->inventory_level > 0;
-                })
-                ->sortBy(function ($item) {
-                    return optional($item->pluCode)->plu ?? 99999;
-                })
-                ->values(); // Re-index the collection
+            // Get items with same sorting as main list: commodity -> organic status -> PLU code
+            $this->items = $userList->listItems()
+                ->with(['pluCode'])
+                ->join('plu_codes', 'list_items.plu_code_id', '=', 'plu_codes.id')
+                ->where('list_items.inventory_level', '>', 0) // Only items with inventory
+                ->orderBy('plu_codes.commodity', 'asc') // Group by commodity first
+                ->orderBy('list_items.organic', 'asc') // Within commodity: regular first, then organic
+                ->orderByRaw('CAST(plu_codes.plu AS UNSIGNED) ASC') // Within organic status: PLU code ascending
+                ->select('list_items.*')
+                ->get()
+                ->load('pluCode'); // Ensure pluCode relationship is loaded
         } else {
             $this->items = collect();
         }

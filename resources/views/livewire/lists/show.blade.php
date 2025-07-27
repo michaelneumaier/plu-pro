@@ -63,7 +63,7 @@
             <div class="flex items-center justify-between">
                 <div class="flex-1 min-w-0">
                     <h1 class="text-lg font-semibold text-gray-900 truncate">{{ $userList->name }}</h1>
-                    <p class="text-sm text-gray-500 mt-0.5"><span x-text="$store.listManager.items.length"></span> items</p>
+                    <p class="text-sm text-gray-500 mt-0.5">{{ $listItems->count() }} items</p>
                 </div>
                 <div class="flex items-center space-x-2 ml-4">
                     <button @click="showClearModal = true"
@@ -98,30 +98,30 @@
                     <!-- Category Filter -->
                     <div class="flex-1 md:p-1">
                         <label for="category" class="block text-sm font-medium text-gray-700">Category</label>
-                        <select x-model="$store.listManager.selectedCategory" @change="$store.listManager.applyFilters()" id="category"
+                        <select wire:model.live="selectedCategory" id="category"
                             class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                             <option value="">All Categories</option>
-                            <template x-for="category in $store.listManager.categories" :key="category">
-                                <option :value="category" x-text="category.charAt(0).toUpperCase() + category.slice(1)"></option>
-                            </template>
+                            @foreach($categories as $category)
+                                <option value="{{ $category }}">{{ ucwords(strtolower($category)) }}</option>
+                            @endforeach
                         </select>
                     </div>
 
                     <!-- Commodity Filter -->
                     <div class="flex-1 md:p-1">
                         <label for="commodity" class="block text-sm font-medium text-gray-700">Commodity</label>
-                        <select x-model="$store.listManager.selectedCommodity" @change="$store.listManager.applyFilters()" id="commodity"
+                        <select wire:model.live="selectedCommodity" id="commodity"
                             class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                             <option value="">All Commodities</option>
-                            <template x-for="commodity in $store.listManager.commodities" :key="commodity">
-                                <option :value="commodity" x-text="commodity.charAt(0).toUpperCase() + commodity.slice(1)"></option>
-                            </template>
+                            @foreach($commodities as $commodity)
+                                <option value="{{ $commodity }}">{{ ucwords(strtolower($commodity)) }}</option>
+                            @endforeach
                         </select>
                     </div>
 
                     <!-- Reset Filters Button -->
                     <div class="flex-shrink-0 md:p-1 flex items-end">
-                        <button @click="$store.listManager.resetFilters()"
+                        <button wire:click="resetFilters"
                             class="bg-gray-500 hover:bg-gray-700 text-white py-1 px-2 rounded">
                             Reset
                         </button>

@@ -34,15 +34,30 @@ $colCount = $hasActions ? 5 : 4;
         </div>
 
         <!-- PLU Code Items -->
+        @php $currentCommodity = null; @endphp
         @foreach($pluCodes as $item)
         @php
             // Handle both list items (with pluCode relationship) and direct PLU codes
             $isListItem = isset($item->plu_code_id);
             $pluCode = $isListItem ? $item->pluCode : $item;
             $listItem = $isListItem ? $item : ($item->listItem ?? null);
+            
+            // Check if commodity changed for visual grouping
+            $commodityChanged = $currentCommodity !== null && $currentCommodity !== $pluCode->commodity;
+            $currentCommodity = $pluCode->commodity;
         @endphp
+        
+        @if($commodityChanged || $loop->first)
+        <!-- Commodity separator -->
+        <div class="border-t-2 border-gray-300 bg-gray-50">
+            <div class="px-4 py-1 text-xs font-medium text-gray-600 uppercase tracking-wide">
+                {{ ucwords(strtolower($pluCode->commodity)) }}
+            </div>
+        </div>
+        @endif
+        
         <div
-            class="{{ $listItem && $listItem->organic ? 'bg-green-50 hover:bg-green-100' : 'bg-white hover:bg-gray-50' }} cursor-pointer border-b border-gray-200 last:border-b-0">
+            class="{{ $listItem && $listItem->organic ? 'bg-green-50 hover:bg-green-100' : 'bg-white hover:bg-gray-50' }} cursor-pointer border-b border-gray-200 last:border-b-0 {{ $commodityChanged ? 'border-t-0' : '' }}">
             <div class="grid grid-cols-[3.5rem,3rem,1fr,auto,auto] min-h-16 "
                 wire:click="$dispatch('pluCodeSelected', [{{ $pluCode->id }}])"
                 wire:key="plu-row-{{ $listItem ? $listItem->id : $pluCode->id }}-{{ $userListId }}-{{ $refreshToken ?? time() }}"

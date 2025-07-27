@@ -1,19 +1,24 @@
 <div x-data="{
         touchStartX: 0, 
-        touchEndX: 0,
         touchStartY: 0,
-        touchEndY: 0,
+        lastTouchX: 0,
         isDragging: false,
+        dragStarted: false,
         startTime: 0,
-        dragDistance: 0,
+        lastTime: 0,
+        velocity: 0,
         isTransitioning: false,
         translateX: 0,
+        dampening: 0.85,
+        snapThreshold: 100,
+        velocityThreshold: 0.5,
+        maxResistance: 80,
         
         init() {
             this.preloadAdjacentImages();
             this.$watch('$wire.currentIndex', () => {
                 this.preloadAdjacentImages();
-                this.translateX = 0;
+                this.smoothReset();
             });
         },
         
@@ -22,7 +27,7 @@
             const items = $wire.items || [];
             const itemCount = items.length;
             
-            [currentIndex - 1, currentIndex + 1].forEach(index => {
+            [currentIndex - 2, currentIndex - 1, currentIndex + 1, currentIndex + 2].forEach(index => {
                 if (index >= 0 && index < itemCount && items[index]?.plu_code?.plu) {
                     const img = new Image();
                     img.src = `/storage/product_images/${items[index].plu_code.plu}.jpg`;
@@ -33,14 +38,20 @@
         handleTouchStart(e) {
             if (this.isTransitioning) return;
             
+            // Stop any ongoing animations
+            this.isTransitioning = false;
+            
             this.touchStartX = e.touches[0].clientX;
             this.touchStartY = e.touches[0].clientY;
-            this.startTime = Date.now();
+            this.lastTouchX = this.touchStartX;
+            this.startTime = performance.now();
+            this.lastTime = this.startTime;
             this.isDragging = false;
+            this.dragStarted = false;
+            this.velocity = 0;
             
-            if (e.touches.length === 1) {
-                e.preventDefault();
-            }
+            // Prevent default scrolling behavior
+            e.preventDefault();
         },
         
         handleTouchMove(e) {
@@ -50,101 +61,179 @@
             const currentY = e.touches[0].clientY;
             const deltaX = currentX - this.touchStartX;
             const deltaY = currentY - this.touchStartY;
+            const currentTime = performance.now();
             
-            if (!this.isDragging && Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
-                this.isDragging = true;
-                e.preventDefault();
+            // Determine if this is a horizontal drag
+            if (!this.dragStarted) {
+                const absX = Math.abs(deltaX);
+                const absY = Math.abs(deltaY);
+                
+                if (absX > 8 || absY > 8) {
+                    this.dragStarted = true;
+                    this.isDragging = absX > absY && absX > 8;
+                }
             }
             
             if (this.isDragging) {
                 e.preventDefault();
-                this.dragDistance = deltaX;
+                e.stopPropagation();
+                
+                // Calculate velocity using time-based approach
+                const timeDelta = currentTime - this.lastTime;
+                if (timeDelta > 0) {
+                    const moveDelta = currentX - this.lastTouchX;
+                    this.velocity = (moveDelta / timeDelta) * this.dampening + this.velocity * (1 - this.dampening);
+                }
+                
+                this.lastTouchX = currentX;
+                this.lastTime = currentTime;
+                
+                // Apply resistance at boundaries
                 const resistance = this.calculateResistance(deltaX);
                 this.translateX = deltaX * resistance;
             }
         },
         
         handleTouchEnd(e) {
-            if (!this.isDragging || this.isTransitioning) {
-                this.translateX = 0;
-                this.isDragging = false;
+            if (!this.dragStarted) {
+                this.resetState();
                 return;
             }
             
-            const deltaX = this.dragDistance;
-            const deltaTime = Date.now() - this.startTime;
-            const velocity = Math.abs(deltaX) / deltaTime;
-            
-            const isSwipe = Math.abs(deltaX) > 50 || velocity > 0.3;
-            
-            if (isSwipe) {
-                this.performSwipe(deltaX);
-            } else {
-                this.animateToPosition(0);
+            if (!this.isDragging) {
+                this.resetState();
+                return;
             }
             
-            this.isDragging = false;
+            e.preventDefault();
+            
+            const deltaX = this.translateX;
+            const absVelocity = Math.abs(this.velocity);
+            const currentIndex = $wire.currentIndex || 0;
+            const items = $wire.items || [];
+            const itemCount = items.length;
+            
+            // Determine if we should navigate
+            let shouldNavigate = false;
+            let direction = null;
+            
+            // High velocity swipe
+            if (absVelocity > this.velocityThreshold) {
+                shouldNavigate = true;
+                direction = this.velocity > 0 ? 'previous' : 'next';
+            }
+            // Distance threshold
+            else if (Math.abs(deltaX) > this.snapThreshold) {
+                shouldNavigate = true;
+                direction = deltaX > 0 ? 'previous' : 'next';
+            }
+            
+            // Check boundaries
+            if (shouldNavigate) {
+                if (direction === 'previous' && currentIndex <= 0) {
+                    shouldNavigate = false;
+                } else if (direction === 'next' && currentIndex >= itemCount - 1) {
+                    shouldNavigate = false;
+                }
+            }
+            
+            if (shouldNavigate) {
+                this.performSwipe(direction);
+            } else {
+                this.snapBack();
+            }
         },
         
         calculateResistance(deltaX) {
             const currentIndex = $wire.currentIndex || 0;
             const items = $wire.items || [];
             const itemCount = items.length;
-            const maxDistance = 150;
             
-            if ((deltaX > 0 && currentIndex === 0) || (deltaX < 0 && currentIndex === itemCount - 1)) {
-                return Math.max(0.1, 1 - Math.abs(deltaX) / maxDistance);
+            // Check if we're at boundaries
+            const atStart = currentIndex === 0 && deltaX > 0;
+            const atEnd = currentIndex === itemCount - 1 && deltaX < 0;
+            
+            if (atStart || atEnd) {
+                const distance = Math.abs(deltaX);
+                const resistance = Math.max(0.1, 1 - (distance / this.maxResistance));
+                return Math.min(resistance, 0.5);
             }
+            
             return 1;
         },
         
-        performSwipe(deltaX) {
-            const direction = deltaX > 0 ? 'previous' : 'next';
+        performSwipe(direction) {
+            this.isTransitioning = true;
             
-            // Let Livewire handle boundary checks
+            // Add haptic feedback
+            if (navigator.vibrate) {
+                navigator.vibrate(5);
+            }
+            
+            // Trigger navigation
             if (direction === 'previous') {
                 $wire.previous();
             } else {
                 $wire.next();
             }
             
-            // Reset drag offset after navigation
-            setTimeout(() => {
-                this.translateX = 0;
-                this.isTransitioning = false;
-            }, 300);
+            // Smooth transition to new position
+            this.smoothReset();
         },
         
-        animateToPosition(targetX) {
+        snapBack() {
+            this.smoothTransition(0, 250);
+        },
+        
+        smoothReset() {
+            this.smoothTransition(0, 200);
+        },
+        
+        smoothTransition(targetX, duration = 300) {
             const startX = this.translateX;
             const distance = targetX - startX;
-            const duration = 300;
-            const startTime = Date.now();
+            const startTime = performance.now();
             
-            const animate = () => {
-                const elapsed = Date.now() - startTime;
+            const animate = (currentTime) => {
+                const elapsed = currentTime - startTime;
                 const progress = Math.min(elapsed / duration, 1);
+                
+                // Use easeOutCubic for smooth deceleration
                 const easeOut = 1 - Math.pow(1 - progress, 3);
                 
                 this.translateX = startX + (distance * easeOut);
                 
                 if (progress < 1) {
                     requestAnimationFrame(animate);
+                } else {
+                    this.resetState();
                 }
             };
             
             requestAnimationFrame(animate);
         },
         
-        // Direct navigation for horizontal carousel - let Livewire handle boundaries
+        resetState() {
+            this.translateX = 0;
+            this.isDragging = false;
+            this.dragStarted = false;
+            this.isTransitioning = false;
+            this.velocity = 0;
+        },
+        
+        // Direct navigation for buttons
         navigateNext() {
+            if (this.isTransitioning) return;
+            
             if (navigator.vibrate) navigator.vibrate(10);
-            $wire.next();
+            this.performSwipe('next');
         },
         
         navigatePrevious() {
+            if (this.isTransitioning) return;
+            
             if (navigator.vibrate) navigator.vibrate(10);
-            $wire.previous();
+            this.performSwipe('previous');
         }
     }" 
     x-show="$wire.isOpen" 
@@ -204,9 +293,9 @@
         <div class="flex-1 relative overflow-hidden">
             
             <!-- Carousel Track with All Cards -->
-            <div class="flex h-full items-center transition-transform duration-300 ease-out"
-                 style="width: calc({{ $this->items->count() }} * 100vw);"
-                 :style="`transform: translateX(calc(-${($wire.currentIndex || 0)} * 100vw + ${translateX}px))`"
+            <div class="flex h-full items-center"
+                 style="width: calc({{ $this->items->count() }} * 100vw); will-change: transform;"
+                 :style="`transform: translateX(calc(-${($wire.currentIndex || 0)} * 100vw + ${translateX}px)); transition: ${isTransitioning ? 'none' : 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)'}`"
                  wire:key="carousel-track-{{ $this->items->count() }}-{{ md5(json_encode($this->items->pluck('id'))) }}">
                 
                 @foreach($this->items as $index => $item)
