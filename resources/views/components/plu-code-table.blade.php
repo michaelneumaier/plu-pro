@@ -1,5 +1,15 @@
 <!-- resources/views/livewire/plu-code-table.blade.php -->
+@props([
+    'collection' => collect(),
+    'dualVersionPluCodes' => collect(),
+    'userListId' => null,
+    'refreshToken' => null,
+    'onDelete' => null,
+    'onAdd' => null
+])
 @php
+// Use the collection prop as pluCodes for backward compatibility
+$pluCodes = $collection;
 // Determine the number of columns based on the presence of actions
 $hasActions = $onDelete || $onAdd;
 $colCount = $hasActions ? 5 : 4;
@@ -24,18 +34,24 @@ $colCount = $hasActions ? 5 : 4;
         </div>
 
         <!-- PLU Code Items -->
-        @foreach($pluCodes as $pluCode)
+        @foreach($pluCodes as $item)
+        @php
+            // Handle both list items (with pluCode relationship) and direct PLU codes
+            $isListItem = isset($item->plu_code_id);
+            $pluCode = $isListItem ? $item->pluCode : $item;
+            $listItem = $isListItem ? $item : ($item->listItem ?? null);
+        @endphp
         <div
-            class="{{ $pluCode->listItem && $pluCode->listItem->organic ? 'bg-green-50 hover:bg-green-100' : 'bg-white hover:bg-gray-50' }} cursor-pointer border-b border-gray-200 last:border-b-0">
+            class="{{ $listItem && $listItem->organic ? 'bg-green-50 hover:bg-green-100' : 'bg-white hover:bg-gray-50' }} cursor-pointer border-b border-gray-200 last:border-b-0">
             <div class="grid grid-cols-[3.5rem,3rem,1fr,auto,auto] min-h-16 "
                 wire:click="$dispatch('pluCodeSelected', [{{ $pluCode->id }}])"
-                wire:key="plu-row-{{ $pluCode->id }}-{{ $userListId }}-{{ $refreshToken ?? time() }}"
+                wire:key="plu-row-{{ $listItem ? $listItem->id : $pluCode->id }}-{{ $userListId }}-{{ $refreshToken ?? time() }}"
                 data-plu-id="{{ $pluCode->id }}">
                 <div class="flex flex-col items-center justify-evenly">
                     <div
                         class="flex items-center justify-center w-12 h-7 sm:w-12 sm:h-8 bg-green-100 text-sm text-green-800 border border-green-200 rounded overflow-hidden">
                         <span class="font-mono font-semibold">
-                            @if($pluCode->listItem && $pluCode->listItem->organic)
+                            @if($listItem && $listItem->organic)
                             9{{ $pluCode->plu }}
                             @else
                             {{ $pluCode->plu }}
@@ -54,6 +70,16 @@ $colCount = $hasActions ? 5 : 4;
                         @if(!empty($pluCode->aka))
                         <span class="text-gray-500"> - {{ $pluCode->aka }}</span>
                         @endif
+                        @if($listItem && $listItem->organic)
+                        <span class="inline-flex items-center ml-1 px-1.5 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                            Organic
+                        </span>
+                        @endif
+                        @if($dualVersionPluCodes->contains($pluCode->id))
+                        <span class="inline-flex items-center ml-1 px-1.5 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-800" title="Both regular and organic versions in list">
+                            Both
+                        </span>
+                        @endif
                     </span>
                     <div class="flex justify-between">
                         <span class="text-gray-500 capitalize inline-flex">
@@ -66,9 +92,9 @@ $colCount = $hasActions ? 5 : 4;
                 </div>
                 <!-- Inventory Level Component -->
                 <div class="flex items-center p-1">
-                    @if($pluCode->listItem && !$onAdd)
-                    <livewire:inventory-level :listItemId="$pluCode->listItem->id" :userListId="$userListId"
-                        :wire:key="'inv-level-' . $pluCode->listItem->id . '-' . ($refreshToken ?? time())" />
+                    @if($listItem && !$onAdd)
+                    <livewire:inventory-level :listItemId="$listItem->id" :userListId="$userListId"
+                        :wire:key="'inv-level-' . $listItem->id . '-' . ($refreshToken ?? time())" />
                     @endif
                 </div>
 
@@ -107,14 +133,14 @@ $colCount = $hasActions ? 5 : 4;
                 x-transition:leave="transition ease-in duration-200"
                 x-transition:leave-start="opacity-100 transform scale-100"
                 x-transition:leave-end="opacity-0 transform scale-90">
-                @if($pluCode->listItem && !$onAdd)
-                <livewire:organic-toggle :list-item="$pluCode->listItem"
-                    :wire:key="'organic-toggle-' . $pluCode->listItem->id . '-' . ($refreshToken ?? time())" />
+                @if($listItem && !$onAdd)
+                <livewire:organic-toggle :list-item="$listItem"
+                    :wire:key="'organic-toggle-' . $listItem->id . '-' . ($refreshToken ?? time())" />
                 @endif
-                @if($hasActions && $onDelete)
+                @if($hasActions && $onDelete && $listItem)
                 <button x-show="showDeleteButtons" x-cloak
-                    @click.stop="$event.preventDefault(); if(confirm('Are you sure you want to remove this PLU Code from your list?')) { $wire.{{ $onDelete }}({{ $pluCode->id }}) }"
-                    wire:key="delete-button-{{ $pluCode->id }}-{{ now() }}"
+                    @click.stop="$event.preventDefault(); if(confirm('Are you sure you want to remove this {{ $listItem->organic ? 'organic' : 'regular' }} item from your list?')) { $wire.call('removeListItem', {{ $listItem->id }}) }"
+                    wire:key="delete-button-{{ $listItem->id }}-{{ now() }}"
                     class=" px-3 py-1 mr-1 bg-red-500 hover:bg-red-700 text-white text-sm font-bold rounded-md flex items-center justify-center"
                     aria-label="Delete">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"

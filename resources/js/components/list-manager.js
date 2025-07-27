@@ -40,9 +40,15 @@ document.addEventListener('alpine:init', () => {
         },
         
         addItem(pluData, listId) {
-            // Check if item already exists
-            if (this.items.find(item => item.plu_code_id === pluData.id)) {
-                this.showNotification('Item already in list', 'info');
+            // Check if this specific version (regular or organic) already exists
+            const isOrganic = pluData.organic || false;
+            const exists = this.items.find(item => 
+                item.plu_code_id === pluData.id && 
+                item.organic === isOrganic
+            );
+            
+            if (exists) {
+                this.showNotification(`This ${isOrganic ? 'organic' : 'regular'} item is already in list`, 'info');
                 return false;
             }
             

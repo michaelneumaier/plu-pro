@@ -135,7 +135,7 @@
     <div class="pb-20"> <!-- Bottom padding for floating button -->
         <!-- PLU Items Table -->
         <div wire:key="list-items-table-{{ $userList->id }}" key="stable-list-container">
-            <x-plu-code-table :collection="$listItems" :user-list-id="$userList->id" :refresh-token="$refreshToken" onDelete="removePLUCode" />
+            <x-plu-code-table :collection="$listItems" :user-list-id="$userList->id" :refresh-token="$refreshToken" :dual-version-plu-codes="$dualVersionPluCodes" onDelete="removePLUCode" />
         </div>
     </div>
 

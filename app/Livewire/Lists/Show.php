@@ -112,8 +112,10 @@ class Show extends Component
     public function addPLUCodeSilent($pluCodeId, $organic = false)
     {
         // This method adds items without triggering component re-render
+        // Check if this specific version (regular or organic) already exists
         $exists = $this->userList->listItems()
             ->where('plu_code_id', $pluCodeId)
+            ->where('organic', $organic)
             ->exists();
 
         if (!$exists) {
@@ -141,7 +143,7 @@ class Show extends Component
             return ['success' => true, 'listItem' => $listItem];
         }
         
-        return ['success' => false, 'message' => 'Item already exists'];
+        return ['success' => false, 'message' => 'This ' . ($organic ? 'organic' : 'regular') . ' item already exists in your list'];
     }
 
     public function addPLUCode($pluCodeId, $organic = false)
@@ -167,6 +169,28 @@ class Show extends Component
         $this->addPLUCode($pluCodeId);
     }
 
+
+    public function removeListItem($listItemId)
+    {
+        DB::transaction(function () use ($listItemId) {
+            $listItem = $this->userList->listItems()
+                ->where('id', $listItemId)
+                ->first();
+
+            if ($listItem) {
+                $listItem->delete();
+                $this->userList->load(['listItems.pluCode']);
+                $this->initializeFilterOptions();
+                
+                // Update refresh token to force component refresh
+                $this->refreshToken = time();
+                
+                session()->flash('message', 'Item removed from your list.');
+            } else {
+                session()->flash('error', 'Item not found in your list.');
+            }
+        });
+    }
 
     public function removePLUCode($pluCodeId)
     {
@@ -291,15 +315,30 @@ class Show extends Component
                     ->orWhere('variety', 'like', '%' . $this->searchTerm . '%')
                     ->orWhere('commodity', 'like', '%' . $this->searchTerm . '%')
                     ->orWhere('aka', 'like', '%' . $this->searchTerm . '%');
-            });
+            })
+            ->with(['listItems' => function ($query) {
+                $query->where('user_list_id', $this->userList->id);
+            }]);
             $searchResults = $query->paginate(10)->withQueryString();
         }
 
-        // Get all list items for client-side filtering - ordered by ID for consistency
+        // Get all list items for client-side filtering - ordered by PLU code ascending (numerically)
         $listItems = $this->userList->listItems()
             ->with(['pluCode'])
-            ->orderBy('id', 'asc')
-            ->get();
+            ->join('plu_codes', 'list_items.plu_code_id', '=', 'plu_codes.id')
+            ->orderByRaw('CAST(plu_codes.plu AS UNSIGNED) ASC')
+            ->orderBy('list_items.organic', 'asc') // Regular items first, then organic
+            ->select('list_items.*')
+            ->get()
+            ->load('pluCode'); // Ensure pluCode relationship is loaded
+        
+        // Create a map of PLU codes that have both regular and organic versions
+        $dualVersionPluCodes = $listItems->groupBy('plu_code_id')
+            ->filter(function ($items) {
+                return $items->where('organic', true)->isNotEmpty() && 
+                       $items->where('organic', false)->isNotEmpty();
+            })
+            ->keys();
 
         // Prepare items data for JavaScript
         $allItemsData = $listItems->map(function($item) {
@@ -324,6 +363,7 @@ class Show extends Component
             'categories' => $this->categories,
             'commodities' => $this->commodities,
             'allItemsData' => $allItemsData,
+            'dualVersionPluCodes' => $dualVersionPluCodes,
         ]);
     }
 }
