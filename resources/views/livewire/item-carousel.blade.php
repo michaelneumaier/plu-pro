@@ -1,239 +1,95 @@
 <div x-data="{
-        touchStartX: 0, 
-        touchStartY: 0,
-        lastTouchX: 0,
+        startX: 0,
+        startY: 0,
+        currentX: 0,
         isDragging: false,
-        dragStarted: false,
-        startTime: 0,
-        lastTime: 0,
-        velocity: 0,
-        isTransitioning: false,
-        translateX: 0,
-        dampening: 0.85,
-        snapThreshold: 100,
-        velocityThreshold: 0.5,
-        maxResistance: 80,
+        hasMoved: false,
         
         init() {
-            this.preloadAdjacentImages();
+            this.preloadImages();
             this.$watch('$wire.currentIndex', () => {
-                this.preloadAdjacentImages();
-                this.smoothReset();
+                this.preloadImages();
             });
         },
         
-        preloadAdjacentImages() {
+        preloadImages() {
             const currentIndex = $wire.currentIndex || 0;
             const items = $wire.items || [];
-            const itemCount = items.length;
             
-            [currentIndex - 2, currentIndex - 1, currentIndex + 1, currentIndex + 2].forEach(index => {
-                if (index >= 0 && index < itemCount && items[index]?.plu_code?.plu) {
+            // Preload current and adjacent images
+            [currentIndex - 1, currentIndex, currentIndex + 1].forEach(index => {
+                if (index >= 0 && index < items.length && items[index]?.plu_code?.plu) {
                     const img = new Image();
                     img.src = `/storage/product_images/${items[index].plu_code.plu}.jpg`;
                 }
             });
         },
         
-        handleTouchStart(e) {
-            if (this.isTransitioning) return;
+        onTouchStart(e) {
+            this.startX = e.touches[0].clientX;
+            this.startY = e.touches[0].clientY;
+            this.currentX = this.startX;
+            this.isDragging = true;
+            this.hasMoved = false;
+        },
+        
+        onTouchMove(e) {
+            if (!this.isDragging) return;
             
-            // Stop any ongoing animations
-            this.isTransitioning = false;
+            e.preventDefault();
+            this.currentX = e.touches[0].clientX;
             
-            this.touchStartX = e.touches[0].clientX;
-            this.touchStartY = e.touches[0].clientY;
-            this.lastTouchX = this.touchStartX;
-            this.startTime = performance.now();
-            this.lastTime = this.startTime;
+            const deltaX = this.currentX - this.startX;
+            const deltaY = e.touches[0].clientY - this.startY;
+            
+            // Only start moving if horizontal movement is greater than vertical
+            if (!this.hasMoved && Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+                this.hasMoved = true;
+            }
+        },
+        
+        onTouchEnd(e) {
+            if (!this.isDragging) return;
+            
             this.isDragging = false;
-            this.dragStarted = false;
-            this.velocity = 0;
             
-            // Prevent default scrolling behavior
-            e.preventDefault();
-        },
-        
-        handleTouchMove(e) {
-            if (this.isTransitioning) return;
+            if (!this.hasMoved) return;
             
-            const currentX = e.touches[0].clientX;
-            const currentY = e.touches[0].clientY;
-            const deltaX = currentX - this.touchStartX;
-            const deltaY = currentY - this.touchStartY;
-            const currentTime = performance.now();
+            const deltaX = this.currentX - this.startX;
+            const threshold = 75; // Minimum swipe distance
             
-            // Determine if this is a horizontal drag
-            if (!this.dragStarted) {
-                const absX = Math.abs(deltaX);
-                const absY = Math.abs(deltaY);
-                
-                if (absX > 8 || absY > 8) {
-                    this.dragStarted = true;
-                    this.isDragging = absX > absY && absX > 8;
+            if (Math.abs(deltaX) > threshold) {
+                if (deltaX > 0) {
+                    // Swipe right - go to previous
+                    this.navigate('previous');
+                } else {
+                    // Swipe left - go to next
+                    this.navigate('next');
                 }
             }
-            
-            if (this.isDragging) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Calculate velocity using time-based approach
-                const timeDelta = currentTime - this.lastTime;
-                if (timeDelta > 0) {
-                    const moveDelta = currentX - this.lastTouchX;
-                    this.velocity = (moveDelta / timeDelta) * this.dampening + this.velocity * (1 - this.dampening);
-                }
-                
-                this.lastTouchX = currentX;
-                this.lastTime = currentTime;
-                
-                // Apply resistance at boundaries
-                const resistance = this.calculateResistance(deltaX);
-                this.translateX = deltaX * resistance;
-            }
         },
         
-        handleTouchEnd(e) {
-            if (!this.dragStarted) {
-                this.resetState();
-                return;
-            }
+        navigate(direction) {
+            if (navigator.vibrate) navigator.vibrate(10);
             
-            if (!this.isDragging) {
-                this.resetState();
-                return;
-            }
-            
-            e.preventDefault();
-            
-            const deltaX = this.translateX;
-            const absVelocity = Math.abs(this.velocity);
-            const currentIndex = $wire.currentIndex || 0;
-            const items = $wire.items || [];
-            const itemCount = items.length;
-            
-            // Determine if we should navigate
-            let shouldNavigate = false;
-            let direction = null;
-            
-            // High velocity swipe
-            if (absVelocity > this.velocityThreshold) {
-                shouldNavigate = true;
-                direction = this.velocity > 0 ? 'previous' : 'next';
-            }
-            // Distance threshold
-            else if (Math.abs(deltaX) > this.snapThreshold) {
-                shouldNavigate = true;
-                direction = deltaX > 0 ? 'previous' : 'next';
-            }
-            
-            // Check boundaries
-            if (shouldNavigate) {
-                if (direction === 'previous' && currentIndex <= 0) {
-                    shouldNavigate = false;
-                } else if (direction === 'next' && currentIndex >= itemCount - 1) {
-                    shouldNavigate = false;
-                }
-            }
-            
-            if (shouldNavigate) {
-                this.performSwipe(direction);
-            } else {
-                this.snapBack();
-            }
-        },
-        
-        calculateResistance(deltaX) {
-            const currentIndex = $wire.currentIndex || 0;
-            const items = $wire.items || [];
-            const itemCount = items.length;
-            
-            // Check if we're at boundaries
-            const atStart = currentIndex === 0 && deltaX > 0;
-            const atEnd = currentIndex === itemCount - 1 && deltaX < 0;
-            
-            if (atStart || atEnd) {
-                const distance = Math.abs(deltaX);
-                const resistance = Math.max(0.1, 1 - (distance / this.maxResistance));
-                return Math.min(resistance, 0.5);
-            }
-            
-            return 1;
-        },
-        
-        performSwipe(direction) {
-            this.isTransitioning = true;
-            
-            // Add haptic feedback
-            if (navigator.vibrate) {
-                navigator.vibrate(5);
-            }
-            
-            // Trigger navigation
             if (direction === 'previous') {
                 $wire.previous();
-            } else {
+            } else if (direction === 'next') {
                 $wire.next();
             }
-            
-            // Smooth transition to new position
-            this.smoothReset();
         },
         
-        snapBack() {
-            this.smoothTransition(0, 250);
-        },
-        
-        smoothReset() {
-            this.smoothTransition(0, 200);
-        },
-        
-        smoothTransition(targetX, duration = 300) {
-            const startX = this.translateX;
-            const distance = targetX - startX;
-            const startTime = performance.now();
-            
-            const animate = (currentTime) => {
-                const elapsed = currentTime - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                
-                // Use easeOutCubic for smooth deceleration
-                const easeOut = 1 - Math.pow(1 - progress, 3);
-                
-                this.translateX = startX + (distance * easeOut);
-                
-                if (progress < 1) {
-                    requestAnimationFrame(animate);
-                } else {
-                    this.resetState();
-                }
-            };
-            
-            requestAnimationFrame(animate);
-        },
-        
-        resetState() {
-            this.translateX = 0;
-            this.isDragging = false;
-            this.dragStarted = false;
-            this.isTransitioning = false;
-            this.velocity = 0;
-        },
-        
-        // Direct navigation for buttons
-        navigateNext() {
-            if (this.isTransitioning) return;
-            
+        // Button navigation
+        goNext() {
+            console.log('goNext called');
             if (navigator.vibrate) navigator.vibrate(10);
-            this.performSwipe('next');
+            $wire.next();
         },
         
-        navigatePrevious() {
-            if (this.isTransitioning) return;
-            
+        goPrevious() {
+            console.log('goPrevious called');
             if (navigator.vibrate) navigator.vibrate(10);
-            this.performSwipe('previous');
+            $wire.previous();
         }
     }" 
     x-show="$wire.isOpen" 
@@ -246,10 +102,10 @@
     class="fixed inset-0 bg-black bg-opacity-95 z-50 flex flex-col"
     @carousel-open.window="$wire.openCarousel()" 
     @carousel-close.window="$wire.close()"
-    @keydown.left.window="$wire.isOpen && navigatePrevious()"
-    @keydown.right.window="$wire.isOpen && navigateNext()"
+    @keydown.left.window="$wire.isOpen && goPrevious()"
+    @keydown.right.window="$wire.isOpen && goNext()"
     @keydown.escape.window="$wire.isOpen && $wire.close()"
-    @keydown.space.window="$wire.isOpen && (($event.preventDefault()), navigateNext())"
+    @keydown.space.window="$wire.isOpen && (($event.preventDefault()), goNext())"
     tabindex="0">
 
     <!-- Header Bar -->
@@ -274,9 +130,9 @@
 
     <!-- Main Content Area -->
     <div class="flex-1 flex flex-col overflow-hidden" 
-         @touchstart="handleTouchStart($event)"
-         @touchmove="handleTouchMove($event)" 
-         @touchend="handleTouchEnd($event)"
+         @touchstart="onTouchStart($event)"
+         @touchmove="onTouchMove($event)" 
+         @touchend="onTouchEnd($event)"
          @click="$event.target === $event.currentTarget && $wire.close()"
          style="height: calc(100vh - 140px);"> <!-- Reserve space for header (72px) and navigation (68px) -->
         
@@ -293,9 +149,8 @@
         <div class="flex-1 relative overflow-hidden">
             
             <!-- Carousel Track with All Cards -->
-            <div class="flex h-full items-center"
-                 style="width: calc({{ $this->items->count() }} * 100vw); will-change: transform;"
-                 :style="`transform: translateX(calc(-${($wire.currentIndex || 0)} * 100vw + ${translateX}px)); transition: ${isTransitioning ? 'none' : 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)'}`"
+            <div class="flex h-full items-center transition-transform duration-300 ease-out"
+                 style="width: calc({{ $this->items->count() }} * 100vw); transform: translateX(-{{ ($currentIndex || 0) * 100 }}vw);"
                  wire:key="carousel-track-{{ $this->items->count() }}-{{ md5(json_encode($this->items->pluck('id'))) }}">
                 
                 @foreach($this->items as $index => $item)
@@ -389,7 +244,7 @@
     <!-- Navigation Controls - Always Visible -->
     <div class="flex items-center justify-between p-4 bg-black bg-opacity-50 backdrop-blur-sm border-t border-white border-opacity-10">
         <!-- Previous Button -->
-        <button @click="navigatePrevious()" 
+        <button @click="goPrevious()" 
                 class="flex items-center justify-center w-14 h-14 rounded-full bg-white bg-opacity-20 text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 hover:bg-opacity-30 active:scale-95"
                 aria-label="Previous Item">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -407,7 +262,7 @@
         </div>
 
         <!-- Next Button -->
-        <button @click="navigateNext()" 
+        <button @click="goNext()" 
                 class="flex items-center justify-center w-14 h-14 rounded-full bg-white bg-opacity-20 text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 hover:bg-opacity-30 active:scale-95"
                 aria-label="Next Item">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
