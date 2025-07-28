@@ -18,7 +18,29 @@
                 isAdding: false,
                 isAddingOrganic: false,
                 regularInList: {{ $pluCode->listItems->where('organic', false)->isNotEmpty() ? 'true' : 'false' }},
-                organicInList: {{ $pluCode->listItems->where('organic', true)->isNotEmpty() ? 'true' : 'false' }}
+                organicInList: {{ $pluCode->listItems->where('organic', true)->isNotEmpty() ? 'true' : 'false' }},
+                
+                init() {
+                    // Single event listener for item additions
+                    this.handleItemAdded = (e) => {
+                        const data = e.detail;
+                        if (data.pluCodeId === {{ $pluCode->id }}) {
+                            if (data.organic) {
+                                this.organicInList = true;
+                                this.isAddingOrganic = false;
+                            } else {
+                                this.regularInList = true;
+                                this.isAdding = false;
+                            }
+                        }
+                    };
+                    
+                    window.addEventListener('item-added-to-list', this.handleItemAdded);
+                },
+                
+                destroy() {
+                    window.removeEventListener('item-added-to-list', this.handleItemAdded);
+                }
             }">
             <div class="grid grid-cols-[3.5rem,3rem,1fr,auto] min-h-16"
                 wire:click="$dispatch('pluCodeSelected', [{{ $pluCode->id }}])"
@@ -56,13 +78,10 @@
                             <template x-if="!regularInList && !isAdding">
                                 <button @click.stop="
                                     isAdding = true;
-                                    const pluData = @js($pluCode->toArray());
-                                    pluData.organic = false;
-                                    const success = $store.listManager.addItem(pluData, {{ $userListId }});
-                                    if (success) {
-                                        regularInList = true;
-                                    }
-                                    isAdding = false;
+                                    // Trigger server action via window event
+                                    window.dispatchEvent(new CustomEvent('trigger-add-item', { 
+                                        detail: { pluCodeId: {{ $pluCode->id }}, organic: false }
+                                    }));
                                 "
                                     class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs transition-colors">
                                     Add Regular
@@ -92,13 +111,10 @@
                             <template x-if="!organicInList && !isAddingOrganic">
                                 <button @click.stop="
                                     isAddingOrganic = true;
-                                    const pluData = @js($pluCode->toArray());
-                                    pluData.organic = true;
-                                    const success = $store.listManager.addItem(pluData, {{ $userListId }});
-                                    if (success) {
-                                        organicInList = true;
-                                    }
-                                    isAddingOrganic = false;
+                                    // Trigger server action via window event
+                                    window.dispatchEvent(new CustomEvent('trigger-add-item', { 
+                                        detail: { pluCodeId: {{ $pluCode->id }}, organic: true }
+                                    }));
                                 "
                                     class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-xs transition-colors">
                                     Add Organic

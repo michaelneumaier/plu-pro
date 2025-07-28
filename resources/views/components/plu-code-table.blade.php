@@ -5,7 +5,8 @@
     'userListId' => null,
     'refreshToken' => null,
     'onDelete' => null,
-    'onAdd' => null
+    'onAdd' => null,
+    'readOnly' => false
 ])
 @php
 // Use the collection prop as pluCodes for backward compatibility
@@ -37,10 +38,23 @@ $colCount = $hasActions ? 5 : 4;
         @php $currentCommodity = null; @endphp
         @foreach($pluCodes as $item)
         @php
-            // Handle both list items (with pluCode relationship) and direct PLU codes
+            // Determine if this is a list item or a PLU code
             $isListItem = isset($item->plu_code_id);
-            $pluCode = $isListItem ? $item->pluCode : $item;
-            $listItem = $isListItem ? $item : ($item->listItem ?? null);
+            
+            if ($isListItem) {
+                // This is a ListItem with pluCode relationship
+                $pluCode = $item->pluCode ?? null;
+                $listItem = $item;
+            } else {
+                // This is a PLUCode, might have listItem relationship
+                $pluCode = $item;
+                $listItem = $item->listItem ?? null;
+            }
+            
+            // Safety check - ensure we have a valid PLU code
+            if (!$pluCode) {
+                continue; // Skip this iteration if no valid PLU code
+            }
             
             // Check if commodity changed for visual grouping
             $commodityChanged = $currentCommodity !== null && $currentCommodity !== $pluCode->commodity;
@@ -107,9 +121,17 @@ $colCount = $hasActions ? 5 : 4;
                 </div>
                 <!-- Inventory Level Component -->
                 <div class="flex items-center p-1">
-                    @if($listItem && !$onAdd)
-                    <livewire:inventory-level :listItemId="$listItem->id" :userListId="$userListId"
-                        :wire:key="'inv-level-' . $listItem->id . '-' . ($refreshToken ?? time())" />
+                    @if($listItem && !$onAdd && isset($listItem->id) && $listItem->id)
+                        @if($readOnly === true)
+                            <!-- Read-only inventory display -->
+                            <div class="flex items-center justify-center w-12 h-8 bg-gray-100 text-gray-700 font-semibold text-base rounded border">
+                                {{ ($listItem->inventory_level ?? 0) > 0 ? ($listItem->inventory_level ?? 0) : '—' }}
+                            </div>
+                        @else
+                            <!-- Interactive inventory component -->
+                            <livewire:inventory-level :listItemId="$listItem->id" :userListId="$userListId"
+                                :wire:key="'inv-level-' . $listItem->id . '-' . ($refreshToken ?? time())" />
+                        @endif
                     @endif
                 </div>
 
@@ -141,6 +163,7 @@ $colCount = $hasActions ? 5 : 4;
                 </div>
                 @endif
             </div>
+            @if(!$readOnly)
             <div class="flex justify-between p-1 space-x-2 px-10 md:px-1" x-show=" showDeleteButtons" x-cloak
                 x-transition:enter="transition ease-out duration-300"
                 x-transition:enter-start="opacity-0 transform scale-90"
@@ -148,11 +171,11 @@ $colCount = $hasActions ? 5 : 4;
                 x-transition:leave="transition ease-in duration-200"
                 x-transition:leave-start="opacity-100 transform scale-100"
                 x-transition:leave-end="opacity-0 transform scale-90">
-                @if($listItem && !$onAdd)
+                @if($listItem && !$onAdd && isset($listItem->id) && $listItem->id)
                 <livewire:organic-toggle :list-item="$listItem"
                     :wire:key="'organic-toggle-' . $listItem->id . '-' . ($refreshToken ?? time())" />
                 @endif
-                @if($hasActions && $onDelete && $listItem)
+                @if($hasActions && $onDelete && $listItem && isset($listItem->id) && $listItem->id)
                 <button x-show="showDeleteButtons" x-cloak
                     @click.stop="$event.preventDefault(); if(confirm('Are you sure you want to remove this {{ $listItem->organic ? 'organic' : 'regular' }} item from your list?')) { $wire.call('removeListItem', {{ $listItem->id }}) }"
                     wire:key="delete-button-{{ $listItem->id }}-{{ now() }}"
@@ -167,6 +190,7 @@ $colCount = $hasActions ? 5 : 4;
                 </button>
                 @endif
             </div>
+            @endif
         </div>
         @endforeach
     </div>

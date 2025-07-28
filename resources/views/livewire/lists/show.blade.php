@@ -26,12 +26,7 @@
             }
         });
         
-        // Handle Livewire events
-        this.$wire.on('item-added-to-list', (pluCodeId) => {
-            // Update the Alpine store to reflect that the item was added successfully
-            // Don't add optimistically, just mark it as no longer temporary
-            console.log('Item added to list:', pluCodeId);
-        });
+        // Handle Livewire events - removed duplicate listener
     },
     
     clearInventoryStorage() {
@@ -61,27 +56,127 @@
     <div class="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div class="px-4 py-3">
             <div class="flex items-center justify-between">
-                <div class="flex-1 min-w-0">
-                    <h1 class="text-lg font-semibold text-gray-900 truncate">{{ $userList->name }}</h1>
-                    <p class="text-sm text-gray-500 mt-0.5">{{ $listItems->count() }} items</p>
+                <div class="flex-1 min-w-0" x-data="{ 
+                    editingName: false, 
+                    listName: '{{ $userList->name }}',
+                    originalName: '{{ $userList->name }}'
+                }">
+                    <!-- Edit Mode: Editable List Name -->
+                    <div x-show="deleteMode && !editingName" class="flex items-center space-x-2">
+                        <button @click="
+                            editingName = true;
+                            $nextTick(() => $refs.nameInput.focus());
+                        " 
+                            class="flex-shrink-0 p-1 text-orange-500 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                            </svg>
+                        </button>
+                        <div class="flex-1 min-w-0">
+                            <h1 class="text-lg font-semibold text-gray-900 truncate">{{ $userList->name }}</h1>
+                            <p class="text-sm text-gray-500 mt-0.5">{{ $listItems->count() }} items</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Editing Mode: Input Field -->
+                    <div x-show="editingName" class="flex-1 min-w-0 pr-2">
+                        <div class="flex items-center space-x-1">
+                            <input x-model="listName"
+                                @keydown.enter="
+                                    $wire.call('updateListName', listName);
+                                    editingName = false;
+                                "
+                                @keydown.escape="
+                                    listName = originalName;
+                                    editingName = false;
+                                "
+                                @blur="
+                                    if (listName.trim() !== originalName) {
+                                        $wire.call('updateListName', listName);
+                                    }
+                                    editingName = false;
+                                "
+                                x-ref="nameInput"
+                                class="text-base font-semibold text-gray-900 bg-white border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent flex-1 min-w-0"
+                                maxlength="50">
+                            <button @click="
+                                $wire.call('updateListName', listName);
+                                editingName = false;
+                            " class="text-green-600 hover:text-green-700 p-0.5 flex-shrink-0">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </button>
+                            <button @click="
+                                listName = originalName;
+                                editingName = false;
+                            " class="text-red-600 hover:text-red-700 p-0.5 flex-shrink-0">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-0.5">{{ $listItems->count() }} items</p>
+                    </div>
+                    
+                    <!-- Normal Mode: Regular Display -->
+                    <div x-show="!deleteMode" class="flex-1 min-w-0">
+                        <h1 class="text-lg font-semibold text-gray-900 truncate">{{ $userList->name }}</h1>
+                        <p class="text-sm text-gray-500 mt-0.5">{{ $listItems->count() }} items</p>
+                    </div>
                 </div>
-                <div class="flex items-center space-x-2 ml-4">
-                    <button @click="showClearModal = true"
-                        class="inline-flex items-center justify-center px-3 py-2 rounded-md bg-gray-600 text-white text-sm font-medium hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">
-                        Clear
-                    </button>
-                    <button @click="showAddSection = !showAddSection"
-                        class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                        :class="{ 'bg-blue-700': showAddSection }">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                :d="showAddSection ? 'M6 18L18 6M6 6l12 12' : 'M12 4v16m8-8H4'"></path>
+                <div class="flex items-center space-x-2 ml-2 flex-shrink-0">
+                    <!-- Share Button -->
+                    <button @click="$wire.toggleShareModal()"
+                        :disabled="deleteMode"
+                        class="inline-flex items-center justify-center w-9 h-9 rounded-full transition-all duration-150 shadow-sm"
+                        :class="deleteMode ? 
+                            'bg-gray-50 text-gray-400 cursor-not-allowed' : 
+                            'bg-green-500 text-white hover:bg-green-600 active:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-1'">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"></path>
                         </svg>
                     </button>
-                    <button @click="deleteMode = !deleteMode; $dispatch('toggle-delete-buttons')"
-                        class="inline-flex items-center justify-center w-10 h-10 rounded-full text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
-                        :class="{ 'bg-gray-100 text-gray-900': deleteMode }">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+                    <!-- Clear Button -->
+                    <button @click="showClearModal = true"
+                        :disabled="deleteMode"
+                        class="inline-flex items-center justify-center h-9 px-4 rounded-full text-sm font-medium transition-all duration-150 shadow-sm"
+                        :class="deleteMode ? 
+                            'bg-gray-50 text-gray-400 cursor-not-allowed' : 
+                            'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1'">
+                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        Clear
+                    </button>
+                    
+                    <!-- Add Button -->
+                    <button @click="showAddSection = !showAddSection"
+                        :disabled="deleteMode"
+                        class="inline-flex items-center justify-center w-9 h-9 rounded-full transition-all duration-150 shadow-sm"
+                        :class="deleteMode ? 
+                            'bg-gray-50 text-gray-400 cursor-not-allowed' : 
+                            showAddSection ? 
+                                'bg-blue-600 text-white shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1' : 
+                                'bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1'">
+                        <svg class="w-5 h-5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            :class="{ 'rotate-45': showAddSection && !deleteMode }">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                    </button>
+                    
+                    <!-- Edit Mode Button -->
+                    <button @click="
+                        deleteMode && $wire.call('refreshListAfterEdit');
+                        deleteMode = !deleteMode; 
+                        $dispatch('toggle-delete-buttons');
+                    "
+                        class="inline-flex items-center justify-center w-9 h-9 rounded-full transition-all duration-150 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1"
+                        :class="deleteMode ? 
+                            'bg-orange-500 text-white hover:bg-orange-600 active:bg-orange-700 focus:ring-orange-400 shadow-inner' : 
+                            'bg-gray-50 text-gray-600 hover:bg-gray-100 active:bg-gray-200 focus:ring-gray-400'">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
                             </path>
@@ -290,6 +385,105 @@
                     <button wire:click="clearAllInventoryLevels" @click="showClearModal = false"
                         class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors">
                         Clear All Values
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div x-show="$wire.showShareModal" x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 bg-black bg-opacity-50 z-10" @click="$wire.toggleShareModal()"></div>
+        
+        <!-- Modal content -->
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div x-show="$wire.showShareModal" x-transition:enter="transition ease-out duration-300"
+                x-transition:enter-start="opacity-0 transform scale-95"
+                x-transition:enter-end="opacity-100 transform scale-100"
+                x-transition:leave="transition ease-in duration-200"
+                x-transition:leave-start="opacity-100 transform scale-100"
+                x-transition:leave-end="opacity-0 transform scale-95"
+                class="relative bg-white rounded-lg shadow-xl max-w-md w-full z-20">
+                
+                <!-- Header -->
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-medium text-gray-900">Share List</h3>
+                        <button @click="$wire.toggleShareModal()" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Body -->
+                <div class="px-6 py-4">
+                    <div class="space-y-4">
+                        <!-- Public sharing toggle -->
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1">
+                                <label class="text-sm font-medium text-gray-700">Public Sharing</label>
+                                <p class="text-xs text-gray-500 mt-1">Allow others to view this list with a link</p>
+                            </div>
+                            <button wire:click="togglePublicSharing" 
+                                class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                                :class="$wire.isPublic ? 'bg-green-600' : 'bg-gray-200'">
+                                <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                                    :class="$wire.isPublic ? 'translate-x-5' : 'translate-x-0'"></span>
+                            </button>
+                        </div>
+                        
+                        <!-- Share URL (only shown when public) -->
+                        <div x-show="$wire.isPublic" x-transition 
+                             x-data="{ 
+                                generateQR() {
+                                    if ($wire.shareUrl && window.QRCode) {
+                                        window.QRCode.toCanvas($refs.qrCanvas, $wire.shareUrl, { width: 150 }, (error) => {
+                                            if (error) console.error(error);
+                                        });
+                                    }
+                                }
+                             }"
+                             x-init="$watch('$wire.shareUrl', () => { $nextTick(() => generateQR()) })">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Share URL</label>
+                            <div class="flex mb-4">
+                                <input type="text" :value="$wire.shareUrl" readonly
+                                    class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md bg-gray-50 text-sm"
+                                    x-ref="shareUrl">
+                                <button @click="
+                                    $refs.shareUrl.select();
+                                    document.execCommand('copy');
+                                    $dispatch('notify', { message: 'Link copied to clipboard!', type: 'success' });
+                                " 
+                                    class="px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-r-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                                    Copy
+                                </button>
+                            </div>
+                            
+                            <!-- QR Code -->
+                            <div class="flex justify-center">
+                                <div class="text-center">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">QR Code</label>
+                                    <div class="inline-block p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
+                                        <canvas x-ref="qrCanvas" class="max-w-full"></canvas>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-2">Scan to open list</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Footer -->
+                <div class="px-6 py-3 bg-gray-50 rounded-b-lg">
+                    <button @click="$wire.toggleShareModal()"
+                        class="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">
+                        Close
                     </button>
                 </div>
             </div>

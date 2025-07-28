@@ -32,6 +32,7 @@ class Show extends Component
 
     protected $listeners = [
         'retry-add-plu' => 'retryAddPlu',
+        'list-item-updated' => 'handleListItemUpdated',
     ];
 
     protected $queryString = [
@@ -152,11 +153,15 @@ class Show extends Component
             // Update refresh token to reset wire:key values and prevent snapshot errors
             $this->refreshToken = time();
             
-            // Dispatch event to manually append the new item to DOM
-            $this->dispatch('manually-append-item', [
-                'listItem' => $listItem->toArray(),
-                'pluCode' => $listItem->pluCode->toArray()
-            ]);
+            // Dispatch browser event for Alpine.js components to catch
+            $this->js("
+                window.dispatchEvent(new CustomEvent('item-added-to-list', { 
+                    detail: { 
+                        pluCodeId: {$pluCodeId}, 
+                        organic: " . ($organic ? 'true' : 'false') . " 
+                    } 
+                }));
+            ");
             
             // Return success without modifying component properties
             return ['success' => true, 'listItem' => $listItem];
@@ -308,6 +313,35 @@ class Show extends Component
         $this->dispatch('inventory-cleared-refresh');
     }
 
+    public function handleListItemUpdated()
+    {
+        // Handle individual organic toggle updates
+        $this->refreshToken = time();
+        $this->userList->load(['listItems.pluCode']);
+    }
+
+    public function updateListName($newName)
+    {
+        $trimmedName = trim($newName);
+        
+        if (!empty($trimmedName) && $trimmedName !== $this->userList->name) {
+            $this->userList->update(['name' => $trimmedName]);
+            session()->flash('message', 'List name updated successfully!');
+        }
+    }
+
+    public function refreshListAfterEdit()
+    {
+        // Update refresh token to force component re-render
+        $this->refreshToken = time();
+        
+        // Reload list items with latest organic status from database
+        $this->userList->load(['listItems.pluCode']);
+        
+        // Update filter options in case organic status affected categories/commodities
+        $this->initializeFilterOptions();
+    }
+
     public function prepareAndOpenCarousel()
     {
         // Dispatch event to force all inventory components to sync
@@ -321,6 +355,36 @@ class Show extends Component
         
         // Dispatch event to open carousel with fresh data
         $this->dispatch('carousel-ready-to-open');
+    }
+
+    // Share functionality
+    public $showShareModal = false;
+    public $isPublic;
+    public $shareUrl = '';
+
+    public function toggleShareModal()
+    {
+        $this->showShareModal = !$this->showShareModal;
+        // Update the reactive properties when opening modal
+        $this->isPublic = $this->userList->is_public;
+        $this->shareUrl = $this->userList->share_url ?? '';
+    }
+
+    public function togglePublicSharing()
+    {
+        $this->userList->update([
+            'is_public' => !$this->userList->is_public
+        ]);
+        
+        if (!$this->userList->share_code) {
+            $this->userList->generateNewShareCode();
+        }
+        
+        $this->userList->refresh();
+        
+        // Update reactive properties
+        $this->isPublic = $this->userList->is_public;
+        $this->shareUrl = $this->userList->share_url ?? '';
     }
 
     public function render()
