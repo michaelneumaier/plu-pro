@@ -9,6 +9,7 @@ use Illuminate\View\Component;
 class ConsumerUsageIndicator extends Component
 {
     public $tier;
+
     /**
      * Create a new component instance.
      */

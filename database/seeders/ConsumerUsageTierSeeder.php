@@ -2,9 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use App\Models\PLUCode;
+use Illuminate\Database\Seeder;
 
 class ConsumerUsageTierSeeder extends Seeder
 {
@@ -19,15 +18,16 @@ class ConsumerUsageTierSeeder extends Seeder
         $csvPath = database_path('seeders/commodities_updated_with_consumer_usage_tier.csv'); // Adjust the path if necessary
 
         // Check if the file exists and is readable
-        if (!file_exists($csvPath) || !is_readable($csvPath)) {
+        if (! file_exists($csvPath) || ! is_readable($csvPath)) {
             $this->command->error("CSV file not found or not readable at path: {$csvPath}");
+
             return;
         }
 
         // Open the CSV file
         if (($handle = fopen($csvPath, 'r')) !== false) {
             // Get the header row
-            $header = fgetcsv($handle, 1000, ",");
+            $header = fgetcsv($handle, 1000, ',');
 
             // Indexes of relevant columns
             $idIndex = array_search('id', $header);
@@ -36,11 +36,12 @@ class ConsumerUsageTierSeeder extends Seeder
             if ($idIndex === false || $consumerUsageTierIndex === false) {
                 $this->command->error("Required columns 'id' or 'consumer_usage_tier' not found in CSV.");
                 fclose($handle);
+
                 return;
             }
 
             // Process each row
-            while (($row = fgetcsv($handle, 1000, ",")) !== false) {
+            while (($row = fgetcsv($handle, 1000, ',')) !== false) {
                 $id = $row[$idIndex];
                 $consumerUsageTier = $row[$consumerUsageTierIndex];
 

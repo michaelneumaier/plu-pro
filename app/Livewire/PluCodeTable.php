@@ -2,24 +2,28 @@
 
 namespace App\Livewire;
 
+use App\Models\PLUCode;
 use Livewire\Component;
 use Livewire\WithPagination;
-use App\Models\PLUCode;
 
 class PluCodeTable extends Component
 {
     use WithPagination;
 
     public $collection;
+
     public $onDelete;
+
     public $onAdd;
 
     // Filter properties
     public $selectedCommodity = '';
+
     public $selectedType = '';
 
     // Available filter options
     public $commodities = [];
+
     public $types = [];
 
     // Initialize component with collection and action callbacks
@@ -84,6 +88,7 @@ class PluCodeTable extends Component
 
         // Assume it's a collection of List Items with 'plu_code_id'
         $pluIds = $collection->pluck('plu_code_id')->unique();
+
         return PLUCode::whereIn('id', $pluIds)->get()->paginate(10, ['*'], 'page', $this->page ?? 1);
     }
 

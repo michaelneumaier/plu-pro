@@ -2,12 +2,13 @@
 
 namespace App\Livewire;
 
-use Livewire\Component;
 use App\Models\ListItem;
+use Livewire\Component;
 
 class OrganicToggle extends Component
 {
     public $listItemId;
+
     public $isOrganic;
 
     public function mount(ListItem $listItem)
@@ -19,7 +20,7 @@ class OrganicToggle extends Component
     public function toggleOrganic()
     {
         $listItem = ListItem::find($this->listItemId);
-        $listItem->update(['organic' => !$listItem->organic]);
+        $listItem->update(['organic' => ! $listItem->organic]);
         $this->isOrganic = $listItem->organic;
 
         $this->dispatch('list-item-updated');

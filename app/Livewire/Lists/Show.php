@@ -2,31 +2,35 @@
 
 namespace App\Livewire\Lists;
 
+use App\Models\ListItem;
+use App\Models\PLUCode;
+use App\Models\UserList;
+use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Livewire\Attributes\Url;
-use App\Models\UserList;
-use App\Models\PLUCode;
-use App\Models\ListItem;
-use Illuminate\Support\Facades\DB;
 
 class Show extends Component
 {
     use WithPagination;
 
     public $userId;
+
     public $userList;
+
     public $searchTerm;
     //public $availablePLUCodes;
 
     // Server-side filtering to match server-side sorting
     public $selectedCategory = '';
+
     public $selectedCommodity = '';
 
     // Available filter options
     public $commodities = [];
+
     public $categories = [];
-    
+
     // Refresh token to prevent snapshot missing errors
     public $refreshToken;
 
@@ -54,7 +58,7 @@ class Show extends Component
     {
         $this->userList = $userList;
         $this->refreshToken = time(); // Initialize refresh token
-        
+
         $this->initializeFilterOptions();
     }
 
@@ -111,17 +115,17 @@ class Show extends Component
     {
         $this->resetPage();
     }
-    
+
     public function updatedSelectedCategory()
     {
         $this->resetPage();
     }
-    
+
     public function updatedSelectedCommodity()
     {
         $this->resetPage();
     }
-    
+
     public function resetFilters()
     {
         $this->selectedCategory = '';
@@ -138,7 +142,7 @@ class Show extends Component
             ->where('organic', $organic)
             ->exists();
 
-        if (!$exists) {
+        if (! $exists) {
             $listItem = DB::transaction(function () use ($pluCodeId, $organic) {
                 return $this->userList->listItems()->create([
                     'plu_code_id' => $pluCodeId,
@@ -149,50 +153,48 @@ class Show extends Component
 
             // Load the PLU code data for the new item
             $listItem->load('pluCode');
-            
+
             // Update refresh token to reset wire:key values and prevent snapshot errors
             $this->refreshToken = time();
-            
+
             // Dispatch browser event for Alpine.js components to catch
             $this->js("
                 window.dispatchEvent(new CustomEvent('item-added-to-list', { 
                     detail: { 
                         pluCodeId: {$pluCodeId}, 
-                        organic: " . ($organic ? 'true' : 'false') . " 
+                        organic: ".($organic ? 'true' : 'false').' 
                     } 
                 }));
-            ");
-            
+            ');
+
             // Return success without modifying component properties
             return ['success' => true, 'listItem' => $listItem];
         }
-        
-        return ['success' => false, 'message' => 'This ' . ($organic ? 'organic' : 'regular') . ' item already exists in your list'];
+
+        return ['success' => false, 'message' => 'This '.($organic ? 'organic' : 'regular').' item already exists in your list'];
     }
 
     public function addPLUCode($pluCodeId, $organic = false)
     {
         // Use the silent method to avoid re-render issues
         $result = $this->addPLUCodeSilent($pluCodeId, $organic);
-        
+
         if ($result['success']) {
             session()->flash('message', 'Item added successfully!');
-            
+
             // Update the relationships for subsequent renders
             $this->userList->load(['listItems.pluCode']);
             $this->initializeFilterOptions();
-            
+
             // Notify any listening carousel components that items have changed
             $this->dispatch('list-items-updated');
         }
     }
 
-
     public function retryAddPlu($pluCodeId)
     {
         $this->addPLUCode($pluCodeId);
     }
-
 
     public function removeListItem($listItemId)
     {
@@ -205,10 +207,10 @@ class Show extends Component
                 $listItem->delete();
                 $this->userList->load(['listItems.pluCode']);
                 $this->initializeFilterOptions();
-                
+
                 // Update refresh token to force component refresh
                 $this->refreshToken = time();
-                
+
                 session()->flash('message', 'Item removed from your list.');
             } else {
                 session()->flash('error', 'Item not found in your list.');
@@ -232,7 +234,7 @@ class Show extends Component
                 session()->flash('error', 'PLU Code not found in your list.');
             }
         });
-        
+
         // Simple approach - let Livewire naturally re-render
     }
 
@@ -246,6 +248,7 @@ class Show extends Component
 
             if ($listItem) {
                 $listItem->delete();
+
                 return ['success' => true];
             } else {
                 return ['success' => false, 'message' => 'Item not found'];
@@ -267,8 +270,9 @@ class Show extends Component
                 // Only allow specific fields to be updated
                 $allowedFields = ['organic', 'inventory_level'];
                 $filteredUpdates = array_intersect_key($updates, array_flip($allowedFields));
-                
+
                 $listItem->update($filteredUpdates);
+
                 return ['success' => true];
             } else {
                 return ['success' => false, 'message' => 'Item not found'];
@@ -323,8 +327,8 @@ class Show extends Component
     public function updateListName($newName)
     {
         $trimmedName = trim($newName);
-        
-        if (!empty($trimmedName) && $trimmedName !== $this->userList->name) {
+
+        if (! empty($trimmedName) && $trimmedName !== $this->userList->name) {
             $this->userList->update(['name' => $trimmedName]);
             session()->flash('message', 'List name updated successfully!');
         }
@@ -334,10 +338,10 @@ class Show extends Component
     {
         // Update refresh token to force component re-render
         $this->refreshToken = time();
-        
+
         // Reload list items with latest organic status from database
         $this->userList->load(['listItems.pluCode']);
-        
+
         // Update filter options in case organic status affected categories/commodities
         $this->initializeFilterOptions();
     }
@@ -346,34 +350,39 @@ class Show extends Component
     {
         // Dispatch event to force all inventory components to sync
         $this->dispatch('force-inventory-sync');
-        
+
         // Add a delay to allow syncs to complete
         sleep(1);
-        
+
         // Force a refresh of all list items to get latest values from database
         $this->userList->load(['listItems.pluCode']);
-        
+
         // Dispatch event to open carousel with fresh data
         $this->dispatch('carousel-ready-to-open');
     }
 
     // Share functionality
     public $showShareModal = false;
+
     public $isPublic;
+
     public $shareUrl = '';
-    
+
     // Publish to marketplace functionality
     public $showPublishModal = false;
+
     public $marketplaceTitle = '';
+
     public $marketplaceDescription = '';
+
     public $marketplaceCategory = '';
-    
+
     // Unpublish functionality
     public $showUnpublishModal = false;
 
     public function toggleShareModal()
     {
-        $this->showShareModal = !$this->showShareModal;
+        $this->showShareModal = ! $this->showShareModal;
         // Update the reactive properties when opening modal
         $this->isPublic = $this->userList->is_public;
         $this->shareUrl = $this->userList->share_url ?? '';
@@ -382,24 +391,24 @@ class Show extends Component
     public function togglePublicSharing()
     {
         $this->userList->update([
-            'is_public' => !$this->userList->is_public
+            'is_public' => ! $this->userList->is_public,
         ]);
-        
-        if (!$this->userList->share_code) {
+
+        if (! $this->userList->share_code) {
             $this->userList->generateNewShareCode();
         }
-        
+
         $this->userList->refresh();
-        
+
         // Update reactive properties
         $this->isPublic = $this->userList->is_public;
         $this->shareUrl = $this->userList->share_url ?? '';
     }
-    
+
     public function togglePublishModal()
     {
-        $this->showPublishModal = !$this->showPublishModal;
-        
+        $this->showPublishModal = ! $this->showPublishModal;
+
         if ($this->showPublishModal) {
             $this->marketplaceTitle = $this->userList->name;
             $this->marketplaceDescription = '';
@@ -424,12 +433,12 @@ class Show extends Component
             'marketplace_category' => $this->marketplaceCategory ?: null,
             'published_at' => now(),
         ]);
-        
+
         // Generate share code if it doesn't exist
-        if (!$this->userList->share_code) {
+        if (! $this->userList->share_code) {
             $this->userList->generateNewShareCode();
         }
-        
+
         $this->togglePublishModal();
         session()->flash('message', 'List published to marketplace successfully!');
     }
@@ -440,12 +449,12 @@ class Show extends Component
         $this->marketplaceDescription = '';
         $this->marketplaceCategory = '';
     }
-    
+
     public function confirmUnpublish()
     {
         $this->showUnpublishModal = true;
     }
-    
+
     public function unpublishFromMarketplace()
     {
         $this->userList->update([
@@ -455,11 +464,11 @@ class Show extends Component
             'marketplace_category' => null,
             'published_at' => null,
         ]);
-        
+
         $this->showUnpublishModal = false;
         session()->flash('message', 'List unpublished from marketplace successfully!');
     }
-    
+
     public function cancelUnpublish()
     {
         $this->showUnpublishModal = false;
@@ -472,14 +481,14 @@ class Show extends Component
 
         if (strlen(trim($this->searchTerm)) >= 2) {
             $query->where(function ($q) {
-                $q->where('plu', 'like', '%' . $this->searchTerm . '%')
-                    ->orWhere('variety', 'like', '%' . $this->searchTerm . '%')
-                    ->orWhere('commodity', 'like', '%' . $this->searchTerm . '%')
-                    ->orWhere('aka', 'like', '%' . $this->searchTerm . '%');
+                $q->where('plu', 'like', '%'.$this->searchTerm.'%')
+                    ->orWhere('variety', 'like', '%'.$this->searchTerm.'%')
+                    ->orWhere('commodity', 'like', '%'.$this->searchTerm.'%')
+                    ->orWhere('aka', 'like', '%'.$this->searchTerm.'%');
             })
-            ->with(['listItems' => function ($query) {
-                $query->where('user_list_id', $this->userList->id);
-            }]);
+                ->with(['listItems' => function ($query) {
+                    $query->where('user_list_id', $this->userList->id);
+                }]);
             $searchResults = $query->paginate(10)->withQueryString();
         }
 
@@ -487,16 +496,16 @@ class Show extends Component
         $query = $this->userList->listItems()
             ->with(['pluCode'])
             ->join('plu_codes', 'list_items.plu_code_id', '=', 'plu_codes.id');
-        
+
         // Apply filters if selected
-        if (!empty($this->selectedCategory)) {
+        if (! empty($this->selectedCategory)) {
             $query->where('plu_codes.category', $this->selectedCategory);
         }
-        
-        if (!empty($this->selectedCommodity)) {
+
+        if (! empty($this->selectedCommodity)) {
             $query->where('plu_codes.commodity', $this->selectedCommodity);
         }
-        
+
         $listItems = $query
             ->orderBy('plu_codes.commodity', 'asc') // Group by commodity first
             ->orderBy('list_items.organic', 'asc') // Within commodity: regular first, then organic
@@ -504,17 +513,17 @@ class Show extends Component
             ->select('list_items.*')
             ->get()
             ->load('pluCode'); // Ensure pluCode relationship is loaded
-        
+
         // Create a map of PLU codes that have both regular and organic versions
         $dualVersionPluCodes = $listItems->groupBy('plu_code_id')
             ->filter(function ($items) {
-                return $items->where('organic', true)->isNotEmpty() && 
+                return $items->where('organic', true)->isNotEmpty() &&
                        $items->where('organic', false)->isNotEmpty();
             })
             ->keys();
 
         // Prepare items data for JavaScript
-        $allItemsData = $listItems->map(function($item) {
+        $allItemsData = $listItems->map(function ($item) {
             return [
                 'id' => $item->id,
                 'plu_code_id' => $item->plu_code_id,
@@ -526,7 +535,7 @@ class Show extends Component
                 'inventory_level' => $item->inventory_level,
                 'size' => $item->pluCode->size,
                 'retail_price' => $item->pluCode->retail_price,
-                'consumer_usage_tier' => $item->pluCode->consumer_usage_tier
+                'consumer_usage_tier' => $item->pluCode->consumer_usage_tier,
             ];
         });
 

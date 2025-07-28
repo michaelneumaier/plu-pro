@@ -43,7 +43,7 @@
                 }
             }">
             <div class="grid grid-cols-[3.5rem,3rem,1fr,auto] min-h-16"
-                wire:click="$dispatch('pluCodeSelected', [{{ $pluCode->id }}])"
+                wire:click="$dispatch('pluCodeSelected', [{{ $pluCode->id }}, false])"
                 wire:key="search-plu-row-{{ $pluCode->id }}-{{ $userListId }}">
                 <div class="flex flex-col items-center justify-evenly">
                     <div class="flex items-center justify-center w-12 h-7 sm:w-12 sm:h-8 bg-green-100 text-sm text-green-800 border border-green-200 rounded overflow-hidden">

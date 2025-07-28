@@ -7,7 +7,9 @@
     'onDelete' => null,
     'onAdd' => null,
     'readOnly' => false,
-    'showInventory' => true
+    'showInventory' => true,
+    'showCommodityGroups' => true,
+    'showPagination' => true
 ])
 @php
 // Use the collection prop as pluCodes for backward compatibility
@@ -57,12 +59,15 @@ $colCount = $hasActions ? 5 : 4;
                 continue; // Skip this iteration if no valid PLU code
             }
             
-            // Check if commodity changed for visual grouping
-            $commodityChanged = $currentCommodity !== null && $currentCommodity !== $pluCode->commodity;
-            $currentCommodity = $pluCode->commodity;
+            // Check if commodity changed for visual grouping (only if enabled)
+            $commodityChanged = false;
+            if ($showCommodityGroups) {
+                $commodityChanged = $currentCommodity !== null && $currentCommodity !== $pluCode->commodity;
+                $currentCommodity = $pluCode->commodity;
+            }
         @endphp
         
-        @if($commodityChanged || $loop->first)
+        @if($showCommodityGroups && ($commodityChanged || $loop->first))
         <!-- Commodity separator -->
         <div class="border-t-2 border-gray-300 bg-gray-50">
             <div class="px-4 py-1 text-xs font-medium text-gray-600 uppercase tracking-wide">
@@ -72,9 +77,9 @@ $colCount = $hasActions ? 5 : 4;
         @endif
         
         <div
-            class="{{ $listItem && $listItem->organic ? 'bg-green-50 hover:bg-green-100' : 'bg-white hover:bg-gray-50' }} cursor-pointer border-b border-gray-200 last:border-b-0 {{ $commodityChanged ? 'border-t-0' : '' }}">
+            class="{{ $listItem && $listItem->organic ? 'bg-green-50 hover:bg-green-100' : 'bg-white hover:bg-gray-50' }} cursor-pointer border-b border-gray-200 last:border-b-0 {{ $showCommodityGroups && $commodityChanged ? 'border-t-0' : '' }}">
             <div class="grid {{ $showInventory && $hasActions ? 'grid-cols-[3.5rem,3rem,1fr,auto,auto]' : ($showInventory ? 'grid-cols-[3.5rem,3rem,1fr,auto]' : ($hasActions ? 'grid-cols-[3.5rem,3rem,1fr,auto]' : 'grid-cols-[3.5rem,3rem,1fr]')) }} min-h-16 "
-                wire:click="$dispatch('pluCodeSelected', [{{ $pluCode->id }}])"
+                wire:click="$dispatch('pluCodeSelected', [{{ $pluCode->id }}, {{ ($listItem && $listItem->organic) ? 'true' : 'false' }}])"
                 wire:key="plu-row-{{ $listItem ? $listItem->id : $pluCode->id }}-{{ $userListId }}-{{ $refreshToken ?? time() }}"
                 data-plu-id="{{ $pluCode->id }}">
                 <div class="flex flex-col items-center justify-evenly">
@@ -199,7 +204,7 @@ $colCount = $hasActions ? 5 : 4;
     </div>
 
     <!-- Pagination Links -->
-    @if($pluCodes instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator)
+    @if($showPagination && $pluCodes instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator)
     <div class="mt-4">
         {{ $pluCodes->links() }}
     </div>

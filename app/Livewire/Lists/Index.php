@@ -2,35 +2,46 @@
 
 namespace App\Livewire\Lists;
 
-use Livewire\Component;
-use Illuminate\Support\Facades\Auth;
 use App\Models\UserList;
+use App\Services\ActivityTracker;
+use Illuminate\Support\Facades\Auth;
+use Livewire\Component;
 
 class Index extends Component
 {
     // Share functionality
     public $showShareModal = false;
+
     public $selectedList = null;
+
     public $isPublic = false;
+
     public $shareUrl = '';
 
     // Create list functionality
     public $showCreateModal = false;
+
     public $newListName = '';
 
     // Delete list functionality
     public $showDeleteModal = false;
+
     public $listToDelete = null;
 
     // Publish to marketplace functionality
     public $showPublishModal = false;
+
     public $listToPublish = null;
+
     public $marketplaceTitle = '';
+
     public $marketplaceDescription = '';
+
     public $marketplaceCategory = '';
-    
+
     // Unpublish functionality
     public $showUnpublishModal = false;
+
     public $listToUnpublish = null;
 
     protected $rules = [
@@ -47,24 +58,26 @@ class Index extends Component
             $this->isPublic = $this->selectedList->is_public;
             $this->shareUrl = $this->selectedList->share_url ?? '';
         }
-        
-        $this->showShareModal = !$this->showShareModal;
+
+        $this->showShareModal = ! $this->showShareModal;
     }
 
     public function togglePublicSharing()
     {
-        if (!$this->selectedList) return;
+        if (! $this->selectedList) {
+            return;
+        }
 
         $this->selectedList->update([
-            'is_public' => !$this->selectedList->is_public
+            'is_public' => ! $this->selectedList->is_public,
         ]);
-        
-        if (!$this->selectedList->share_code) {
+
+        if (! $this->selectedList->share_code) {
             $this->selectedList->generateNewShareCode();
         }
-        
+
         $this->selectedList->refresh();
-        
+
         // Update reactive properties
         $this->isPublic = $this->selectedList->is_public;
         $this->shareUrl = $this->selectedList->share_url ?? '';
@@ -72,7 +85,7 @@ class Index extends Component
 
     public function toggleCreateModal()
     {
-        $this->showCreateModal = !$this->showCreateModal;
+        $this->showCreateModal = ! $this->showCreateModal;
         $this->newListName = ''; // Clear the input when opening/closing
         $this->resetErrorBag(); // Clear any validation errors
     }
@@ -85,8 +98,11 @@ class Index extends Component
             'name' => $this->newListName,
         ]);
 
+        // Track activity
+        app(ActivityTracker::class)->log(ActivityTracker::ACTION_CREATED_LIST, $list);
+
         $this->toggleCreateModal(); // Close modal
-        
+
         // Redirect to the new list
         return redirect()->route('lists.show', $list);
     }
@@ -100,10 +116,17 @@ class Index extends Component
     public function deleteList()
     {
         if ($this->listToDelete) {
+            // Track activity before deletion
+            app(ActivityTracker::class)->log(
+                ActivityTracker::ACTION_DELETED_LIST,
+                null,
+                ['list_name' => $this->listToDelete->name]
+            );
+
             $this->listToDelete->delete();
             $this->showDeleteModal = false;
             $this->listToDelete = null;
-            
+
             session()->flash('message', 'List deleted successfully!');
         }
     }
@@ -122,10 +145,10 @@ class Index extends Component
             $this->marketplaceDescription = '';
             $this->marketplaceCategory = '';
         }
-        
-        $this->showPublishModal = !$this->showPublishModal;
-        
-        if (!$this->showPublishModal) {
+
+        $this->showPublishModal = ! $this->showPublishModal;
+
+        if (! $this->showPublishModal) {
             $this->resetPublishForm();
         }
     }
@@ -138,7 +161,9 @@ class Index extends Component
             'marketplaceCategory' => 'nullable|string|max:50',
         ]);
 
-        if (!$this->listToPublish) return;
+        if (! $this->listToPublish) {
+            return;
+        }
 
         $this->listToPublish->update([
             'marketplace_enabled' => true,
@@ -147,12 +172,15 @@ class Index extends Component
             'marketplace_category' => $this->marketplaceCategory ?: null,
             'published_at' => now(),
         ]);
-        
+
+        // Track activity
+        app(ActivityTracker::class)->log(ActivityTracker::ACTION_PUBLISHED_LIST, $this->listToPublish);
+
         // Generate share code if it doesn't exist
-        if (!$this->listToPublish->share_code) {
+        if (! $this->listToPublish->share_code) {
             $this->listToPublish->generateNewShareCode();
         }
-        
+
         $this->togglePublishModal();
         session()->flash('message', 'List published to marketplace successfully!');
     }
@@ -165,17 +193,19 @@ class Index extends Component
         $this->marketplaceCategory = '';
         $this->resetErrorBag();
     }
-    
+
     public function confirmUnpublish($listId)
     {
         $this->listToUnpublish = UserList::findOrFail($listId);
         $this->showUnpublishModal = true;
     }
-    
+
     public function unpublishFromMarketplace()
     {
-        if (!$this->listToUnpublish) return;
-        
+        if (! $this->listToUnpublish) {
+            return;
+        }
+
         $this->listToUnpublish->update([
             'marketplace_enabled' => false,
             'marketplace_title' => null,
@@ -183,13 +213,16 @@ class Index extends Component
             'marketplace_category' => null,
             'published_at' => null,
         ]);
-        
+
+        // Track activity
+        app(ActivityTracker::class)->log(ActivityTracker::ACTION_UNPUBLISHED_LIST, $this->listToUnpublish);
+
         $this->showUnpublishModal = false;
         $this->listToUnpublish = null;
-        
+
         session()->flash('message', 'List unpublished from marketplace successfully!');
     }
-    
+
     public function cancelUnpublish()
     {
         $this->showUnpublishModal = false;

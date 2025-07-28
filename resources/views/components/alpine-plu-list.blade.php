@@ -21,7 +21,7 @@
                     :style="item.isTemp ? 'opacity: 0.7' : ''"
                 >
                     <div class="grid grid-cols-[3.5rem,3rem,1fr,auto,auto] min-h-16"
-                        @click="$dispatch('pluCodeSelected', [item.plu_code_id])"
+                        @click="$dispatch('pluCodeSelected', [item.plu_code_id, item.organic])"
                         :data-plu-id="item.plu_code_id">
                         <div class="flex flex-col items-center justify-evenly">
                             <div class="flex items-center justify-center w-12 h-7 sm:w-12 sm:h-8 bg-green-100 text-sm text-green-800 border border-green-200 rounded overflow-hidden">

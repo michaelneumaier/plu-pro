@@ -2,9 +2,8 @@
 
 namespace App\Livewire\Lists;
 
-use Livewire\Component;
-use App\Models\UserList;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Component;
 
 class Create extends Component
 {

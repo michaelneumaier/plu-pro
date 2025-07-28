@@ -2,22 +2,26 @@
 
 namespace App\View\Components;
 
+use App\Models\ListItem;
+use App\Models\PLUCode;
 use Closure;
 use Illuminate\Contracts\View\View;
 use Illuminate\View\Component;
-use App\Models\PLUCode;
-use App\Models\ListItem;
 
 class PluCodeTable extends Component
 {
     public $collection;
 
     public $selectedCategory;
+
     public $selectedCommodity;
 
     public $pluCodes;
+
     public $onDelete;
+
     public $onAdd;
+
     public $userListId;
 
     public function __construct($collection, $onDelete = null, $onAdd = null, $selectedCategory = null, $selectedCommodity = null, $userListId = null)
@@ -43,6 +47,7 @@ class PluCodeTable extends Component
             // Attach the specific ListItem to each PLUCode
             return $collection->map(function ($pluCode) {
                 $pluCode->listItem = $pluCode->listItems->first();
+
                 return $pluCode;
             });
         }
@@ -70,11 +75,13 @@ class PluCodeTable extends Component
         // Attach the specific ListItem to each PLUCode
         $pluCodes = $pluCodes->map(function ($pluCode) {
             $pluCode->listItem = $pluCode->listItems->first();
+
             return $pluCode;
         });
 
         return $pluCodes;
     }
+
     /**
      * Get the view / contents that represent the component.
      */

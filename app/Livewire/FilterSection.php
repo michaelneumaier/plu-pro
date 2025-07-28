@@ -2,18 +2,19 @@
 
 namespace App\Livewire;
 
-use Livewire\Component;
-use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
+use Livewire\Component;
 
 class FilterSection extends Component
 {
     // Public properties for filter options
     public $categories = [];
+
     public $commodities = [];
 
     // Selected filters - Let parent component handle URL state
     public $selectedCategory = '';
+
     public $selectedCommodity = '';
 
     // Track if we're in the middle of an update to prevent loops
@@ -21,22 +22,22 @@ class FilterSection extends Component
 
     protected $listeners = [
         'refreshFilters' => 'handleRefreshFilters',
-        'filter-state-updated' => 'syncWithParent'
+        'filter-state-updated' => 'syncWithParent',
     ];
 
     /**
      * Mount the component with filter options and initial selections.
      *
-     * @param array $categories
-     * @param array $commodities
-     * @param string $selectedCategory
-     * @param string $selectedCommodity
+     * @param  array  $categories
+     * @param  array  $commodities
+     * @param  string  $selectedCategory
+     * @param  string  $selectedCommodity
      */
     public function mount($categories, $commodities, $selectedCategory = '', $selectedCommodity = '')
     {
         $this->categories = $categories;
         $this->commodities = $commodities;
-        
+
         // Normalize empty values to ensure consistency
         $this->selectedCategory = trim($selectedCategory ?? '') ?: '';
         $this->selectedCommodity = trim($selectedCommodity ?? '') ?: '';
@@ -64,7 +65,7 @@ class FilterSection extends Component
 
     public function updatedSelectedCommodity()
     {
-        // Prevent infinite loops during programmatic updates  
+        // Prevent infinite loops during programmatic updates
         if ($this->isUpdating) {
             return;
         }
@@ -80,7 +81,7 @@ class FilterSection extends Component
         // Ensure values are normalized before dispatching
         $category = trim($this->selectedCategory ?? '') ?: '';
         $commodity = trim($this->selectedCommodity ?? '') ?: '';
-        
+
         $this->dispatch('filtersUpdated', [
             'selectedCategory' => $category,
             'selectedCommodity' => $commodity,
@@ -103,10 +104,10 @@ class FilterSection extends Component
     public function updateFromParent($selectedCategory, $selectedCommodity)
     {
         $this->isUpdating = true;
-        
+
         $this->selectedCategory = trim($selectedCategory ?? '') ?: '';
         $this->selectedCommodity = trim($selectedCommodity ?? '') ?: '';
-        
+
         $this->isUpdating = false;
     }
 
@@ -116,12 +117,12 @@ class FilterSection extends Component
     public function resetFilters()
     {
         $this->isUpdating = true;
-        
+
         $this->selectedCategory = '';
         $this->selectedCommodity = '';
-        
+
         $this->isUpdating = false;
-        
+
         // Dispatch the reset
         $this->dispatchFiltersUpdated();
     }
@@ -129,26 +130,26 @@ class FilterSection extends Component
     public function handleRefreshFilters($commodities, $categories)
     {
         $this->isUpdating = true;
-        
+
         $this->commodities = $commodities;
         $this->categories = $categories;
 
         // If the currently selected category/commodity no longer exists in the new lists,
         // reset those selections
         $filtersChanged = false;
-        
-        if (!in_array($this->selectedCategory, $categories) && $this->selectedCategory !== '') {
+
+        if (! in_array($this->selectedCategory, $categories) && $this->selectedCategory !== '') {
             $this->selectedCategory = '';
             $filtersChanged = true;
         }
-        
-        if (!in_array($this->selectedCommodity, $commodities) && $this->selectedCommodity !== '') {
+
+        if (! in_array($this->selectedCommodity, $commodities) && $this->selectedCommodity !== '') {
             $this->selectedCommodity = '';
             $filtersChanged = true;
         }
-        
+
         $this->isUpdating = false;
-        
+
         // Only dispatch if filters actually changed
         if ($filtersChanged) {
             $this->dispatchFiltersUpdated();

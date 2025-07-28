@@ -2,20 +2,22 @@
 
 namespace App\Livewire\Marketplace;
 
+use App\Models\UserList;
 use Livewire\Component;
 use Livewire\WithPagination;
-use App\Models\UserList;
-use Illuminate\Support\Facades\Auth;
 
 class Browse extends Component
 {
     use WithPagination;
 
     public $search = '';
+
     public $category = '';
+
     public $sortBy = 'newest';
+
     public $viewMode = 'grid'; // grid or list
-    
+
     protected $queryString = [
         'search' => ['except' => ''],
         'category' => ['except' => ''],
@@ -51,8 +53,8 @@ class Browse extends Component
         // Apply search filter
         if ($this->search) {
             $query->where(function ($q) {
-                $q->where('marketplace_title', 'like', '%' . $this->search . '%')
-                  ->orWhere('marketplace_description', 'like', '%' . $this->search . '%');
+                $q->where('marketplace_title', 'like', '%'.$this->search.'%')
+                    ->orWhere('marketplace_description', 'like', '%'.$this->search.'%');
             });
         }
 

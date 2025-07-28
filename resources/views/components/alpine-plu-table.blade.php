@@ -22,7 +22,7 @@
                     :style="item.isTemp ? 'opacity: 0.7' : ''"
                 >
                     <div class="grid grid-cols-[3.5rem,3rem,1fr,auto,auto] min-h-16 "
-                        @click="$dispatch('pluCodeSelected', [item.plu_code_id])"
+                        @click="$dispatch('pluCodeSelected', [item.plu_code_id, item.organic])"
                         :data-plu-id="item.plu_code_id">
                         
                         <!-- PLU Column -->

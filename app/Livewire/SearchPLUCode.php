@@ -2,8 +2,8 @@
 
 namespace App\Livewire; // Corrected namespace from App\Livewire to App\Http\Livewire
 
-use Livewire\Component;
 use App\Models\PLUCode;
+use Livewire\Component;
 use Livewire\WithPagination;
 
 class SearchPLUCode extends Component
@@ -12,11 +12,14 @@ class SearchPLUCode extends Component
 
     // Search and filter properties
     public $searchTerm = '';
+
     public $selectedCommodity = '';
+
     public $selectedCategory = '';
 
     // Available filter options
     public $commodities = [];
+
     public $categories = [];
 
     // Toggle for filters visibility
@@ -25,7 +28,6 @@ class SearchPLUCode extends Component
     // Sorting properties
     public $sortOption = 'plu_asc'; // Default sort option
 
-
     // Define query string parameters for persistence (optional)
     protected $queryString = [
         'searchTerm' => ['except' => ''],
@@ -33,7 +35,6 @@ class SearchPLUCode extends Component
         'selectedCategory' => ['except' => ''],
         'sortOption' => ['except' => 'plu_asc'],
     ];
-
 
     // Listeners for events from child components
     protected $listeners = [
@@ -81,7 +82,7 @@ class SearchPLUCode extends Component
      */
     public function toggleFilters()
     {
-        $this->showFilters = !$this->showFilters;
+        $this->showFilters = ! $this->showFilters;
     }
 
     /**
@@ -97,7 +98,7 @@ class SearchPLUCode extends Component
     /**
      * Handle filters updated from the FilterSection component.
      *
-     * @param array $filters
+     * @param  array  $filters
      */
     public function handleFiltersUpdated($filters)
     {
@@ -130,11 +131,11 @@ class SearchPLUCode extends Component
         $allowedFields = ['plu', 'consumer_usage_tier', 'created_at'];
         $allowedDirections = ['asc', 'desc'];
 
-        if (!in_array($field, $allowedFields)) {
+        if (! in_array($field, $allowedFields)) {
             $field = 'plu';
         }
 
-        if (!in_array($direction, $allowedDirections)) {
+        if (! in_array($direction, $allowedDirections)) {
             $direction = 'asc';
         }
 
@@ -153,10 +154,10 @@ class SearchPLUCode extends Component
         // Apply search term if provided
         if ($this->searchTerm) {
             $query->where(function ($q) {
-                $q->where('plu', 'like', '%' . $this->searchTerm . '%')
-                    ->orWhere('variety', 'like', '%' . $this->searchTerm . '%')
-                    ->orWhere('commodity', 'like', '%' . $this->searchTerm . '%')
-                    ->orWhere('aka', 'like', '%' . $this->searchTerm . '%');
+                $q->where('plu', 'like', '%'.$this->searchTerm.'%')
+                    ->orWhere('variety', 'like', '%'.$this->searchTerm.'%')
+                    ->orWhere('commodity', 'like', '%'.$this->searchTerm.'%')
+                    ->orWhere('aka', 'like', '%'.$this->searchTerm.'%');
             });
         }
 
@@ -171,7 +172,7 @@ class SearchPLUCode extends Component
         }
 
         // Apply sorting
-        list($field, $direction) = $this->parseSortOption();
+        [$field, $direction] = $this->parseSortOption();
 
         // Custom sorting for consumer_usage_tier
         if ($field === 'consumer_usage_tier') {
@@ -181,13 +182,13 @@ class SearchPLUCode extends Component
                     WHEN 'Medium' THEN 2
                     WHEN 'High' THEN 3
                     ELSE 4
-                END " . ($direction === 'desc' ? 'DESC' : 'ASC'));
+                END ".($direction === 'desc' ? 'DESC' : 'ASC'));
         } else {
             $query->orderBy($field, $direction);
         }
 
         // Fetch paginated results
-        $pluCodes = $query->paginate(10);
+        $pluCodes = $query->paginate(25);
 
         return view('livewire.search-plu-code', [
             'pluCodes' => $pluCodes,

@@ -2,21 +2,26 @@
 
 namespace App\Livewire;
 
-use Livewire\Component;
 use App\Models\ListItem;
 use Illuminate\Support\Facades\DB;
+use Livewire\Component;
 
 class InventoryLevel extends Component
 {
     public $listItemId;
+
     public $userListId;
+
     public $pluCode;
+
     public bool $isEditing = false;
+
     public string $editableValue = '';
+
     public $inventoryLevel;
 
     protected $listeners = [
-        'filter-changed' => '$refresh'
+        'filter-changed' => '$refresh',
     ];
 
     public function boot()
@@ -55,72 +60,74 @@ class InventoryLevel extends Component
     public function updateInventory($listItemId, $delta, $clientTimestamp)
     {
         // Validate inputs
-        if (!is_numeric($delta) || !is_numeric($clientTimestamp)) {
+        if (! is_numeric($delta) || ! is_numeric($clientTimestamp)) {
             return [
                 'success' => false,
-                'error' => 'Invalid input parameters'
+                'error' => 'Invalid input parameters',
             ];
         }
 
         DB::beginTransaction();
-        
+
         try {
             // Lock the row for update to prevent race conditions
             $listItem = ListItem::lockForUpdate()
                 ->where('id', $listItemId)
                 ->where('user_list_id', $this->userListId)
                 ->first();
-            
-            if (!$listItem) {
+
+            if (! $listItem) {
                 DB::rollback();
+
                 return [
                     'success' => false,
-                    'error' => 'Item not found'
+                    'error' => 'Item not found',
                 ];
             }
-            
+
             // Check for conflicts based on last update time
             $lastUpdateTimestamp = $listItem->updated_at->timestamp * 1000;
-            
+
             if ($lastUpdateTimestamp > $clientTimestamp) {
                 // Conflict detected - return current server value
                 DB::rollback();
+
                 return [
                     'success' => false,
                     'conflict' => true,
                     'serverValue' => (float) $listItem->inventory_level,
-                    'serverTimestamp' => $lastUpdateTimestamp
+                    'serverTimestamp' => $lastUpdateTimestamp,
                 ];
             }
-            
+
             // Apply the delta
             $newValue = max(0, $listItem->inventory_level + $delta);
             $listItem->inventory_level = $newValue;
             $listItem->save();
-            
+
             DB::commit();
-            
+
             // Update component state
             $this->inventoryLevel = $newValue;
-            
+
             return [
                 'success' => true,
                 'newValue' => (float) $newValue,
-                'timestamp' => now()->timestamp * 1000
+                'timestamp' => now()->timestamp * 1000,
             ];
-            
+
         } catch (\Exception $e) {
             DB::rollback();
-            
+
             \Log::error('Inventory update failed', [
                 'error' => $e->getMessage(),
                 'listItemId' => $listItemId,
-                'delta' => $delta
+                'delta' => $delta,
             ]);
-            
+
             return [
                 'success' => false,
-                'error' => 'Update failed: ' . $e->getMessage()
+                'error' => 'Update failed: '.$e->getMessage(),
             ];
         }
     }
@@ -142,13 +149,13 @@ class InventoryLevel extends Component
 
         $newValue = (float) $this->editableValue;
         $delta = $newValue - $this->inventoryLevel;
-        
+
         $result = $this->updateInventory($this->listItemId, $delta, now()->timestamp * 1000);
-        
-        if (!$result['success']) {
+
+        if (! $result['success']) {
             $this->dispatch('notify', [
                 'type' => 'error',
-                'message' => 'Failed to update inventory. Please try again.'
+                'message' => 'Failed to update inventory. Please try again.',
             ]);
         }
 
@@ -159,11 +166,11 @@ class InventoryLevel extends Component
     public function increment()
     {
         $result = $this->updateInventory($this->listItemId, 1, now()->timestamp * 1000);
-        
-        if (!$result['success']) {
+
+        if (! $result['success']) {
             $this->dispatch('notify', [
                 'type' => 'error',
-                'message' => 'Failed to update inventory. Please try again.'
+                'message' => 'Failed to update inventory. Please try again.',
             ]);
         }
     }
@@ -172,11 +179,11 @@ class InventoryLevel extends Component
     {
         if ($this->inventoryLevel >= 1) {
             $result = $this->updateInventory($this->listItemId, -1, now()->timestamp * 1000);
-            
-            if (!$result['success']) {
+
+            if (! $result['success']) {
                 $this->dispatch('notify', [
                     'type' => 'error',
-                    'message' => 'Failed to update inventory. Please try again.'
+                    'message' => 'Failed to update inventory. Please try again.',
                 ]);
             }
         }
@@ -185,11 +192,11 @@ class InventoryLevel extends Component
     public function addHalf()
     {
         $result = $this->updateInventory($this->listItemId, 0.5, now()->timestamp * 1000);
-        
-        if (!$result['success']) {
+
+        if (! $result['success']) {
             $this->dispatch('notify', [
                 'type' => 'error',
-                'message' => 'Failed to update inventory. Please try again.'
+                'message' => 'Failed to update inventory. Please try again.',
             ]);
         }
     }
@@ -198,11 +205,11 @@ class InventoryLevel extends Component
     {
         if (($this->inventoryLevel - 0.5) >= 0) {
             $result = $this->updateInventory($this->listItemId, -0.5, now()->timestamp * 1000);
-            
-            if (!$result['success']) {
+
+            if (! $result['success']) {
                 $this->dispatch('notify', [
                     'type' => 'error',
-                    'message' => 'Failed to update inventory. Please try again.'
+                    'message' => 'Failed to update inventory. Please try again.',
                 ]);
             }
         }
@@ -212,16 +219,16 @@ class InventoryLevel extends Component
     {
         $numValue = (float) $value;
         $delta = $numValue - $this->inventoryLevel;
-        
+
         $result = $this->updateInventory($this->listItemId, $delta, now()->timestamp * 1000);
-        
+
         if ($result['success']) {
             // Emit event to sync frontend state
             $this->dispatch('value-updated', $this->inventoryLevel);
         } else {
             $this->dispatch('notify', [
                 'type' => 'error',
-                'message' => 'Failed to update inventory. Please try again.'
+                'message' => 'Failed to update inventory. Please try again.',
             ]);
         }
     }
@@ -230,14 +237,14 @@ class InventoryLevel extends Component
     {
         $listItem = $this->getListItem();
 
-        if (!$listItem) {
+        if (! $listItem) {
             return null;
         }
 
         return view('livewire.inventory-level-working', [
             'listItem' => $listItem,
             'currentValue' => $this->inventoryLevel,
-            'pluCode' => $this->pluCode
+            'pluCode' => $this->pluCode,
         ]);
     }
 

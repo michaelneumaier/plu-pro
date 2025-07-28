@@ -6,7 +6,6 @@ use Closure;
 use Illuminate\Contracts\View\View;
 use Illuminate\View\Component;
 
-
 class Barcode extends Component
 {
     /**
@@ -33,7 +32,7 @@ class Barcode extends Component
     /**
      * Create a new component instance.
      *
-     * @param string $code
+     * @param  string  $code
      * @return void
      */
     public function __construct($code)
@@ -46,7 +45,7 @@ class Barcode extends Component
     /**
      * Prepare the UPC-A code by padding and calculating the check digit.
      *
-     * @param string $code
+     * @param  string  $code
      * @return string|null
      */
     private function prepareUPC($code)
@@ -65,8 +64,9 @@ class Barcode extends Component
             $calculatedCheckDigit = $this->calculateCheckDigit(substr($cleanCode, 0, 11));
             if ($calculatedCheckDigit != substr($cleanCode, -1)) {
                 // Invalid check digit, recalculate
-                $cleanCode = substr($cleanCode, 0, 11) . $this->calculateCheckDigit(substr($cleanCode, 0, 11));
+                $cleanCode = substr($cleanCode, 0, 11).$this->calculateCheckDigit(substr($cleanCode, 0, 11));
             }
+
             return $cleanCode;
         } else {
             // Invalid length
@@ -81,13 +81,13 @@ class Barcode extends Component
         }
 
         // Append check digit to make a full 12-digit UPC
-        return $cleanCode . $checkDigit;
+        return $cleanCode.$checkDigit;
     }
 
     /**
      * Calculate the UPC-A check digit.
      *
-     * @param string $upc
+     * @param  string  $upc
      * @return int|null
      */
     private function calculateCheckDigit($upc)
@@ -116,7 +116,7 @@ class Barcode extends Component
     /**
      * Generate the barcode pattern for UPC-A.
      *
-     * @param string $upc
+     * @param  string  $upc
      * @return string|null
      */
     private function generateBarcodePattern($upc)

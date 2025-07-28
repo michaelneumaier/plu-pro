@@ -3,14 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Models\User;
-use App\Models\ListCopy;
 
 class UserList extends Model
 {
     protected $fillable = [
-        'name', 
-        'share_code', 
+        'name',
+        'share_code',
         'is_public',
         'marketplace_enabled',
         'marketplace_title',
@@ -18,7 +16,7 @@ class UserList extends Model
         'marketplace_category',
         'view_count',
         'copy_count',
-        'published_at'
+        'published_at',
     ];
 
     protected $casts = [
@@ -32,7 +30,7 @@ class UserList extends Model
     public static function boot()
     {
         parent::boot();
-        
+
         static::creating(function ($userList) {
             if (empty($userList->share_code)) {
                 $userList->share_code = self::generateUniqueShareCode();
@@ -53,7 +51,7 @@ class UserList extends Model
                 $code .= $chars[random_int(0, strlen($chars) - 1)];
             }
         } while (self::where('share_code', $code)->exists());
-        
+
         return $code;
     }
 
@@ -64,6 +62,7 @@ class UserList extends Model
     {
         $this->share_code = self::generateUniqueShareCode();
         $this->save();
+
         return $this->share_code;
     }
 
@@ -72,7 +71,7 @@ class UserList extends Model
      */
     public function isShareable(): bool
     {
-        return $this->is_public && !empty($this->share_code);
+        return $this->is_public && ! empty($this->share_code);
     }
 
     /**
@@ -83,7 +82,7 @@ class UserList extends Model
         if (empty($this->share_code)) {
             return '';
         }
-        
+
         return route('lists.shared', $this->share_code);
     }
 
@@ -111,7 +110,7 @@ class UserList extends Model
     // Marketplace methods
     public function isInMarketplace(): bool
     {
-        return $this->marketplace_enabled && !empty($this->marketplace_title);
+        return $this->marketplace_enabled && ! empty($this->marketplace_title);
     }
 
     public function publishToMarketplace(string $title, ?string $description = null, ?string $category = null): bool
@@ -156,7 +155,7 @@ class UserList extends Model
 
         // Copy all list items (without inventory levels)
         $itemsToCopy = $this->listItems()->with('pluCode')->get();
-        
+
         foreach ($itemsToCopy as $item) {
             $newList->listItems()->create([
                 'plu_code_id' => $item->plu_code_id,
@@ -182,17 +181,17 @@ class UserList extends Model
     {
         // Create the new list with a smart default name
         $listName = $customName ?? $this->name;
-        
+
         // Check for duplicate names and append (Copy) if needed
-        $existingCount = $user->userLists()->where('name', 'like', $listName . '%')->count();
+        $existingCount = $user->userLists()->where('name', 'like', $listName.'%')->count();
         if ($existingCount > 0) {
-            $listName = $listName . ' (Copy)';
-            $copyCount = $user->userLists()->where('name', 'like', $listName . '%')->count();
+            $listName = $listName.' (Copy)';
+            $copyCount = $user->userLists()->where('name', 'like', $listName.'%')->count();
             if ($copyCount > 0) {
-                $listName = $listName . ' ' . ($copyCount + 1);
+                $listName = $listName.' '.($copyCount + 1);
             }
         }
-        
+
         $newList = $user->userLists()->create([
             'name' => $listName,
         ]);
@@ -201,7 +200,7 @@ class UserList extends Model
         $itemsToCopy = $this->listItems()
             ->with('pluCode')
             ->get();
-        
+
         foreach ($itemsToCopy as $item) {
             $newList->listItems()->create([
                 'plu_code_id' => $item->plu_code_id,
@@ -225,8 +224,8 @@ class UserList extends Model
     public function scopeMarketplace($query)
     {
         return $query->where('marketplace_enabled', true)
-                     ->whereNotNull('marketplace_title')
-                     ->whereNotNull('published_at');
+            ->whereNotNull('marketplace_title')
+            ->whereNotNull('published_at');
     }
 
     public function scopeByCategory($query, $category)

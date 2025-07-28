@@ -2,13 +2,15 @@
 
 namespace App\View\Components;
 
-use Illuminate\View\Component;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\View\Component;
 
 class PluImage extends Component
 {
     public $plu;
+
     public $size;
+
     public $class;
 
     public function __construct($plu, $size = 'sm', $class = '')
@@ -37,6 +39,7 @@ class PluImage extends Component
                 return Storage::disk('public')->url($path);
             }
         }
+
         return null;
     }
 

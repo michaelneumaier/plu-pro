@@ -54,7 +54,12 @@
     <div>
         @if($pluCodes->count())
         <div id="plu-code-table">
-            <x-plu-code-table :collection="$pluCodes" />
+            <x-plu-code-table 
+                :collection="$pluCodes" 
+                :showCommodityGroups="false" 
+                :showInventory="false" 
+                :showPagination="false" 
+            />
         </div>
         @if($pluCodes instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator)
         <div class="mt-4">

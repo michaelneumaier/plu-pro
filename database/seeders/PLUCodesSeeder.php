@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\PLUCode;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\File;
 
 class PLUCodesSeeder extends Seeder
@@ -16,18 +16,20 @@ class PLUCodesSeeder extends Seeder
         $csvFile = database_path('seeders/plu_codes.csv');
 
         // Check if the CSV file exists
-        if (!File::exists($csvFile)) {
+        if (! File::exists($csvFile)) {
             $this->command->error("CSV file not found at path: $csvFile");
+
             return;
         }
 
         // Open the CSV file
         if (($handle = fopen($csvFile, 'r')) !== false) {
             $header = null;
-            while (($row = fgetcsv($handle, 1000, ",")) !== false) {
-                if (!$header) {
+            while (($row = fgetcsv($handle, 1000, ',')) !== false) {
+                if (! $header) {
                     // Capture the header row
                     $header = $row;
+
                     continue;
                 }
 
@@ -57,16 +59,16 @@ class PLUCodesSeeder extends Seeder
                 ];
 
                 // Handle 'created_at' and 'updated_at' manually if provided
-                if (isset($data['Created_at']) && !empty($data['Created_at'])) {
+                if (isset($data['Created_at']) && ! empty($data['Created_at'])) {
                     $pluCodeData['created_at'] = trim($data['Created_at'], '"');
                 }
 
-                if (isset($data['Updated_at']) && !empty($data['Updated_at'])) {
+                if (isset($data['Updated_at']) && ! empty($data['Updated_at'])) {
                     $pluCodeData['updated_at'] = trim($data['Updated_at'], '"');
                 }
 
                 // Handle 'deleted_at' if present
-                if (isset($data['Deleted_at']) && !empty($data['Deleted_at'])) {
+                if (isset($data['Deleted_at']) && ! empty($data['Deleted_at'])) {
                     $pluCodeData['deleted_at'] = trim($data['Deleted_at'], '"');
                 }
 

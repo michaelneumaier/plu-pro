@@ -43,7 +43,7 @@ class ListCopy extends Model
     public static function userHasCopied(int $userId, int $originalListId): bool
     {
         return self::where('user_id', $userId)
-                   ->where('original_list_id', $originalListId)
-                   ->exists();
+            ->where('original_list_id', $originalListId)
+            ->exists();
     }
 }

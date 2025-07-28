@@ -104,7 +104,7 @@ class BarcodeGenerator extends Component
         }
 
         // Append check digit to make a full 12-digit UPC
-        return $cleanCode . $checkDigit;
+        return $cleanCode.$checkDigit;
     }
 
     /**

@@ -16,9 +16,30 @@
 
             <h2 id="pluCodeDetailTitle" class="text-2xl font-bold mb-4 text-gray-800 text-center">PLU Code Details</h2>
 
+            <!-- Organic Badge (if applicable) -->
+            @if($isOrganic)
+            <div class="text-center mb-3">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Organic
+                </span>
+            </div>
+            @endif
+
             <!-- Emphasized PLU Code -->
             <div class="text-center mb-4">
-                <span class="text-4xl font-extrabold text-green-800">{{ $pluCode->plu }}</span> <!-- Dark green text -->
+                <div class="flex flex-col items-center space-y-2">
+                    @if($isOrganic)
+                        <!-- Show both regular and organic PLU for organic items -->
+                        <div class="text-sm text-gray-600">Regular PLU: {{ $pluCode->plu }}</div>
+                        <span class="text-4xl font-extrabold {{ $isOrganic ? 'text-green-600' : 'text-green-800' }}">{{ $this->displayPlu }}</span>
+                        <div class="text-sm text-gray-600">Organic PLU Code</div>
+                    @else
+                        <span class="text-4xl font-extrabold text-green-800">{{ $this->displayPlu }}</span>
+                    @endif
+                </div>
             </div>
 
             <!-- Add this after the PLU number and before the General Information section -->
@@ -82,8 +103,17 @@
             </div>
 
             <!-- Barcode -->
-            <div class="mt-6 flex justify-center h-10">
-                <x-barcode code="{{ $pluCode->plu }}" />
+            <div class="mt-6 flex flex-col items-center">
+                <div class="text-sm text-gray-600 mb-2">
+                    @if($isOrganic)
+                        Organic Barcode ({{ $this->barcodePlu }})
+                    @else
+                        Barcode ({{ $this->barcodePlu }})
+                    @endif
+                </div>
+                <div class="h-10">
+                    <x-barcode code="{{ $this->barcodePlu }}" />
+                </div>
             </div>
         </div>
     </div>

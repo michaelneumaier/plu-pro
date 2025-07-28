@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PLUCode extends Model
@@ -39,8 +39,36 @@ class PLUCode extends Model
         'updated_by',
         'language',
     ];
+
     public function listItems()
     {
         return $this->hasMany(ListItem::class, 'plu_code_id');
+    }
+
+    /**
+     * Get the URL for the regular PLU page
+     */
+    public function getUrl(): string
+    {
+        return url("/{$this->plu}");
+    }
+
+    /**
+     * Get the URL for the organic PLU page
+     */
+    public function getOrganicUrl(): string
+    {
+        return url("/9{$this->plu}");
+    }
+
+    /**
+     * Get SEO-friendly title for this PLU
+     */
+    public function getSeoTitle($isOrganic = false): string
+    {
+        $prefix = $isOrganic ? 'Organic ' : '';
+        $pluDisplay = $isOrganic ? "9{$this->plu}" : $this->plu;
+
+        return "{$prefix}PLU Code {$pluDisplay}: {$this->variety} - Price Lookup Code Information";
     }
 }

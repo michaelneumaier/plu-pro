@@ -25,6 +25,9 @@
                     <x-nav-link href="{{ route('marketplace.browse') }}" :active="request()->routeIs('marketplace.*')">
                         {{ __('Marketplace') }}
                     </x-nav-link>
+                    <x-nav-link href="{{ route('about') }}" :active="request()->routeIs('about')">
+                        {{ __('About') }}
+                    </x-nav-link>
                 </div>
             </div>
             @if(Auth::check())
@@ -172,6 +175,9 @@
         <div class="pt-2 pb-3 space-y-1">
             <x-responsive-nav-link href="{{ route('home') }}" :active="request()->routeIs('home')">
                 {{ __('Search PLU Codes') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link href="{{ route('about') }}" :active="request()->routeIs('about')">
+                {{ __('About') }}
             </x-responsive-nav-link>
             @if(Auth::check())
             <x-responsive-nav-link href="{{ route('lists.index') }}" :active="request()->routeIs('lists.*') && !request()->routeIs('marketplace.*')">

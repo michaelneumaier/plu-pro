@@ -2,18 +2,21 @@
 
 namespace App\Livewire;
 
-use Livewire\Component;
-use Livewire\Attributes\On;
-use App\Models\ListItem;
 use App\Models\UserList;
 use Illuminate\Support\Collection;
+use Livewire\Attributes\On;
+use Livewire\Component;
 
 class ItemCarousel extends Component
 {
     public int $userListId;
+
     public Collection $items;
+
     public int $currentIndex = 0;
+
     public bool $isOpen = false;
+
     public bool $isLoading = false;
 
     protected $listeners = [
