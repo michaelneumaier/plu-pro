@@ -23,9 +23,10 @@ class SharedView extends Component
 
     protected function loadListItems()
     {
-        // Get all list items with same sorting as the owner's view
+        // Get only list items with inventory > 0 for public view
         $this->listItems = $this->userList->listItems()
             ->with(['pluCode'])
+            ->where('inventory_level', '>', 0) // Only show items with inventory
             ->join('plu_codes', 'list_items.plu_code_id', '=', 'plu_codes.id')
             ->orderBy('plu_codes.commodity', 'asc') // Group by commodity first
             ->orderBy('list_items.organic', 'asc') // Within commodity: regular first, then organic

@@ -97,14 +97,24 @@
                         <div x-show="$wire.isPublic" x-transition 
                              x-data="{ 
                                 generateQR() {
-                                    if ($wire.shareUrl && window.QRCode) {
-                                        window.QRCode.toCanvas($refs.qrCanvas, $wire.shareUrl, { width: 150 }, (error) => {
-                                            if (error) console.error(error);
-                                        });
-                                    }
+                                    // Add delay to ensure DOM is ready and URL is available
+                                    setTimeout(() => {
+                                        if ($wire.shareUrl && $wire.shareUrl.length > 0 && window.QRCode && $refs.qrCanvas) {
+                                            window.QRCode.toCanvas($refs.qrCanvas, $wire.shareUrl, { 
+                                                width: 150,
+                                                margin: 2,
+                                                color: {
+                                                    dark: '#000000',
+                                                    light: '#FFFFFF'
+                                                }
+                                            }, (error) => {
+                                                if (error) console.error('QR Code Error:', error);
+                                            });
+                                        }
+                                    }, 100);
                                 }
                              }"
-                             x-init="$watch('$wire.shareUrl', () => { $nextTick(() => generateQR()) })">
+                             x-init="$watch('$wire.shareUrl', () => { $nextTick(() => generateQR()) }); $watch('$wire.isPublic', () => { if ($wire.isPublic) $nextTick(() => generateQR()) })">
                             <label class="block text-sm font-medium text-gray-700 mb-2">Share URL</label>
                             <div class="flex mb-4">
                                 <input type="text" :value="$wire.shareUrl" readonly
