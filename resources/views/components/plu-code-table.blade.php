@@ -6,7 +6,8 @@
     'refreshToken' => null,
     'onDelete' => null,
     'onAdd' => null,
-    'readOnly' => false
+    'readOnly' => false,
+    'showInventory' => true
 ])
 @php
 // Use the collection prop as pluCodes for backward compatibility
@@ -22,15 +23,15 @@ $colCount = $hasActions ? 5 : 4;
     @if($pluCodes->count())
     <div class="bg-white shadow-sm rounded-lg overflow-hidden border border-gray-200">
         <!-- Header -->
-        <div
-            class="grid grid-cols-[3.5rem,3rem,1fr,7rem,auto,auto] bg-gray-50 text-gray-700 font-semibold text-sm border-b border-gray-200">
+        <div class="grid {{ $showInventory && $hasActions ? 'grid-cols-[3.5rem,3rem,1fr,7rem,auto]' : ($showInventory ? 'grid-cols-[3.5rem,3rem,1fr,7rem]' : ($hasActions ? 'grid-cols-[3.5rem,3rem,1fr,auto]' : 'grid-cols-[3.5rem,3rem,1fr]')) }} bg-gray-50 text-gray-700 font-semibold text-sm border-b border-gray-200">
             <div class="p-1">PLU</div>
             <div class="p-1">Image</div>
             <div class="p-1 overflow-hidden text-ellipsis whitespace-nowrap">Variety</div>
-            <!-- <div class="p-1 overflow-hidden text-ellipsis whitespace-nowrap">UPC</div>
-            <div class="p-1">Inventory</div> -->
+            @if($showInventory)
+                <div class="p-1">Inventory</div>
+            @endif
             @if($hasActions)
-            <div class="p-1">Actions</div>
+                <div class="p-1">Actions</div>
             @endif
         </div>
 
@@ -72,7 +73,7 @@ $colCount = $hasActions ? 5 : 4;
         
         <div
             class="{{ $listItem && $listItem->organic ? 'bg-green-50 hover:bg-green-100' : 'bg-white hover:bg-gray-50' }} cursor-pointer border-b border-gray-200 last:border-b-0 {{ $commodityChanged ? 'border-t-0' : '' }}">
-            <div class="grid grid-cols-[3.5rem,3rem,1fr,auto,auto] min-h-16 "
+            <div class="grid {{ $showInventory && $hasActions ? 'grid-cols-[3.5rem,3rem,1fr,auto,auto]' : ($showInventory ? 'grid-cols-[3.5rem,3rem,1fr,auto]' : ($hasActions ? 'grid-cols-[3.5rem,3rem,1fr,auto]' : 'grid-cols-[3.5rem,3rem,1fr]')) }} min-h-16 "
                 wire:click="$dispatch('pluCodeSelected', [{{ $pluCode->id }}])"
                 wire:key="plu-row-{{ $listItem ? $listItem->id : $pluCode->id }}-{{ $userListId }}-{{ $refreshToken ?? time() }}"
                 data-plu-id="{{ $pluCode->id }}">
@@ -93,7 +94,7 @@ $colCount = $hasActions ? 5 : 4;
                     <x-plu-image :plu="$pluCode->plu" size="sm" />
                 </div>
                 <div
-                    class="flex flex-col py-1 text-sm justify-between overflow-hidden text-ellipsis whitespace-nowrap flex-grow">
+                    class="flex flex-col py-1 text-sm justify-between overflow-hidden text-ellipsis whitespace-nowrap flex-grow {{ $readOnly ? 'pr-3' : '' }}">
                     <div></div>
                     <span class="font-bold">{{ $pluCode->variety }}
                         @if(!empty($pluCode->aka))
@@ -119,21 +120,23 @@ $colCount = $hasActions ? 5 : 4;
                         <!-- Size displayed on the right -->
                     </div>
                 </div>
-                <!-- Inventory Level Component -->
-                <div class="flex items-center p-1">
-                    @if($listItem && !$onAdd && isset($listItem->id) && $listItem->id)
-                        @if($readOnly === true)
-                            <!-- Read-only inventory display -->
-                            <div class="flex items-center justify-center w-12 h-8 bg-gray-100 text-gray-700 font-semibold text-base rounded border">
-                                {{ ($listItem->inventory_level ?? 0) > 0 ? ($listItem->inventory_level ?? 0) : '—' }}
-                            </div>
-                        @else
-                            <!-- Interactive inventory component -->
-                            <livewire:inventory-level :listItemId="$listItem->id" :userListId="$userListId"
-                                :wire:key="'inv-level-' . $listItem->id . '-' . ($refreshToken ?? time())" />
+                @if($showInventory)
+                    <!-- Inventory Level Component -->
+                    <div class="flex items-center p-1">
+                        @if($listItem && !$onAdd && isset($listItem->id) && $listItem->id)
+                            @if($readOnly)
+                                <!-- Read-only inventory display -->
+                                <div class="flex items-center justify-center w-12 h-8 bg-gray-100 text-gray-700 font-semibold text-base rounded border">
+                                    {{ ($listItem->inventory_level ?? 0) > 0 ? ($listItem->inventory_level ?? 0) : '0' }}
+                                </div>
+                            @else
+                                <!-- Interactive inventory component -->
+                                <livewire:inventory-level :listItemId="$listItem->id" :userListId="$userListId"
+                                    :wire:key="'inv-level-' . $listItem->id . '-' . ($refreshToken ?? time())" />
+                            @endif
                         @endif
-                    @endif
-                </div>
+                    </div>
+                @endif
 
                 @if($hasActions)
                 <div class="flex items-center">

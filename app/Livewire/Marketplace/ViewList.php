@@ -1,65 +1,55 @@
 <?php
 
-namespace App\Livewire\Lists;
+namespace App\Livewire\Marketplace;
 
 use Livewire\Component;
 use App\Models\UserList;
-use Illuminate\Support\Collection;
+use App\Models\ListCopy;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Collection;
 
-class SharedView extends Component
+class ViewList extends Component
 {
-    public UserList $userList;
+    public UserList $marketplaceList;
     public Collection $listItems;
-    public Collection $allListItems; // For copying - includes items with 0 inventory
-    
-    // Copy functionality
-    public bool $showCopyModal = false;
     public string $customListName = '';
+    public bool $showCopyModal = false;
 
     public function mount($shareCode)
     {
-        // Find the list by share code and ensure it's public
-        $this->userList = UserList::where('share_code', $shareCode)
-            ->where('is_public', true)
+        // Find the marketplace list by share code
+        $this->marketplaceList = UserList::marketplace()
+            ->where('share_code', $shareCode)
             ->firstOrFail();
             
         $this->loadListItems();
+        $this->customListName = $this->marketplaceList->marketplace_title;
+        
+        // Increment view count
+        $this->marketplaceList->incrementViewCount();
     }
 
     protected function loadListItems()
     {
-        // Load ALL items for copying purposes
-        $this->allListItems = $this->userList->listItems()
+        // Get all list items sorted the same way as the original list
+        $this->listItems = $this->marketplaceList->listItems()
             ->with(['pluCode'])
             ->join('plu_codes', 'list_items.plu_code_id', '=', 'plu_codes.id')
-            ->orderBy('plu_codes.commodity', 'asc') // Group by commodity first
-            ->orderBy('list_items.organic', 'asc') // Within commodity: regular first, then organic
-            ->orderByRaw('CAST(plu_codes.plu AS UNSIGNED) ASC') // Within organic status: PLU code ascending
+            ->orderBy('plu_codes.commodity', 'asc')
+            ->orderBy('list_items.organic', 'asc')
+            ->orderByRaw('CAST(plu_codes.plu AS UNSIGNED) ASC')
             ->select('list_items.*')
             ->get()
-            ->load('pluCode'); // Ensure pluCode relationship is loaded
-            
-        // For display, only show items with inventory > 0
-        $this->listItems = $this->allListItems->filter(function ($item) {
-            return $item->inventory_level > 0;
-        });
+            ->load('pluCode');
     }
 
-    // Prepare carousel - read-only version
-    public function openCarousel()
-    {
-        $this->dispatch('carousel-ready-to-open');
-    }
 
     public function toggleCopyModal()
     {
         $this->showCopyModal = !$this->showCopyModal;
         
         if ($this->showCopyModal) {
-            $this->customListName = $this->userList->name;
-        } else {
-            $this->resetCopyForm();
+            $this->customListName = $this->marketplaceList->marketplace_title;
         }
     }
 
@@ -76,27 +66,21 @@ class SharedView extends Component
         }
 
         try {
-            // Copy the list for the current user WITH inventory levels
-            // Use the UserList method which copies ALL items (including those with 0 inventory)
-            $newList = $this->userList->copyForUserWithInventory(
+            // Copy the list for the current user
+            $newList = $this->marketplaceList->copyForUser(
                 Auth::user(), 
                 trim($this->customListName)
             );
 
             // Close modal and redirect to the new list
             $this->showCopyModal = false;
-            session()->flash('message', 'List copied successfully to your lists with inventory levels preserved!');
+            session()->flash('message', 'List copied successfully to your lists!');
             
             return redirect()->route('lists.show', $newList);
             
         } catch (\Exception $e) {
             session()->flash('error', 'Failed to copy list. Please try again.');
         }
-    }
-
-    protected function resetCopyForm()
-    {
-        $this->customListName = '';
     }
 
     public function render()
@@ -109,9 +93,10 @@ class SharedView extends Component
             })
             ->keys();
 
-        return view('livewire.lists.shared-view', [
+        return view('livewire.marketplace.view-list', [
             'listItems' => $this->listItems,
             'dualVersionPluCodes' => $dualVersionPluCodes,
+            'categories' => UserList::getMarketplaceCategories(),
         ])->layout('layouts.app');
     }
 }

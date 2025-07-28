@@ -361,6 +361,15 @@ class Show extends Component
     public $showShareModal = false;
     public $isPublic;
     public $shareUrl = '';
+    
+    // Publish to marketplace functionality
+    public $showPublishModal = false;
+    public $marketplaceTitle = '';
+    public $marketplaceDescription = '';
+    public $marketplaceCategory = '';
+    
+    // Unpublish functionality
+    public $showUnpublishModal = false;
 
     public function toggleShareModal()
     {
@@ -385,6 +394,75 @@ class Show extends Component
         // Update reactive properties
         $this->isPublic = $this->userList->is_public;
         $this->shareUrl = $this->userList->share_url ?? '';
+    }
+    
+    public function togglePublishModal()
+    {
+        $this->showPublishModal = !$this->showPublishModal;
+        
+        if ($this->showPublishModal) {
+            $this->marketplaceTitle = $this->userList->name;
+            $this->marketplaceDescription = '';
+            $this->marketplaceCategory = '';
+        } else {
+            $this->resetPublishForm();
+        }
+    }
+
+    public function publishToMarketplace()
+    {
+        $this->validate([
+            'marketplaceTitle' => 'required|string|max:255',
+            'marketplaceDescription' => 'nullable|string|max:1000',
+            'marketplaceCategory' => 'nullable|string|max:50',
+        ]);
+
+        $this->userList->update([
+            'marketplace_enabled' => true,
+            'marketplace_title' => $this->marketplaceTitle,
+            'marketplace_description' => $this->marketplaceDescription ?: null,
+            'marketplace_category' => $this->marketplaceCategory ?: null,
+            'published_at' => now(),
+        ]);
+        
+        // Generate share code if it doesn't exist
+        if (!$this->userList->share_code) {
+            $this->userList->generateNewShareCode();
+        }
+        
+        $this->togglePublishModal();
+        session()->flash('message', 'List published to marketplace successfully!');
+    }
+
+    protected function resetPublishForm()
+    {
+        $this->marketplaceTitle = '';
+        $this->marketplaceDescription = '';
+        $this->marketplaceCategory = '';
+    }
+    
+    public function confirmUnpublish()
+    {
+        $this->showUnpublishModal = true;
+    }
+    
+    public function unpublishFromMarketplace()
+    {
+        $this->userList->update([
+            'marketplace_enabled' => false,
+            'marketplace_title' => null,
+            'marketplace_description' => null,
+            'marketplace_category' => null,
+            'published_at' => null,
+        ]);
+        
+        $this->showUnpublishModal = false;
+        session()->flash('message', 'List unpublished from marketplace successfully!');
+    }
+    
+    public function cancelUnpublish()
+    {
+        $this->showUnpublishModal = false;
     }
 
     public function render()

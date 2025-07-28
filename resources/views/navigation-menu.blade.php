@@ -19,8 +19,11 @@
                     <x-nav-link href="{{ route('home') }}" :active="request()->routeIs('home')">
                         {{ __('Search PLU Codes') }}
                     </x-nav-link>
-                    <x-nav-link href="{{ route('lists.index') }}" :active="request()->routeIs('lists.*')">
+                    <x-nav-link href="{{ route('lists.index') }}" :active="request()->routeIs('lists.*') && !request()->routeIs('marketplace.*')">
                         {{ __('My Lists') }}
+                    </x-nav-link>
+                    <x-nav-link href="{{ route('marketplace.browse') }}" :active="request()->routeIs('marketplace.*')">
+                        {{ __('Marketplace') }}
                     </x-nav-link>
                 </div>
             </div>
@@ -171,8 +174,11 @@
                 {{ __('Search PLU Codes') }}
             </x-responsive-nav-link>
             @if(Auth::check())
-            <x-responsive-nav-link href="{{ route('lists.index') }}" :active="request()->routeIs('lists.*')">
+            <x-responsive-nav-link href="{{ route('lists.index') }}" :active="request()->routeIs('lists.*') && !request()->routeIs('marketplace.*')">
                 {{ __('My Lists') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link href="{{ route('marketplace.browse') }}" :active="request()->routeIs('marketplace.*')">
+                {{ __('Marketplace') }}
             </x-responsive-nav-link>
             <x-responsive-nav-link href="{{ route('dashboard') }}" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
