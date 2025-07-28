@@ -63,6 +63,10 @@ class UserList extends Model
      */
     public function getShareUrlAttribute(): string
     {
+        if (empty($this->share_code)) {
+            return '';
+        }
+        
         return route('lists.shared', $this->share_code);
     }
 
