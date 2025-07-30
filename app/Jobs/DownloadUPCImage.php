@@ -25,7 +25,7 @@ class DownloadUPCImage implements ShouldQueue
     public function __construct(
         private int $upcCodeId
     ) {
-        $this->onQueue('image-downloads');
+        // Using default queue for shared hosting compatibility
     }
 
     /**

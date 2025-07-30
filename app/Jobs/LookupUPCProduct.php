@@ -29,7 +29,7 @@ class LookupUPCProduct implements ShouldQueue
         private string $upc,
         private int $userId
     ) {
-        $this->onQueue('upc-lookups');
+        // Using default queue for shared hosting compatibility
     }
 
     /**
