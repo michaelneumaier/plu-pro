@@ -783,7 +783,7 @@ class Show extends Component
                     'brand' => $item->upcCode->brand,
                 ];
             }
-        });
+        })->values(); // Ensure it's a proper array, not an object
 
         return view('livewire.lists.show', [
             'listItems' => $listItems,
