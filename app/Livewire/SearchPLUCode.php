@@ -2,7 +2,11 @@
 
 namespace App\Livewire; // Corrected namespace from App\Livewire to App\Http\Livewire
 
+use App\Events\UPCLookupCompleted;
+use App\Events\UPCLookupFailed;
+use App\Jobs\LookupUPCProduct;
 use App\Models\PLUCode;
+use App\Models\UPCCode;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -28,6 +32,14 @@ class SearchPLUCode extends Component
     // Sorting properties
     public $sortOption = 'plu_asc'; // Default sort option
 
+    // UPC-related properties
+    public $upcResults = [];
+    public $upcLookupInProgress = false;
+    public $showCommodityModal = false;
+    public $pendingUpcItem = null;
+    public $selectedUpcCategory = '';
+    public $selectedUpcCommodity = '';
+
     // Define query string parameters for persistence (optional)
     protected $queryString = [
         'searchTerm' => ['except' => ''],
@@ -52,10 +64,65 @@ class SearchPLUCode extends Component
 
     /**
      * Reset to the first page when search term or filters are updated.
+     * Also detect UPC format and trigger lookup if needed.
      */
     public function updatingSearchTerm()
     {
         $this->resetPage();
+        
+        // Clear previous UPC results
+        $this->upcResults = [];
+        $this->upcLookupInProgress = false;
+        
+        // Detect UPC format (12-13 digits)
+        if ($this->isUPCFormat($this->searchTerm)) {
+            $this->searchUPC();
+        }
+    }
+
+    /**
+     * Check if search term is in UPC format
+     */
+    private function isUPCFormat(string $term): bool
+    {
+        return preg_match('/^\d{12,13}$/', trim($term));
+    }
+
+    /**
+     * Search for UPC in database or trigger API lookup
+     */
+    private function searchUPC(): void
+    {
+        // First check if UPC already exists in our database
+        $cachedUPC = UPCCode::where('upc', $this->searchTerm)->first();
+        
+        if ($cachedUPC) {
+            $this->upcResults = [$cachedUPC];
+            $this->upcLookupInProgress = false;
+        } else {
+            // Trigger API lookup for new UPC
+            $this->upcLookupInProgress = true;
+            LookupUPCProduct::dispatch($this->searchTerm, auth()->id());
+            
+            // Start polling to check if UPC was found
+            $this->dispatch('start-upc-polling');
+        }
+    }
+
+    /**
+     * Check for UPC lookup results (called via polling)
+     */
+    public function checkUPCResults()
+    {
+        if ($this->upcLookupInProgress && $this->isUPCFormat($this->searchTerm)) {
+            $foundUPC = UPCCode::where('upc', $this->searchTerm)->first();
+            
+            if ($foundUPC) {
+                $this->upcResults = [$foundUPC];
+                $this->upcLookupInProgress = false;
+                $this->dispatch('stop-upc-polling');
+            }
+        }
     }
 
     public function updatingSelectedCommodity()
@@ -111,6 +178,63 @@ class SearchPLUCode extends Component
     {
         $this->sortOption = $option;
         $this->resetPage();
+    }
+
+
+    /**
+     * Initiate adding UPC to list - show commodity selection modal
+     */
+    public function addUPCToList($upcCodeId)
+    {
+        $this->pendingUpcItem = UPCCode::find($upcCodeId);
+        $this->selectedUpcCategory = $this->pendingUpcItem->category ?? '';
+        $this->selectedUpcCommodity = $this->pendingUpcItem->commodity ?? '';
+        $this->showCommodityModal = true;
+    }
+
+    /**
+     * Confirm UPC addition with selected category/commodity
+     */
+    public function confirmUPCAddition()
+    {
+        $this->validate([
+            'selectedUpcCategory' => 'required|in:Fruits,Vegetables,Herbs,Nuts,Dried Fruits,Retailer Assigned Numbers',
+            'selectedUpcCommodity' => 'required',
+        ]);
+
+        // Update UPC with selected category/commodity
+        $this->pendingUpcItem->update([
+            'category' => $this->selectedUpcCategory,
+            'commodity' => $this->selectedUpcCommodity,
+        ]);
+
+        // Emit event to add UPC to list (handled by parent component)
+        $this->dispatch('upc-ready-for-list', [
+            'upcCodeId' => $this->pendingUpcItem->id,
+            'category' => $this->selectedUpcCategory,
+            'commodity' => $this->selectedUpcCommodity,
+        ]);
+
+        $this->resetCommodityModal();
+    }
+
+    /**
+     * Cancel UPC commodity selection
+     */
+    public function cancelUPCAddition()
+    {
+        $this->resetCommodityModal();
+    }
+
+    /**
+     * Reset commodity selection modal
+     */
+    private function resetCommodityModal()
+    {
+        $this->showCommodityModal = false;
+        $this->pendingUpcItem = null;
+        $this->selectedUpcCategory = '';
+        $this->selectedUpcCommodity = '';
     }
 
     /**
@@ -192,6 +316,8 @@ class SearchPLUCode extends Component
 
         return view('livewire.search-plu-code', [
             'pluCodes' => $pluCodes,
+            'upcResults' => $this->upcResults,
+            'upcLookupInProgress' => $this->upcLookupInProgress,
         ]);
     }
 }

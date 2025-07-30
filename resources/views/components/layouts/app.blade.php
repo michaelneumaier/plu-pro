@@ -54,6 +54,7 @@
         </div>
     </div>
     @livewire('plu-code-detail-modal')
+    @livewire('upc-code-detail-modal')
     @stack('modals')
 
     @livewireScripts

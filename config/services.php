@@ -41,4 +41,10 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
+    'kroger' => [
+        'client_id' => env('KROGER_CLIENT_ID'),
+        'client_secret' => env('KROGER_CLIENT_SECRET'),
+        'base_url' => env('KROGER_BASE_URL', 'https://api.kroger.com/v1'),
+    ],
+
 ];

@@ -18,9 +18,18 @@
             
             // Preload current and adjacent images
             [currentIndex - 1, currentIndex, currentIndex + 1].forEach(index => {
-                if (index >= 0 && index < items.length && items[index]?.plu_code?.plu) {
-                    const img = new Image();
-                    img.src = `/storage/product_images/${items[index].plu_code.plu}.jpg`;
+                if (index >= 0 && index < items.length) {
+                    const item = items[index];
+                    if (item) {
+                        const img = new Image();
+                        
+                        // Handle both PLU and UPC images
+                        if (item.item_type === 'plu' && item.plu_code?.plu) {
+                            img.src = `/storage/product_images/${item.plu_code.plu}.jpg`;
+                        } else if (item.item_type === 'upc' && item.upc_code?.has_image && item.upc_code?.upc) {
+                            img.src = `/storage/upc_images/${item.upc_code.upc}.jpg`;
+                        }
+                    }
                 }
             });
         },
@@ -153,8 +162,18 @@
                         <!-- Product Image Section -->
                         <div class="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200">
                             <div class="absolute inset-0 flex items-center justify-center">
-                                <x-plu-image :plu="optional($item->pluCode)->plu" size="lg"
-                                    class="w-full h-full object-cover" />
+                                @if($item->item_type === 'plu')
+                                    <x-plu-image :plu="optional($item->pluCode)->plu" size="lg"
+                                        class="w-full h-full object-cover" />
+                                @elseif($item->item_type === 'upc' && optional($item->upcCode)->has_image)
+                                    <img src="{{ asset('storage/upc_images/' . $item->upcCode->upc . '.jpg') }}" 
+                                         alt="{{ $item->display_name }}" 
+                                         class="w-full h-full object-cover">
+                                @else
+                                    <div class="w-full h-full flex items-center justify-center bg-gray-200">
+                                        <span class="text-gray-400 text-lg">No Image</span>
+                                    </div>
+                                @endif
                             </div>
 
                             <!-- Organic Badge -->
@@ -176,30 +195,46 @@
 
                         <!-- Product Information -->
                         <div class="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                            <!-- Item Type Indicator -->
+                            <div class="text-center">
+                                @if($item->item_type === 'plu')
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                                        PLU Code
+                                        @if($item->organic) • Organic @endif
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                        UPC Code
+                                    </span>
+                                @endif
+                            </div>
+
                             <!-- Product Name -->
                             <div class="text-center">
                                 <h2 class="text-2xl font-bold text-gray-900 leading-tight truncate">
-                                    {{ optional($item->pluCode)->variety ?? 'Unknown Variety' }}
+                                    {{ $item->display_name }}
                                 </h2>
                                 <p class="text-lg text-gray-600 mt-1 truncate">
-                                    {{ optional($item->pluCode)->commodity ?? 'Unknown Commodity' }}
+                                    {{ $item->display_commodity }}
                                 </p>
-                                @if(optional($item->pluCode)->size)
+                                @if($item->item_type === 'plu' && optional($item->pluCode)->size)
                                 <p class="text-sm text-gray-500 mt-1 truncate">
                                     Size: {{ $item->pluCode->size }}
+                                </p>
+                                @elseif($item->item_type === 'upc' && optional($item->upcCode)->brand)
+                                <p class="text-sm text-gray-500 mt-1 truncate">
+                                    Brand: {{ $item->upcCode->brand }}
                                 </p>
                                 @endif
                             </div>
 
-                            <!-- PLU Code Display -->
+                            <!-- Code Display -->
                             <div class="bg-gray-50 rounded-lg p-3 text-center">
-                                <p class="text-sm text-gray-600 mb-1">PLU Code</p>
+                                <p class="text-sm text-gray-600 mb-1">
+                                    {{ $item->item_type === 'plu' ? 'PLU Code' : 'UPC Code' }}
+                                </p>
                                 <p class="text-2xl font-mono font-bold text-gray-900">
-                                    @if($item->organic)
-                                    9{{ optional($item->pluCode)->plu ?? 'N/A' }}
-                                    @else
-                                    {{ optional($item->pluCode)->plu ?? 'N/A' }}
-                                    @endif
+                                    {{ $item->display_code }}
                                 </p>
                             </div>
 
@@ -207,7 +242,7 @@
                             <div class="bg-white border border-gray-200 rounded-lg p-2">
                                 <p class="text-xs text-gray-600 text-center mb-1">Barcode</p>
                                 <div class="flex justify-center items-center">
-                                    <x-barcode code="{{ $item->organic ? '9' . optional($item->pluCode)->plu : optional($item->pluCode)->plu }}" size="md" />
+                                    <x-barcode code="{{ $item->display_code }}" size="md" />
                                 </div>
                             </div>
                         </div>

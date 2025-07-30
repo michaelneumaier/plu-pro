@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Lists;
 
+use App\Jobs\LookupUPCProduct;
 use App\Models\ListItem;
 use App\Models\PLUCode;
+use App\Models\UPCCode;
 use App\Models\UserList;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Url;
@@ -34,9 +36,18 @@ class Show extends Component
     // Refresh token to prevent snapshot missing errors
     public $refreshToken;
 
+    // UPC-related properties
+    public $upcResults = [];
+    public $upcLookupInProgress = false;
+    public $showCommodityModal = false;
+    public $pendingUpcItem = null;
+    public $selectedUpcCategory = '';
+    public $selectedUpcCommodity = '';
+
     protected $listeners = [
         'retry-add-plu' => 'retryAddPlu',
         'list-item-updated' => 'handleListItemUpdated',
+        'upc-ready-for-list' => 'handleUPCReadyForList',
     ];
 
     protected $queryString = [
@@ -69,20 +80,23 @@ class Show extends Component
 
     protected function initializeFilterOptions()
     {
-        $userList = $this->userList->listItems()->with('pluCode')->get();
+        // For the commodity modal, we need ALL PLU commodities, not just those in the current list
+        $this->commodities = PLUCode::select('commodity')->distinct()->orderBy('commodity')->pluck('commodity')->toArray();
+        
+        // For filtering, get categories from list items (both PLU and UPC)
+        $userList = $this->userList->listItems()->with(['pluCode', 'upcCode'])->get();
 
-        // Update commodities
-        $this->commodities = $this->processCollection($userList)
-            ->pluck('commodity')
-            ->filter() // Remove null/empty values
-            ->unique()
-            ->sort()
-            ->values()
-            ->toArray();
-
-        // Update categories
-        $this->categories = $this->processCollection($userList)
-            ->pluck('category')
+        // Update categories from both PLU and UPC items in the list
+        $categories = collect();
+        foreach ($userList as $item) {
+            if ($item->item_type === 'plu' && $item->pluCode) {
+                $categories->push($item->pluCode->category);
+            } elseif ($item->item_type === 'upc' && $item->upcCode) {
+                $categories->push($item->upcCode->category);
+            }
+        }
+        
+        $this->categories = $categories
             ->filter() // Remove null/empty values
             ->unique()
             ->sort()
@@ -114,6 +128,15 @@ class Show extends Component
     public function updatedSearchTerm()
     {
         $this->resetPage();
+        
+        // Clear previous UPC results
+        $this->upcResults = [];
+        $this->upcLookupInProgress = false;
+        
+        // Detect UPC format (12-13 digits)
+        if ($this->isUPCFormat($this->searchTerm)) {
+            $this->searchUPC();
+        }
     }
 
     public function updatedSelectedCategory()
@@ -131,6 +154,161 @@ class Show extends Component
         $this->selectedCategory = '';
         $this->selectedCommodity = '';
         $this->resetPage();
+    }
+
+    /**
+     * Check if search term is in UPC format
+     */
+    private function isUPCFormat(string $term): bool
+    {
+        return preg_match('/^\d{12,13}$/', trim($term));
+    }
+
+    /**
+     * Search for UPC in database or trigger API lookup
+     */
+    private function searchUPC(): void
+    {
+        // First check if UPC already exists in our database
+        $cachedUPC = UPCCode::where('upc', $this->searchTerm)->first();
+        
+        if ($cachedUPC) {
+            $this->upcResults = [$cachedUPC];
+            $this->upcLookupInProgress = false;
+        } else {
+            // Trigger API lookup for new UPC
+            $this->upcLookupInProgress = true;
+            LookupUPCProduct::dispatch($this->searchTerm, auth()->id());
+            
+            // Start polling to check if UPC was found
+            $this->dispatch('start-upc-polling');
+        }
+    }
+
+    /**
+     * Check for UPC lookup results (called via polling)
+     */
+    public function checkUPCResults()
+    {
+        if ($this->upcLookupInProgress && $this->isUPCFormat($this->searchTerm)) {
+            $foundUPC = UPCCode::where('upc', $this->searchTerm)->first();
+            
+            if ($foundUPC) {
+                $this->upcResults = [$foundUPC];
+                $this->upcLookupInProgress = false;
+                $this->dispatch('stop-upc-polling');
+            }
+        }
+    }
+
+    /**
+     * Initiate adding UPC to list - show commodity selection modal
+     */
+    public function addUPCToList($upcCodeId)
+    {
+        $this->pendingUpcItem = UPCCode::find($upcCodeId);
+        $this->selectedUpcCategory = $this->pendingUpcItem->category ?? '';
+        $this->selectedUpcCommodity = $this->pendingUpcItem->commodity ?? '';
+        $this->showCommodityModal = true;
+    }
+
+    /**
+     * Confirm UPC addition with selected category/commodity
+     */
+    public function confirmUPCAddition()
+    {
+        $this->validate([
+            'selectedUpcCategory' => 'required|in:Fruits,Vegetables,Herbs,Nuts,Dried Fruits,Retailer Assigned Numbers',
+            'selectedUpcCommodity' => 'required',
+        ]);
+
+        // Update UPC with selected category/commodity
+        $this->pendingUpcItem->update([
+            'category' => $this->selectedUpcCategory,
+            'commodity' => $this->selectedUpcCommodity,
+        ]);
+
+        // Add UPC to list
+        $this->addUPCCodeToList($this->pendingUpcItem->id);
+
+        $this->resetCommodityModal();
+    }
+
+    /**
+     * Cancel UPC commodity selection
+     */
+    public function cancelUPCAddition()
+    {
+        $this->resetCommodityModal();
+    }
+
+    /**
+     * Reset commodity selection modal
+     */
+    private function resetCommodityModal()
+    {
+        $this->showCommodityModal = false;
+        $this->pendingUpcItem = null;
+        $this->selectedUpcCategory = '';
+        $this->selectedUpcCommodity = '';
+    }
+
+    /**
+     * Handle UPC ready for list event from SearchPLUCode component
+     */
+    public function handleUPCReadyForList($data)
+    {
+        $this->addUPCCodeToList($data['upcCodeId']);
+    }
+
+    /**
+     * Add UPC code to the current list
+     */
+    public function addUPCCodeToList($upcCodeId)
+    {
+        // Check if this UPC already exists in the list
+        $exists = $this->userList->listItems()
+            ->where('upc_code_id', $upcCodeId)
+            ->where('item_type', 'upc')
+            ->exists();
+
+        if (!$exists) {
+            DB::transaction(function () use ($upcCodeId) {
+                $listItem = $this->userList->listItems()->create([
+                    'upc_code_id' => $upcCodeId,
+                    'item_type' => 'upc',
+                    'inventory_level' => 0.0,
+                    'organic' => false, // UPC items don't have organic variants
+                ]);
+
+                // Load the UPC code data for the new item
+                $listItem->load('upcCode');
+
+                // Update refresh token to reset wire:key values and prevent snapshot errors
+                $this->refreshToken = time();
+
+                // Dispatch browser event for Alpine.js components to catch
+                $this->js("
+                    window.dispatchEvent(new CustomEvent('item-added-to-list', { 
+                        detail: { 
+                            upcCodeId: {$upcCodeId}, 
+                            itemType: 'upc'
+                        } 
+                    }));
+                ");
+
+                session()->flash('message', 'UPC item added successfully!');
+
+                // Update the relationships for subsequent renders
+                $this->userList->load(['listItems.pluCode', 'listItems.upcCode']);
+                $this->initializeFilterOptions();
+
+                // Notify any listening carousel components that items have changed
+                $this->dispatch('list-items-updated');
+            });
+        } else {
+            session()->flash('message', 'This UPC item already exists in your list');
+        }
     }
 
     public function addPLUCodeSilent($pluCodeId, $organic = false)
@@ -479,7 +657,8 @@ class Show extends Component
         $query = PLUCode::query();
         $searchResults = collect();
 
-        if (strlen(trim($this->searchTerm)) >= 2) {
+        // Only search PLU codes for non-UPC terms
+        if (strlen(trim($this->searchTerm ?? '')) >= 2 && !$this->isUPCFormat($this->searchTerm)) {
             $query->where(function ($q) {
                 $q->where('plu', 'like', '%'.$this->searchTerm.'%')
                     ->orWhere('variety', 'like', '%'.$this->searchTerm.'%')
@@ -494,28 +673,45 @@ class Show extends Component
 
         // Get list items with server-side filtering and sorting
         $query = $this->userList->listItems()
-            ->with(['pluCode'])
-            ->join('plu_codes', 'list_items.plu_code_id', '=', 'plu_codes.id');
+            ->with(['pluCode', 'upcCode']);
 
-        // Apply filters if selected
-        if (! empty($this->selectedCategory)) {
-            $query->where('plu_codes.category', $this->selectedCategory);
+        // Get all items first, then filter and sort in PHP to handle mixed PLU/UPC items
+        $listItems = $query->get();
+
+        // Apply filtering if selected
+        if (!empty($this->selectedCategory)) {
+            $listItems = $listItems->filter(function ($item) {
+                return ($item->item_type === 'plu' && $item->pluCode->category === $this->selectedCategory) ||
+                       ($item->item_type === 'upc' && $item->upcCode->category === $this->selectedCategory);
+            });
         }
 
-        if (! empty($this->selectedCommodity)) {
-            $query->where('plu_codes.commodity', $this->selectedCommodity);
+        if (!empty($this->selectedCommodity)) {
+            $listItems = $listItems->filter(function ($item) {
+                return ($item->item_type === 'plu' && $item->pluCode->commodity === $this->selectedCommodity) ||
+                       ($item->item_type === 'upc' && $item->upcCode->commodity === $this->selectedCommodity);
+            });
         }
 
-        $listItems = $query
-            ->orderBy('plu_codes.commodity', 'asc') // Group by commodity first
-            ->orderBy('list_items.organic', 'asc') // Within commodity: regular first, then organic
-            ->orderByRaw('CAST(plu_codes.plu AS UNSIGNED) ASC') // Within organic status: PLU code ascending
-            ->select('list_items.*')
-            ->get()
-            ->load('pluCode'); // Ensure pluCode relationship is loaded
+        // Sort items: commodity -> item_type (PLU first, then UPC) -> organic status -> code
+        $listItems = $listItems->sortBy([
+            function ($item) {
+                return $item->item_type === 'plu' ? $item->pluCode->commodity : $item->upcCode->commodity;
+            },
+            function ($item) {
+                return $item->item_type === 'plu' ? 0 : 1; // PLU items first
+            },
+            'organic', // Within type: regular first, then organic
+            function ($item) {
+                return $item->item_type === 'plu' ? 
+                    (int)$item->pluCode->plu : 
+                    $item->upcCode->upc;
+            }
+        ]);
 
-        // Create a map of PLU codes that have both regular and organic versions
-        $dualVersionPluCodes = $listItems->groupBy('plu_code_id')
+        // Create a map of PLU codes that have both regular and organic versions (only for PLU items)
+        $dualVersionPluCodes = $listItems->where('item_type', 'plu')
+            ->groupBy('plu_code_id')
             ->filter(function ($items) {
                 return $items->where('organic', true)->isNotEmpty() &&
                        $items->where('organic', false)->isNotEmpty();
@@ -524,24 +720,42 @@ class Show extends Component
 
         // Prepare items data for JavaScript
         $allItemsData = $listItems->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'plu_code_id' => $item->plu_code_id,
-                'plu' => $item->pluCode->plu,
-                'variety' => $item->pluCode->variety,
-                'commodity' => $item->pluCode->commodity,
-                'category' => $item->pluCode->category,
-                'organic' => $item->organic,
-                'inventory_level' => $item->inventory_level,
-                'size' => $item->pluCode->size,
-                'retail_price' => $item->pluCode->retail_price,
-                'consumer_usage_tier' => $item->pluCode->consumer_usage_tier,
-            ];
+            if ($item->item_type === 'plu') {
+                return [
+                    'id' => $item->id,
+                    'item_type' => 'plu',
+                    'plu_code_id' => $item->plu_code_id,
+                    'plu' => $item->pluCode->plu,
+                    'variety' => $item->pluCode->variety,
+                    'commodity' => $item->pluCode->commodity,
+                    'category' => $item->pluCode->category,
+                    'organic' => $item->organic,
+                    'inventory_level' => $item->inventory_level,
+                    'size' => $item->pluCode->size,
+                    'retail_price' => $item->pluCode->retail_price,
+                    'consumer_usage_tier' => $item->pluCode->consumer_usage_tier,
+                ];
+            } else {
+                return [
+                    'id' => $item->id,
+                    'item_type' => 'upc',
+                    'upc_code_id' => $item->upc_code_id,
+                    'upc' => $item->upcCode->upc,
+                    'name' => $item->upcCode->name,
+                    'commodity' => $item->upcCode->commodity,
+                    'category' => $item->upcCode->category,
+                    'organic' => false, // UPC items don't have organic variants
+                    'inventory_level' => $item->inventory_level,
+                    'brand' => $item->upcCode->brand,
+                ];
+            }
         });
 
         return view('livewire.lists.show', [
             'listItems' => $listItems,
             'pluCodes' => $searchResults,
+            'upcResults' => $this->upcResults,
+            'upcLookupInProgress' => $this->upcLookupInProgress,
             'categories' => $this->categories,
             'commodities' => $this->commodities,
             'allItemsData' => $allItemsData,
