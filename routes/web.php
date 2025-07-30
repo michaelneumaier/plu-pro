@@ -9,12 +9,17 @@ use App\Livewire\Lists\Show as ListsShow;
 use App\Livewire\Marketplace\Browse as MarketplaceBrowse;
 use App\Livewire\Marketplace\ViewList as MarketplaceViewList;
 use App\Livewire\SearchPLUCode;
+use App\Http\Controllers\Auth\GoogleController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', SearchPLUCode::class)->name('home');
 
 // About page
 Route::get('/about', \App\Livewire\About::class)->name('about');
+
+// Google OAuth routes
+Route::get('/auth/google', [GoogleController::class, 'redirect'])->name('auth.google');
+Route::get('/auth/google/callback', [GoogleController::class, 'callback'])->name('auth.google.callback');
 
 // PLU Pages - handles both regular (3000-5000) and organic (93000-95000) PLUs
 Route::get('/{plu}', \App\Livewire\PLUPage::class)
@@ -33,6 +38,9 @@ Route::middleware(['auth'])->group(function () {
     // Marketplace routes
     Route::get('/marketplace', MarketplaceBrowse::class)->name('marketplace.browse');
     Route::get('/marketplace/{shareCode}', MarketplaceViewList::class)->name('marketplace.view');
+
+    // Google OAuth unlink route
+    Route::delete('/auth/google/unlink', [GoogleController::class, 'unlink'])->name('auth.google.unlink');
 });
 
 Route::middleware([
