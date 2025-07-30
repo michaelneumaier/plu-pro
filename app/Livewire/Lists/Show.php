@@ -7,7 +7,9 @@ use App\Models\ListItem;
 use App\Models\PLUCode;
 use App\Models\UPCCode;
 use App\Models\UserList;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -39,6 +41,7 @@ class Show extends Component
     // UPC-related properties
     public $upcResults = [];
     public $upcLookupInProgress = false;
+    public $upcError = null;
     public $showCommodityModal = false;
     public $pendingUpcItem = null;
     public $selectedUpcCategory = '';
@@ -71,6 +74,11 @@ class Show extends Component
         $this->refreshToken = time(); // Initialize refresh token
 
         $this->initializeFilterOptions();
+        
+        // Check if initial search term is a UPC and trigger lookup
+        if (!empty(trim($this->searchTerm)) && $this->isUPCFormat($this->searchTerm)) {
+            $this->searchUPC();
+        }
     }
 
     protected function updatedUserList()
@@ -132,6 +140,12 @@ class Show extends Component
         // Clear previous UPC results
         $this->upcResults = [];
         $this->upcLookupInProgress = false;
+        $this->upcError = null;
+        
+        // If search term is empty, don't do anything
+        if (empty(trim($this->searchTerm))) {
+            return;
+        }
         
         // Detect UPC format (12-13 digits)
         if ($this->isUPCFormat($this->searchTerm)) {
@@ -191,11 +205,26 @@ class Show extends Component
     public function checkUPCResults()
     {
         if ($this->upcLookupInProgress && $this->isUPCFormat($this->searchTerm)) {
+            // First check if the lookup failed
+            $failureInfo = Cache::get("upc_lookup_failed_{$this->searchTerm}");
+            
+            if ($failureInfo) {
+                $this->upcLookupInProgress = false;
+                $this->upcError = $failureInfo['message'] ?? 'Product not found';
+                $this->dispatch('stop-upc-polling');
+                
+                // Clear the cache entry
+                Cache::forget("upc_lookup_failed_{$this->searchTerm}");
+                return;
+            }
+            
+            // Check if UPC was found
             $foundUPC = UPCCode::where('upc', $this->searchTerm)->first();
             
             if ($foundUPC) {
                 $this->upcResults = [$foundUPC];
                 $this->upcLookupInProgress = false;
+                $this->upcError = null;
                 $this->dispatch('stop-upc-polling');
             }
         }
@@ -693,21 +722,26 @@ class Show extends Component
             });
         }
 
-        // Sort items: commodity -> item_type (PLU first, then UPC) -> organic status -> code
-        $listItems = $listItems->sortBy([
-            function ($item) {
-                return $item->item_type === 'plu' ? $item->pluCode->commodity : $item->upcCode->commodity;
-            },
-            function ($item) {
-                return $item->item_type === 'plu' ? 0 : 1; // PLU items first
-            },
-            'organic', // Within type: regular first, then organic
-            function ($item) {
-                return $item->item_type === 'plu' ? 
-                    (int)$item->pluCode->plu : 
-                    $item->upcCode->upc;
+        // Sort items with a single combined sort key: commodity + sort_priority + code
+        // Order: Regular PLU, Organic PLU, UPC
+        $listItems = $listItems->sortBy(function ($item) {
+            $commodity = $item->item_type === 'plu' ? $item->pluCode->commodity : $item->upcCode->commodity;
+            
+            // Priority: Regular PLU (0), Organic PLU (1), UPC (2)
+            if ($item->item_type === 'plu' && !$item->organic) {
+                $priority = '0'; // Regular PLU first
+            } elseif ($item->item_type === 'plu' && $item->organic) {
+                $priority = '1'; // Organic PLU second
+            } else {
+                $priority = '2'; // UPC last
             }
-        ]);
+            
+            $code = $item->item_type === 'plu' ? 
+                str_pad($item->pluCode->plu, 10, '0', STR_PAD_LEFT) : 
+                $item->upcCode->name;
+            
+            return $commodity . '|' . $priority . '|' . $code;
+        });
 
         // Create a map of PLU codes that have both regular and organic versions (only for PLU items)
         $dualVersionPluCodes = $listItems->where('item_type', 'plu')

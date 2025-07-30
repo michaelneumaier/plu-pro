@@ -399,7 +399,7 @@
         <!-- Search Results -->
         <div class="flex-1 overflow-auto pb-20">
             <!-- UPC Results Section -->
-            @if(count($upcResults) > 0 || $upcLookupInProgress)
+            @if(count($upcResults) > 0 || $upcLookupInProgress || $upcError)
             <div class="px-4 mb-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">UPC Results</h3>
                 
@@ -414,9 +414,46 @@
                     </div>
                 </div>
                 @endif
+                
+                @if($upcError)
+                <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+                    <div class="flex items-center">
+                        <svg class="flex-shrink-0 h-5 w-5 text-red-400 mr-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-red-700">{{ $upcError }}</span>
+                    </div>
+                </div>
+                @endif
 
                 @foreach($upcResults as $upcCode)
-                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-4 mb-3">
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-4 mb-3"
+                     x-data="{ 
+                         isInList: {{ $userList->listItems->where('upc_code_id', $upcCode->id)->isNotEmpty() ? 'true' : 'false' }},
+                         isAdding: false,
+                         
+                         init() {
+                             // Listen for item added event
+                             this.handleItemAdded = (e) => {
+                                 const data = e.detail;
+                                 if (data.upcCodeId === {{ $upcCode->id }} && data.itemType === 'upc') {
+                                     this.isInList = true;
+                                     this.isAdding = false;
+                                 }
+                             };
+                             
+                             window.addEventListener('item-added-to-list', this.handleItemAdded);
+                         },
+                         
+                         destroy() {
+                             window.removeEventListener('item-added-to-list', this.handleItemAdded);
+                         },
+                         
+                         addToList() {
+                             this.isAdding = true;
+                             $wire.addUPCToList({{ $upcCode->id }});
+                         }
+                     }">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-4">
                             <!-- UPC Badge -->
@@ -453,11 +490,30 @@
                             </div>
                         </div>
                         
-                        <!-- Add Button -->
-                        <button wire:click="addUPCToList({{ $upcCode->id }})" 
-                                class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                            Add to List
-                        </button>
+                        <!-- Add/In List Button -->
+                        <template x-if="!isInList && !isAdding">
+                            <button @click="addToList()" 
+                                    class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Add to List
+                            </button>
+                        </template>
+                        <template x-if="isInList">
+                            <span class="inline-flex items-center px-3 py-2 text-sm font-medium text-green-600">
+                                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                </svg>
+                                In List
+                            </span>
+                        </template>
+                        <template x-if="isAdding">
+                            <span class="inline-flex items-center px-3 py-2 text-sm text-gray-500">
+                                <svg class="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Adding...
+                            </span>
+                        </template>
                     </div>
                 </div>
                 @endforeach
@@ -465,7 +521,7 @@
             @endif
 
             <div wire:key="search-results-{{ $userList->id }}-{{ md5($searchTerm) }}">
-                @if(count($upcResults) > 0 || $upcLookupInProgress)
+                @if(count($upcResults) > 0 || $upcLookupInProgress || $upcError)
                     <div class="px-4 mb-4">
                         <h3 class="text-lg font-semibold text-gray-900">PLU Results</h3>
                     </div>

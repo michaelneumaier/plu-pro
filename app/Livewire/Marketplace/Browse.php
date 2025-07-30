@@ -48,7 +48,7 @@ class Browse extends Component
     public function render()
     {
         $query = UserList::marketplace()
-            ->with(['user', 'listItems.pluCode']);
+            ->with(['user', 'listItems.pluCode', 'listItems.upcCode']);
 
         // Apply search filter
         if ($this->search) {

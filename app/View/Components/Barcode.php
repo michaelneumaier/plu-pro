@@ -68,6 +68,22 @@ class Barcode extends Component
             }
 
             return $cleanCode;
+        } elseif (strlen($cleanCode) === 13) {
+            // Convert 13-digit UPC (EAN-13) to 12-digit UPC-A by removing first digit
+            // This assumes the 13-digit code starts with 0 (which is common for UPC codes)
+            if ($cleanCode[0] === '0') {
+                $cleanCode = substr($cleanCode, 1); // Remove leading 0
+                // Verify check digit
+                $calculatedCheckDigit = $this->calculateCheckDigit(substr($cleanCode, 0, 11));
+                if ($calculatedCheckDigit != substr($cleanCode, -1)) {
+                    // Invalid check digit, recalculate
+                    $cleanCode = substr($cleanCode, 0, 11).$this->calculateCheckDigit(substr($cleanCode, 0, 11));
+                }
+                return $cleanCode;
+            } else {
+                // Non-standard 13-digit code, return null
+                return null;
+            }
         } else {
             // Invalid length
             return null;

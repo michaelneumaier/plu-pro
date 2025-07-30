@@ -154,11 +154,13 @@ class UserList extends Model
         ]);
 
         // Copy all list items (without inventory levels)
-        $itemsToCopy = $this->listItems()->with('pluCode')->get();
+        $itemsToCopy = $this->listItems()->with(['pluCode', 'upcCode'])->get();
 
         foreach ($itemsToCopy as $item) {
             $newList->listItems()->create([
                 'plu_code_id' => $item->plu_code_id,
+                'upc_code_id' => $item->upc_code_id,
+                'item_type' => $item->item_type,
                 'organic' => $item->organic,
                 'inventory_level' => 0, // Start with zero inventory
             ]);
@@ -198,12 +200,14 @@ class UserList extends Model
 
         // Copy ALL items WITH inventory levels (including items with 0 inventory)
         $itemsToCopy = $this->listItems()
-            ->with('pluCode')
+            ->with(['pluCode', 'upcCode'])
             ->get();
 
         foreach ($itemsToCopy as $item) {
             $newList->listItems()->create([
                 'plu_code_id' => $item->plu_code_id,
+                'upc_code_id' => $item->upc_code_id,
+                'item_type' => $item->item_type,
                 'organic' => $item->organic,
                 'inventory_level' => $item->inventory_level, // Preserve inventory!
             ]);

@@ -32,16 +32,35 @@ class SharedView extends Component
 
     protected function loadListItems()
     {
-        // Load ALL items for copying purposes
-        $this->allListItems = $this->userList->listItems()
-            ->with(['pluCode'])
-            ->join('plu_codes', 'list_items.plu_code_id', '=', 'plu_codes.id')
-            ->orderBy('plu_codes.commodity', 'asc') // Group by commodity first
-            ->orderBy('list_items.organic', 'asc') // Within commodity: regular first, then organic
-            ->orderByRaw('CAST(plu_codes.plu AS UNSIGNED) ASC') // Within organic status: PLU code ascending
-            ->select('list_items.*')
-            ->get()
-            ->load('pluCode'); // Ensure pluCode relationship is loaded
+        // Load ALL list items (both PLU and UPC) for copying purposes
+        $allItems = $this->userList->listItems()
+            ->with(['pluCode', 'upcCode'])
+            ->get();
+
+        // Sort all items with a single combined sort key: commodity + sort_priority + code
+        // Order: Regular PLU, Organic PLU, UPC
+        $this->allListItems = $allItems->sortBy(function ($item) {
+            if ($item->item_type === 'plu' && $item->pluCode) {
+                $commodity = $item->pluCode->commodity;
+                $code = str_pad($item->pluCode->plu, 10, '0', STR_PAD_LEFT);
+            } elseif ($item->item_type === 'upc' && $item->upcCode) {
+                $commodity = $item->upcCode->commodity;
+                $code = $item->upcCode->name;
+            } else {
+                return 'ZZZ|9|ZZZ'; // Put items without codes at the end
+            }
+            
+            // Priority: Regular PLU (0), Organic PLU (1), UPC (2)
+            if ($item->item_type === 'plu' && !$item->organic) {
+                $priority = '0'; // Regular PLU first
+            } elseif ($item->item_type === 'plu' && $item->organic) {
+                $priority = '1'; // Organic PLU second
+            } else {
+                $priority = '2'; // UPC last
+            }
+            
+            return $commodity . '|' . $priority . '|' . $code;
+        });
 
         // For display, only show items with inventory > 0
         $this->listItems = $this->allListItems->filter(function ($item) {
@@ -106,7 +125,11 @@ class SharedView extends Component
     public function render()
     {
         // Create a map of PLU codes that have both regular and organic versions
-        $dualVersionPluCodes = $this->listItems->groupBy('plu_code_id')
+        // Only applies to PLU items (UPC items don't have organic variants)
+        $dualVersionPluCodes = $this->listItems
+            ->where('item_type', 'plu')
+            ->whereNotNull('plu_code_id')
+            ->groupBy('plu_code_id')
             ->filter(function ($items) {
                 return $items->where('organic', true)->isNotEmpty() &&
                        $items->where('organic', false)->isNotEmpty();

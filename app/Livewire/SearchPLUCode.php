@@ -7,6 +7,8 @@ use App\Events\UPCLookupFailed;
 use App\Jobs\LookupUPCProduct;
 use App\Models\PLUCode;
 use App\Models\UPCCode;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -35,10 +37,9 @@ class SearchPLUCode extends Component
     // UPC-related properties
     public $upcResults = [];
     public $upcLookupInProgress = false;
-    public $showCommodityModal = false;
-    public $pendingUpcItem = null;
-    public $selectedUpcCategory = '';
-    public $selectedUpcCommodity = '';
+    public $upcError = null;
+    public $showUpcModal = false;
+    public $selectedUpcCode = null;
 
     // Define query string parameters for persistence (optional)
     protected $queryString = [
@@ -60,19 +61,30 @@ class SearchPLUCode extends Component
     public function mount()
     {
         $this->initializeFilterOptions();
+        
+        // Check if initial search term is a UPC and trigger lookup
+        if (!empty(trim($this->searchTerm)) && $this->isUPCFormat($this->searchTerm)) {
+            $this->searchUPC();
+        }
     }
 
     /**
      * Reset to the first page when search term or filters are updated.
      * Also detect UPC format and trigger lookup if needed.
      */
-    public function updatingSearchTerm()
+    public function updatedSearchTerm()
     {
         $this->resetPage();
         
         // Clear previous UPC results
         $this->upcResults = [];
         $this->upcLookupInProgress = false;
+        $this->upcError = null;
+        
+        // If search term is empty, don't do anything
+        if (empty(trim($this->searchTerm))) {
+            return;
+        }
         
         // Detect UPC format (12-13 digits)
         if ($this->isUPCFormat($this->searchTerm)) {
@@ -115,11 +127,26 @@ class SearchPLUCode extends Component
     public function checkUPCResults()
     {
         if ($this->upcLookupInProgress && $this->isUPCFormat($this->searchTerm)) {
+            // First check if the lookup failed
+            $failureInfo = Cache::get("upc_lookup_failed_{$this->searchTerm}");
+            
+            if ($failureInfo) {
+                $this->upcLookupInProgress = false;
+                $this->upcError = $failureInfo['message'] ?? 'Product not found';
+                $this->dispatch('stop-upc-polling');
+                
+                // Clear the cache entry
+                Cache::forget("upc_lookup_failed_{$this->searchTerm}");
+                return;
+            }
+            
+            // Check if UPC was found
             $foundUPC = UPCCode::where('upc', $this->searchTerm)->first();
             
             if ($foundUPC) {
                 $this->upcResults = [$foundUPC];
                 $this->upcLookupInProgress = false;
+                $this->upcError = null;
                 $this->dispatch('stop-upc-polling');
             }
         }
@@ -182,59 +209,23 @@ class SearchPLUCode extends Component
 
 
     /**
-     * Initiate adding UPC to list - show commodity selection modal
+     * View UPC details - open modal with product information
      */
-    public function addUPCToList($upcCodeId)
+    public function viewUPCDetails($upcCodeId)
     {
-        $this->pendingUpcItem = UPCCode::find($upcCodeId);
-        $this->selectedUpcCategory = $this->pendingUpcItem->category ?? '';
-        $this->selectedUpcCommodity = $this->pendingUpcItem->commodity ?? '';
-        $this->showCommodityModal = true;
+        $this->selectedUpcCode = UPCCode::find($upcCodeId);
+        if ($this->selectedUpcCode) {
+            $this->showUpcModal = true;
+        }
     }
 
     /**
-     * Confirm UPC addition with selected category/commodity
+     * Close UPC details modal
      */
-    public function confirmUPCAddition()
+    public function closeUpcModal()
     {
-        $this->validate([
-            'selectedUpcCategory' => 'required|in:Fruits,Vegetables,Herbs,Nuts,Dried Fruits,Retailer Assigned Numbers',
-            'selectedUpcCommodity' => 'required',
-        ]);
-
-        // Update UPC with selected category/commodity
-        $this->pendingUpcItem->update([
-            'category' => $this->selectedUpcCategory,
-            'commodity' => $this->selectedUpcCommodity,
-        ]);
-
-        // Emit event to add UPC to list (handled by parent component)
-        $this->dispatch('upc-ready-for-list', [
-            'upcCodeId' => $this->pendingUpcItem->id,
-            'category' => $this->selectedUpcCategory,
-            'commodity' => $this->selectedUpcCommodity,
-        ]);
-
-        $this->resetCommodityModal();
-    }
-
-    /**
-     * Cancel UPC commodity selection
-     */
-    public function cancelUPCAddition()
-    {
-        $this->resetCommodityModal();
-    }
-
-    /**
-     * Reset commodity selection modal
-     */
-    private function resetCommodityModal()
-    {
-        $this->showCommodityModal = false;
-        $this->pendingUpcItem = null;
-        $this->selectedUpcCategory = '';
-        $this->selectedUpcCommodity = '';
+        $this->showUpcModal = false;
+        $this->selectedUpcCode = null;
     }
 
     /**
