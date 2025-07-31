@@ -1,4 +1,5 @@
-<div x-data="{ 
+<div class="p-2">
+    <div x-data="{ 
     deleteMode: false,
     carouselOpen: false,
     showAddSection: false,
@@ -994,3 +995,5 @@ document.addEventListener('livewire:initialized', () => {
     });
 });
 </script>
+    </div>
+</div>

@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'Laravel') }}</title>
+    <title>{{ $title ?? config('app.name', 'Laravel') }} - PLUPro</title>
 
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#10b981">
@@ -84,7 +84,7 @@
         Install App
     </button>
 
-    <div class="min-h-screen bg-gray-100">
+    <div class="min-h-screen bg-gray-100 flex flex-col">
         @livewire('navigation-menu')
 
         <!-- Page Heading -->
@@ -97,9 +97,11 @@
         @endif
 
         <!-- Page Content -->
-        <main>
+        <main class="flex-grow">
             {{ $slot }}
         </main>
+        
+        <x-footer />
     </div>
 
     @stack('modals')

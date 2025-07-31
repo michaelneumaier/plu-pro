@@ -262,6 +262,13 @@ class SearchPLUCode extends Component
      *
      * @return \Illuminate\View\View
      */
+    protected function getLayoutData()
+    {
+        return [
+            'title' => 'Search PLU Codes',
+        ];
+    }
+
     public function render()
     {
         $query = PLUCode::query();

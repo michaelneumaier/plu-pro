@@ -1,5 +1,5 @@
-<div>
-    <!-- Flash Messages -->
+<div class="p-2">
+        <!-- Flash Messages -->
     @if (session()->has('message'))
         <div x-data="{ show: true }" 
              x-show="show" 

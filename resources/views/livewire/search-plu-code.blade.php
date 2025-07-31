@@ -1,5 +1,5 @@
-<div class="w-full">
-    <!-- Search and Filters Button -->
+<div class="p-2">
+        <!-- Search and Filters Button -->
     <div class="flex flex-col md:flex-row md:items-end md:justify-between mb-1 space-y-4 md:space-y-0">
         <!-- Search Input -->
         <div class="w-full">
@@ -247,3 +247,4 @@ document.addEventListener('livewire:initialized', () => {
     });
 });
 </script>
+</div>

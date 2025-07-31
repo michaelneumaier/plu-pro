@@ -681,6 +681,13 @@ class Show extends Component
         $this->showUnpublishModal = false;
     }
 
+    protected function getLayoutData()
+    {
+        return [
+            'title' => $this->userList->name ?? 'List Details',
+        ];
+    }
+
     public function render()
     {
         $query = PLUCode::query();

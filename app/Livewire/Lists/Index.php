@@ -229,6 +229,13 @@ class Index extends Component
         $this->listToUnpublish = null;
     }
 
+    protected function getLayoutData()
+    {
+        return [
+            'title' => 'My Lists',
+        ];
+    }
+
     public function render()
     {
         $userLists = Auth::user()->userLists;
