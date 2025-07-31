@@ -58,9 +58,9 @@ class ListItem extends Model
     public function getDisplayNameAttribute()
     {
         if ($this->item_type === 'plu') {
-            return $this->pluCode->variety ?? $this->pluCode->commodity;
+            return $this->pluCode?->variety ?? $this->pluCode?->commodity ?? '[Deleted PLU Item]';
         }
-        return $this->upcCode->name;
+        return $this->upcCode?->name ?? '[Deleted UPC Item]';
     }
 
     /**
@@ -69,9 +69,10 @@ class ListItem extends Model
     public function getDisplayCodeAttribute()
     {
         if ($this->item_type === 'plu') {
+            if (!$this->pluCode) return '[Deleted]';
             return $this->organic ? '9' . $this->pluCode->plu : $this->pluCode->plu;
         }
-        return $this->upcCode->upc;
+        return $this->upcCode?->upc ?? '[Deleted]';
     }
 
     /**
@@ -80,8 +81,8 @@ class ListItem extends Model
     public function getCommodityAttribute()
     {
         return $this->item_type === 'plu' 
-            ? $this->pluCode->commodity 
-            : $this->upcCode->commodity;
+            ? $this->pluCode?->commodity ?? '[Deleted]'
+            : $this->upcCode?->commodity ?? '[Deleted]';
     }
 
     /**
@@ -90,8 +91,8 @@ class ListItem extends Model
     public function getCategoryAttribute()
     {
         return $this->item_type === 'plu' 
-            ? $this->pluCode->category 
-            : $this->upcCode->category;
+            ? $this->pluCode?->category ?? '[Deleted]'
+            : $this->upcCode?->category ?? '[Deleted]';
     }
 
     /**

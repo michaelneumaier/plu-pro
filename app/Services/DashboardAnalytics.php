@@ -62,8 +62,10 @@ class DashboardAnalytics
         return Cache::remember("plu_insights_{$user->id}", 600, function () use ($user) {
             $userListIds = $user->userLists()->pluck('id');
 
-            // Most used PLU codes
+            // Most used items (both PLU and UPC)
             $mostUsedPLUs = ListItem::whereIn('user_list_id', $userListIds)
+                ->where('item_type', 'plu')
+                ->whereNotNull('plu_code_id')
                 ->select('plu_code_id', 'organic', DB::raw('COUNT(*) as usage_count'))
                 ->with('pluCode')
                 ->groupBy('plu_code_id', 'organic')
@@ -71,14 +73,46 @@ class DashboardAnalytics
                 ->limit(5)
                 ->get();
 
-            // Category breakdown
-            $categoryBreakdown = ListItem::whereIn('user_list_id', $userListIds)
+            $mostUsedUPCs = ListItem::whereIn('user_list_id', $userListIds)
+                ->where('item_type', 'upc')
+                ->whereNotNull('upc_code_id')
+                ->select('upc_code_id', DB::raw('COUNT(*) as usage_count'))
+                ->with('upcCode')
+                ->groupBy('upc_code_id')
+                ->orderBy('usage_count', 'desc')
+                ->limit(3)
+                ->get();
+
+            // Combine the results
+            $mostUsedItems = $mostUsedPLUs->concat($mostUsedUPCs)->sortByDesc('usage_count')->take(5);
+
+            // Category breakdown - handle both PLU and UPC items
+            $pluBreakdown = ListItem::whereIn('user_list_id', $userListIds)
+                ->where('item_type', 'plu')
                 ->join('plu_codes', 'list_items.plu_code_id', '=', 'plu_codes.id')
                 ->select('plu_codes.commodity', DB::raw('COUNT(*) as count'))
                 ->groupBy('plu_codes.commodity')
-                ->orderBy('count', 'desc')
-                ->limit(10)
                 ->get();
+
+            $upcBreakdown = ListItem::whereIn('user_list_id', $userListIds)
+                ->where('item_type', 'upc')
+                ->join('upc_codes', 'list_items.upc_code_id', '=', 'upc_codes.id')
+                ->select('upc_codes.commodity', DB::raw('COUNT(*) as count'))
+                ->groupBy('upc_codes.commodity')
+                ->get();
+
+            // Merge and sort the results
+            $categoryBreakdown = $pluBreakdown->concat($upcBreakdown)
+                ->groupBy('commodity')
+                ->map(function ($items) {
+                    return (object) [
+                        'commodity' => $items->first()->commodity,
+                        'count' => $items->sum('count')
+                    ];
+                })
+                ->sortByDesc('count')
+                ->values()
+                ->take(10);
 
             // Organic ratio
             $totalItems = ListItem::whereIn('user_list_id', $userListIds)->count();
@@ -89,7 +123,7 @@ class DashboardAnalytics
             $weeklyActivity = $this->getWeeklyActivity($user);
 
             return [
-                'most_used_plus' => $mostUsedPLUs,
+                'most_used_plus' => $mostUsedItems,
                 'category_breakdown' => $categoryBreakdown,
                 'organic_ratio' => $organicRatio,
                 'total_items' => $totalItems,
