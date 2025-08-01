@@ -17,6 +17,15 @@ Route::get('/', SearchPLUCode::class)->name('home');
 // About page
 Route::get('/about', \App\Livewire\About::class)->name('about');
 
+// PLU Directory - static HTML page for SEO
+Route::get('/plu-directory', function () {
+    $filePath = public_path('plu-directory.html');
+    if (file_exists($filePath)) {
+        return response()->file($filePath);
+    }
+    abort(404, 'PLU directory not generated yet. Run: php artisan plu:generate-directory');
+})->name('plu.directory');
+
 // Google OAuth routes
 Route::get('/auth/google', [GoogleController::class, 'redirect'])->name('auth.google');
 Route::get('/auth/google/callback', [GoogleController::class, 'callback'])->name('auth.google.callback');

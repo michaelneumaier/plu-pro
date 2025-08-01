@@ -5,6 +5,9 @@
                 <a href="{{ route('about') }}" class="text-gray-400 hover:text-gray-500">
                     About
                 </a>
+                <a href="{{ route('plu.directory') }}" class="text-gray-400 hover:text-gray-500">
+                    PLU Directory
+                </a>
                 <a href="{{ route('marketplace.browse') }}" class="text-gray-400 hover:text-gray-500">
                     Marketplace
                 </a>
