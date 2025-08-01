@@ -21,6 +21,71 @@ class KrogerApiService
     }
 
     /**
+     * Search for products by search term
+     *
+     * @param string $searchTerm The search term to lookup
+     * @param int $limit Maximum number of results to return (default 20)
+     * @return array Array of product data
+     * @throws KrogerApiException
+     */
+    public function searchProducts(string $searchTerm, int $limit = 10): array
+    {
+        try {
+            $accessToken = $this->getAccessToken();
+
+            Log::info("Kroger API product search", [
+                'search_term' => $searchTerm,
+                'limit' => $limit,
+                'url' => "{$this->baseUrl}/products"
+            ]);
+
+            $response = Http::withToken($accessToken)
+                ->timeout(10)
+                ->get("{$this->baseUrl}/products", [
+                    'filter.term' => $searchTerm,
+                    'filter.limit' => $limit
+                ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                $products = $data['data'] ?? [];
+
+                Log::info("Kroger API search results", [
+                    'search_term' => $searchTerm,
+                    'found_count' => count($products)
+                ]);
+
+                return $products;
+            }
+
+            if ($response->status() === 401) {
+                // Token might be expired, clear cache and retry once
+                Cache::forget('kroger_access_token');
+                return $this->searchProducts($searchTerm, $limit);
+            }
+
+            Log::error('Kroger API search error', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+                'search_term' => $searchTerm
+            ]);
+
+            throw new KrogerApiException("API search request failed with status {$response->status()}: {$response->body()}");
+        } catch (Exception $e) {
+            Log::error('Kroger API search exception', [
+                'message' => $e->getMessage(),
+                'search_term' => $searchTerm
+            ]);
+
+            if ($e instanceof KrogerApiException) {
+                throw $e;
+            }
+
+            throw new KrogerApiException("Failed to search products: {$e->getMessage()}");
+        }
+    }
+
+    /**
      * Get product information by UPC code
      *
      * @param string $upc The UPC code to lookup

@@ -50,7 +50,7 @@
             :style="isTemp ? 'opacity: 0.7' : ''"
         >
             <div class="grid grid-cols-[3.5rem,3rem,1fr,auto,auto] min-h-16 "
-                wire:click="$dispatch('pluCodeSelected', [{{ $listItem->plu_code_id }}, {{ $listItem->organic ? 'true' : 'false' }}])"
+                @click="$dispatch('pluCodeSelected', [{{ $listItem->plu_code_id }}, {{ $listItem->organic ? 'true' : 'false' }}])"
                 data-plu-id="{{ $listItem->plu_code_id }}">
                 
                 <div class="flex flex-col items-center justify-evenly">

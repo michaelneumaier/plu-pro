@@ -143,6 +143,30 @@
       console.log('Navigation protection ready');
     })();
     </script>
+    
+    <!-- Modal Components -->
+    @livewire('plu-code-detail-modal')
+    @livewire('upc-code-detail-modal')
+    
+    <script>
+    document.addEventListener('livewire:initialized', () => {
+        // Listen for PLU code selection events
+        document.addEventListener('pluCodeSelected', function(event) {
+            const pluModal = document.querySelector('[wire\\:snapshot*="PluCodeDetailModal"]');
+            if (pluModal && pluModal.__livewire) {
+                pluModal.__livewire.call('openModal', ...event.detail);
+            }
+        });
+        
+        // Listen for UPC code selection events  
+        document.addEventListener('upcCodeSelected', function(event) {
+            const upcModal = document.querySelector('[wire\\:snapshot*="UpcCodeDetailModal"]');
+            if (upcModal && upcModal.__livewire) {
+                upcModal.__livewire.call('openModal', ...event.detail);
+            }
+        });
+    });
+    </script>
 </body>
 
 </html>

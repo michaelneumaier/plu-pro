@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\UPCCode;
 use Livewire\Component;
+use Livewire\Attributes\On;
 
 class UpcCodeDetailModal extends Component
 {
@@ -22,21 +23,13 @@ class UpcCodeDetailModal extends Component
     public $upcCode = null;
 
     /**
-     * Listeners for events.
-     *
-     * @var array
-     */
-    protected $listeners = [
-        'upcCodeSelected' => 'openModal',
-    ];
-
-    /**
      * Open the modal and set the UPC Code details.
      *
      * @param  int  $upcCodeId
      * @return void
      */
-    public function openModal($upcCodeId)
+    #[On('upcCodeSelected')]
+    public function openModal($upcCodeId = null)
     {
         $this->upcCode = UPCCode::find($upcCodeId);
 

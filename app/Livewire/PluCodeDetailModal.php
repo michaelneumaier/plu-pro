@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\PLUCode;
 use Livewire\Component;
+use Livewire\Attributes\On;
 
 class PluCodeDetailModal extends Component
 {
@@ -29,22 +30,14 @@ class PluCodeDetailModal extends Component
     public $isOrganic = false;
 
     /**
-     * Listeners for events.
-     *
-     * @var array
-     */
-    protected $listeners = [
-        'pluCodeSelected' => 'openModal',
-    ];
-
-    /**
      * Open the modal and set the PLU Code details.
      *
      * @param  int  $pluCodeId
      * @param  bool  $isOrganic
      * @return void
      */
-    public function openModal($pluCodeId, $isOrganic = false)
+    #[On('pluCodeSelected')]
+    public function openModal($pluCodeId = null, $isOrganic = false)
     {
         $this->pluCode = PLUCode::find($pluCodeId);
         $this->isOrganic = $isOrganic;

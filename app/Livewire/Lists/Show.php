@@ -3,6 +3,7 @@
 namespace App\Livewire\Lists;
 
 use App\Jobs\LookupUPCProduct;
+use App\Jobs\SearchKrogerProducts;
 use App\Models\ListItem;
 use App\Models\PLUCode;
 use App\Models\UPCCode;
@@ -10,6 +11,7 @@ use App\Models\UserList;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Exception;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -23,6 +25,7 @@ class Show extends Component
     public $userList;
 
     public $searchTerm;
+    public $enableKrogerSearch = false; // Toggle for Kroger API search
     //public $availablePLUCodes;
 
     // Server-side filtering to match server-side sorting
@@ -46,6 +49,9 @@ class Show extends Component
     public $pendingUpcItem = null;
     public $selectedUpcCategory = '';
     public $selectedUpcCommodity = '';
+    
+    // Keep search results light to avoid component payload issues
+    private $maxSearchResults = 10;
 
     protected $listeners = [
         'retry-add-plu' => 'retryAddPlu',
@@ -57,6 +63,7 @@ class Show extends Component
         'searchTerm' => ['except' => ''],
         'selectedCategory' => ['except' => ''],
         'selectedCommodity' => ['except' => ''],
+        'enableKrogerSearch' => ['except' => false],
         'page' => ['except' => 1],
     ];
 
@@ -137,20 +144,40 @@ class Show extends Component
     {
         $this->resetPage();
         
-        // Clear previous UPC results
-        $this->upcResults = [];
-        $this->upcLookupInProgress = false;
-        $this->upcError = null;
+        // Clear previous UPC results and reset component state
+        $this->clearSearchResults();
         
         // If search term is empty, don't do anything
         if (empty(trim($this->searchTerm))) {
             return;
         }
         
-        // Detect UPC format (12-13 digits)
-        if ($this->isUPCFormat($this->searchTerm)) {
+        // When Kroger search is enabled, require minimum 3 characters
+        if ($this->enableKrogerSearch) {
+            if (strlen(trim($this->searchTerm)) < 3) {
+                // Don't show error immediately, just return silently
+                // User will see the error only if they try to search with < 3 chars
+                return;
+            }
+            $this->searchKrogerAPI();
+        }
+        // Otherwise, only search UPC for numeric codes (original behavior)
+        elseif ($this->isUPCFormat($this->searchTerm)) {
             $this->searchUPC();
         }
+    }
+
+    /**
+     * Clear search results and reset component state
+     */
+    private function clearSearchResults()
+    {
+        $this->upcResults = [];
+        $this->upcLookupInProgress = false;
+        $this->upcError = null;
+        
+        // Force component refresh to prevent state issues
+        $this->refreshToken = time();
     }
 
     public function updatedSelectedCategory()
@@ -168,6 +195,59 @@ class Show extends Component
         $this->selectedCategory = '';
         $this->selectedCommodity = '';
         $this->resetPage();
+    }
+
+    /**
+     * Toggle Kroger API search mode
+     */
+    public function toggleKrogerSearch()
+    {
+        $this->enableKrogerSearch = !$this->enableKrogerSearch;
+        
+        // Clear previous results when toggling
+        $this->clearSearchResults();
+        
+        // Re-trigger search if there's a search term
+        if (!empty(trim($this->searchTerm))) {
+            $this->updatedSearchTerm();
+        }
+    }
+
+    /**
+     * Search Kroger API for any search term (not just UPC codes)
+     */
+    private function searchKrogerAPI(): void
+    {
+        // Set loading state
+        $this->upcLookupInProgress = true;
+        $this->upcError = null;
+        $this->upcResults = [];
+
+        try {
+            // Force a component update to show loading state immediately
+            $this->dispatch('$refresh');
+            
+            // Dispatch job to search Kroger API (runs synchronously with QUEUE_CONNECTION=sync)
+            SearchKrogerProducts::dispatch($this->searchTerm);
+            
+            Log::info("Kroger search job dispatched", ['search_term' => $this->searchTerm]);
+            
+            // Check for results
+            $this->checkKrogerSearchResults();
+            
+            // If no results found yet, start polling as fallback
+            if ($this->upcLookupInProgress) {
+                $this->dispatch('start-upc-polling');
+            }
+            
+        } catch (Exception $e) {
+            $this->upcLookupInProgress = false;
+            $this->upcError = "Search failed: " . $e->getMessage();
+            Log::error("Kroger search error", [
+                'search_term' => $this->searchTerm,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 
     /**
@@ -204,29 +284,106 @@ class Show extends Component
      */
     public function checkUPCResults()
     {
-        if ($this->upcLookupInProgress && $this->isUPCFormat($this->searchTerm)) {
-            // First check if the lookup failed
-            $failureInfo = Cache::get("upc_lookup_failed_{$this->searchTerm}");
+        if ($this->upcLookupInProgress) {
+            // Handle Kroger search results
+            if ($this->enableKrogerSearch) {
+                return $this->checkKrogerSearchResults();
+            }
+            
+            // Handle UPC lookup results (original functionality)
+            if ($this->isUPCFormat($this->searchTerm)) {
+                // First check if the lookup failed
+                $failureInfo = Cache::get("upc_lookup_failed_{$this->searchTerm}");
+                
+                if ($failureInfo) {
+                    $this->upcLookupInProgress = false;
+                    $this->upcError = $failureInfo['message'] ?? 'Product not found';
+                    $this->dispatch('stop-upc-polling');
+                    
+                    // Clear the cache entry
+                    Cache::forget("upc_lookup_failed_{$this->searchTerm}");
+                    return;
+                }
+                
+                // Check if UPC was found
+                $foundUPC = UPCCode::where('upc', $this->searchTerm)->first();
+                
+                if ($foundUPC) {
+                    $this->upcResults = [$foundUPC];
+                    $this->upcLookupInProgress = false;
+                    $this->upcError = null;
+                    $this->dispatch('stop-upc-polling');
+                }
+            }
+        }
+    }
+
+    /**
+     * Check for Kroger search results (called via polling)
+     */
+    private function checkKrogerSearchResults()
+    {
+        try {
+            // Check if the search failed
+            $failureInfo = Cache::get("kroger_search_failed_{$this->searchTerm}");
             
             if ($failureInfo) {
                 $this->upcLookupInProgress = false;
-                $this->upcError = $failureInfo['message'] ?? 'Product not found';
+                $this->upcError = $failureInfo['error'] ?? 'Search failed';
                 $this->dispatch('stop-upc-polling');
                 
                 // Clear the cache entry
-                Cache::forget("upc_lookup_failed_{$this->searchTerm}");
+                Cache::forget("kroger_search_failed_{$this->searchTerm}");
                 return;
             }
             
-            // Check if UPC was found
-            $foundUPC = UPCCode::where('upc', $this->searchTerm)->first();
+            // Check if search results are available
+            $searchResults = Cache::get("kroger_search_results_{$this->searchTerm}");
+        
+        if ($searchResults !== null) {
+            // Convert search results to UPC-compatible format for display
+            // Limit results to prevent component payload issues
+            $this->upcResults = collect($searchResults)
+                ->take($this->maxSearchResults)
+                ->map(function ($product) {
+                    $categories = $product['categories'] ?? [];
+                    $primaryCategory = !empty($categories) ? $categories[0] : 'General';
+                    
+                    return (object) [
+                        'id' => $product['upc_record_id'] ?? null,
+                        'upc' => $product['upc'],
+                        'name' => $product['description'],
+                        'description' => $product['description'],
+                        'brand' => $product['brand'],
+                        'size' => $product['size'],
+                        'image_url' => $product['image_url'],
+                        'has_image' => !empty($product['image_url']),
+                        'category' => $primaryCategory,
+                        'commodity' => $primaryCategory,
+                        'kroger_product_id' => $product['productId'],
+                        // Remove large data to reduce payload size
+                        'is_search_result' => true,
+                    ];
+                })->toArray();
             
-            if ($foundUPC) {
-                $this->upcResults = [$foundUPC];
-                $this->upcLookupInProgress = false;
-                $this->upcError = null;
-                $this->dispatch('stop-upc-polling');
-            }
+            $this->upcLookupInProgress = false;
+            $this->upcError = null;
+            $this->dispatch('stop-upc-polling');
+            
+            Log::info("Kroger search results loaded", [
+                'search_term' => $this->searchTerm,
+                'results_count' => count($this->upcResults)
+            ]);
+        }
+        } catch (Exception $e) {
+            Log::error("Error checking Kroger search results", [
+                'search_term' => $this->searchTerm,
+                'error' => $e->getMessage()
+            ]);
+            
+            $this->upcLookupInProgress = false;
+            $this->upcError = 'Search error occurred';
+            $this->dispatch('stop-upc-polling');
         }
     }
 
@@ -693,8 +850,8 @@ class Show extends Component
         $query = PLUCode::query();
         $searchResults = collect();
 
-        // Only search PLU codes for non-UPC terms
-        if (strlen(trim($this->searchTerm ?? '')) >= 2 && !$this->isUPCFormat($this->searchTerm)) {
+        // Only search PLU codes when Kroger search is disabled and for non-UPC terms
+        if (strlen(trim($this->searchTerm ?? '')) >= 2 && !$this->enableKrogerSearch && !$this->isUPCFormat($this->searchTerm)) {
             $query->where(function ($q) {
                 $q->where('plu', 'like', '%'.$this->searchTerm.'%')
                     ->orWhere('variety', 'like', '%'.$this->searchTerm.'%')

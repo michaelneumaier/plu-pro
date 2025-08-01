@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class UserList extends Model
 {
     protected $fillable = [
+        'user_id',
         'name',
         'share_code',
         'is_public',

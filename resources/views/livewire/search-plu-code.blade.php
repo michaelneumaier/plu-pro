@@ -228,12 +228,7 @@
         </div>
     </div>
     @endif
-    
-    <!-- PLU Code Detail Modal -->
-    @livewire('plu-code-detail-modal')
-    
-    <!-- UPC Code Detail Modal -->
-    @livewire('upc-code-detail-modal')
+
 </div>
 
 <script>

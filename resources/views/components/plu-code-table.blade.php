@@ -86,7 +86,7 @@ $colCount = $hasActions ? 5 : 4;
         <div
             class="{{ $listItem && $listItem->organic ? 'bg-green-50 hover:bg-green-100' : 'bg-white hover:bg-gray-50' }} cursor-pointer border-b border-gray-200 last:border-b-0 {{ $showCommodityGroups && $commodityChanged ? 'border-t-0' : '' }}">
             <div class="grid {{ $showInventory && $hasActions ? 'grid-cols-[3.5rem,3rem,1fr,auto,auto]' : ($showInventory ? 'grid-cols-[3.5rem,3rem,1fr,auto]' : ($hasActions ? 'grid-cols-[3.5rem,3rem,1fr,auto]' : 'grid-cols-[3.5rem,3rem,1fr]')) }} min-h-16 "
-                wire:click="$dispatch('{{ $isUpcItem ? 'upcCodeSelected' : 'pluCodeSelected' }}', {{ $isUpcItem ? '[' . $upcCode->id . ']' : '[' . $pluCode->id . ', ' . (($listItem && $listItem->organic) ? 'true' : 'false') . ']' }})"
+                @click="$dispatch('{{ $isUpcItem ? 'upcCodeSelected' : 'pluCodeSelected' }}', {{ $isUpcItem ? '[' . $upcCode->id . ']' : '[' . $pluCode->id . ', ' . (($listItem && $listItem->organic) ? 'true' : 'false') . ']' }})"
                 wire:key="{{ $isUpcItem ? 'upc' : 'plu' }}-row-{{ $listItem ? $listItem->id : ($isUpcItem ? $upcCode->id : $pluCode->id) }}-{{ $userListId }}-{{ $refreshToken ?? time() }}"
                 data-{{ $isUpcItem ? 'upc' : 'plu' }}-id="{{ $isUpcItem ? $upcCode->id : $pluCode->id }}">
                 <div class="flex flex-col items-center justify-evenly">

@@ -13,11 +13,17 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // Create a test user for marketplace lists
+        User::factory()->create([
+            'id' => 1,
+            'name' => 'PLUPro Admin',
+            'email' => 'admin@plupro.com',
+        ]);
 
         $this->call([
             PLUCodesSeeder::class,
         ]);
         $this->call(ConsumerUsageTierSeeder::class);
+        $this->call(MarketplaceListsSeeder::class);
     }
 }

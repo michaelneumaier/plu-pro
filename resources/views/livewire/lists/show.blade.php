@@ -365,17 +365,14 @@
         </div>
 
         <!-- Add PLU Codes Section - Mobile Slide-up Panel -->
-        <div x-show="showAddSection" 
-            x-transition:enter="transition ease-out duration-300"
+        <div x-show="showAddSection" x-transition:enter="transition ease-out duration-300"
             x-transition:enter-start="opacity-0 transform translate-y-full"
             x-transition:enter-end="opacity-100 transform translate-y-0"
             x-transition:leave="transition ease-in duration-200"
             x-transition:leave-start="opacity-100 transform translate-y-0"
-            x-transition:leave-end="opacity-0 transform translate-y-full" 
-            class="fixed inset-0 z-50 bg-white flex flex-col"
-            wire:key="search-section-{{ $userList->id }}"
-            @keydown.escape.window="showAddSection = false"
-            x-init="$watch('showAddSection', value => {
+            x-transition:leave-end="opacity-0 transform translate-y-full"
+            class="fixed inset-0 z-50 bg-white flex flex-col" wire:key="search-section-{{ $userList->id }}"
+            @keydown.escape.window="showAddSection = false" x-init="$watch('showAddSection', value => {
                 if (value) {
                     // Prevent body scrolling when panel is open
                     document.body.style.overflow = 'hidden';
@@ -409,10 +406,39 @@
                                         d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                 </svg>
                             </div>
-                            <input type="text" wire:model.live.debounce.300ms="searchTerm"
-                                placeholder="Search PLU codes, UPC codes (12-13 digits), variety, commodity..."
-                                class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-base placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <input type="text" wire:model.live.debounce.500ms="searchTerm"
+                                placeholder="{{ $enableKrogerSearch ? 'Search Kroger products...' : 'Search PLU codes, UPC codes (12-13 digits), variety, commodity...' }}"
+                                class="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg text-base placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+
+                            <!-- Toggle Button -->
+                            <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                <button wire:click="toggleKrogerSearch" type="button"
+                                    class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                                    :class="$wire.enableKrogerSearch ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                                    title="{{ $enableKrogerSearch ? 'Switch to PLU search' : 'Switch to Kroger search' }}">
+                                    @if($enableKrogerSearch)
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Kroger
+                                    @else
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    PLU
+                                    @endif
+                                </button>
+                            </div>
                         </div>
+                        
+                        <!-- Search hint for Kroger search -->
+                        @if($enableKrogerSearch && strlen(trim($searchTerm ?? '')) > 0 && strlen(trim($searchTerm)) < 3)
+                        <div class="mt-2 text-sm text-gray-500">
+                            Enter at least 3 characters to search Kroger products
+                        </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -422,7 +448,9 @@
                 <!-- UPC Results Section -->
                 @if(count($upcResults) > 0 || $upcLookupInProgress || $upcError)
                 <div class="px-4 mb-6">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">UPC Results</h3>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                        {{ $enableKrogerSearch ? 'Kroger Results' : 'UPC Results' }}
+                    </h3>
 
                     @if($upcLookupInProgress)
                     <div class="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
@@ -435,7 +463,9 @@
                                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
                                 </path>
                             </svg>
-                            <span class="text-blue-700">Looking up UPC code...</span>
+                            <span class="text-blue-700">
+                                {{ $enableKrogerSearch ? 'Searching Kroger products...' : 'Looking up UPC code...' }}
+                            </span>
                         </div>
                     </div>
                     @endif
@@ -455,7 +485,7 @@
                     @endif
 
                     @foreach($upcResults as $upcCode)
-                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-4 mb-3" x-data="{ 
+                    <div wire:key="upc-result-{{ $upcCode->upc ?? $loop->index }}" class="bg-white border border-gray-200 rounded-lg shadow-sm p-4 mb-3" x-data="{ 
                          isInList: {{ $userList->listItems->where('upc_code_id', $upcCode->id)->isNotEmpty() ? 'true' : 'false' }},
                          isAdding: false,
                          
@@ -492,7 +522,9 @@
                                 <!-- Product Image -->
                                 @if($upcCode->has_image)
                                 <img src="{{ asset('storage/upc_images/' . $upcCode->upc . '.jpg') }}"
-                                    alt="{{ $upcCode->name }}" class="w-12 h-12 object-cover rounded-md">
+                                    alt="{{ $upcCode->name }}" 
+                                    class="w-12 h-12 object-cover rounded-md"
+                                    onerror="this.parentElement.innerHTML='<div class=\'w-12 h-12 bg-gray-100 rounded-md flex items-center justify-center\'><span class=\'text-gray-400 text-xs\'>No Image</span></div>'">
                                 @else
                                 <div class="w-12 h-12 bg-gray-100 rounded-md flex items-center justify-center">
                                     <span class="text-gray-400 text-xs">No Image</span>
@@ -553,7 +585,7 @@
                 </div>
                 @endif
 
-                <div wire:key="search-results-{{ $userList->id }}-{{ md5($searchTerm) }}" class="px-4 pb-24">
+                <div wire:key="search-results-{{ $userList->id }}" class="px-4 pb-24">
                     @if(count($upcResults) > 0 || $upcLookupInProgress || $upcError)
                     <div class="mb-4">
                         <h3 class="text-lg font-semibold text-gray-900">PLU Results</h3>
@@ -704,7 +736,9 @@
                     }
                 }, 200);
             }
-        })" <!-- Background overlay -->
+        })">
+
+            <!-- Background overlay -->
             <div class="fixed inset-0 bg-black bg-opacity-50 z-10" @click="$wire.toggleShareModal()"></div>
 
             <!-- Modal content -->
@@ -1011,13 +1045,8 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- PLU Code Detail Modal -->
-    @livewire('plu-code-detail-modal')
-    
-    <!-- UPC Code Detail Modal -->
-    @livewire('upc-code-detail-modal')
+    </div>
 
     <script>
         document.addEventListener('livewire:initialized', () => {

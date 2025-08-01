@@ -38,15 +38,15 @@ Route::get('/{plu}', \App\Livewire\PLUPage::class)
 // Public shared list route (no auth required)
 Route::get('/list/{shareCode}', SharedView::class)->name('lists.shared');
 
+// Marketplace routes (public - no auth required)
+Route::get('/marketplace', MarketplaceBrowse::class)->name('marketplace.browse');
+Route::get('/marketplace/{shareCode}', MarketplaceViewList::class)->name('marketplace.view');
+
 Route::middleware(['auth'])->group(function () {
     Route::get('/lists', ListsIndex::class)->name('lists.index');
     Route::get('/lists/create', ListsCreate::class)->name('lists.create');
     Route::get('/lists/{userList}', ListsShow::class)->name('lists.show');
     Route::get('/lists/{userList}/edit', ListsEdit::class)->name('lists.edit');
-
-    // Marketplace routes
-    Route::get('/marketplace', MarketplaceBrowse::class)->name('marketplace.browse');
-    Route::get('/marketplace/{shareCode}', MarketplaceViewList::class)->name('marketplace.view');
 
     // Google OAuth unlink route
     Route::delete('/auth/google/unlink', [GoogleController::class, 'unlink'])->name('auth.google.unlink');
