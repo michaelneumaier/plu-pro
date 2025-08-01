@@ -13,7 +13,7 @@
 
         <!-- PLU Code Items -->
         @foreach($pluCodes as $pluCode)
-        <div class="bg-white hover:bg-gray-50 cursor-pointer border-b border-gray-200 last:border-b-0"
+        <div class="bg-white hover:bg-gray-50 cursor-pointer border-b border-gray-200 last:border-b-0 transition-colors"
             x-data="{ 
                 isAdding: false,
                 isAddingOrganic: false,
@@ -46,11 +46,13 @@
                 wire:click="$dispatch('pluCodeSelected', [{{ $pluCode->id }}, false])"
                 wire:key="search-plu-row-{{ $pluCode->id }}-{{ $userListId }}">
                 <div class="flex flex-col items-center justify-evenly">
-                    <div class="flex items-center justify-center w-12 h-7 sm:w-12 sm:h-8 bg-green-100 text-sm text-green-800 border border-green-200 rounded overflow-hidden">
+                    <a href="{{ route('plu.show', $pluCode->plu) }}"
+                       @click.stop
+                       class="flex items-center justify-center w-12 h-7 sm:w-12 sm:h-8 bg-green-100 text-sm text-green-800 border border-green-200 rounded overflow-hidden hover:bg-green-200 transition-colors">
                         <span class="font-mono font-semibold">
                             {{ $pluCode->plu }}
                         </span>
-                    </div>
+                    </a>
                     <div class="mr-1"><x-consumer-usage-indicator :tier="$pluCode->consumer_usage_tier" /></div>
                 </div>
                 <div class="flex items-center p-1">

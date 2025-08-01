@@ -101,7 +101,9 @@ $colCount = $hasActions ? 5 : 4;
                         </div>
                     @else
                         <!-- PLU Badge -->
-                        <div class="flex items-center justify-center w-12 h-7 sm:w-12 sm:h-8 bg-green-100 text-sm text-green-800 border border-green-200 rounded overflow-hidden">
+                        <a href="{{ route('plu.show', $listItem && $listItem->organic ? '9' . $pluCode->plu : $pluCode->plu) }}"
+                           @click.stop
+                           class="flex items-center justify-center w-12 h-7 sm:w-12 sm:h-8 bg-green-100 text-sm text-green-800 border border-green-200 rounded overflow-hidden hover:bg-green-200 transition-colors">
                             <span class="font-mono font-semibold">
                                 @if($listItem && $listItem->organic)
                                 9{{ $pluCode->plu }}
@@ -109,7 +111,7 @@ $colCount = $hasActions ? 5 : 4;
                                 {{ $pluCode->plu }}
                                 @endif
                             </span>
-                        </div>
+                        </a>
                         <div class="mr-1"><x-consumer-usage-indicator :tier="$pluCode->consumer_usage_tier" /></div>
                     @endif
                 </div>
