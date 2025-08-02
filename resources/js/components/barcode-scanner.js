@@ -103,21 +103,57 @@ export default function barcodeScanner() {
                 this.status = 'Starting camera...';
                 console.log('Set isScanning=true, status=', this.status);
 
-                // FORCE LANDSCAPE: Camera constraints to enforce horizontal 1920x1080 on all devices including iPhone
-                const constraints = {
-                    video: {
-                        facingMode: { ideal: 'environment' },
-                        // Force landscape orientation with strict 1920x1080
-                        width: { ideal: 1920, min: 1920 },  // Force 1920 width (no fallback)
-                        height: { ideal: 1080, min: 1080 }, // Force 1080 height (no fallback)
-                        aspectRatio: { ideal: 1.777777778 }, // Force 16:9 landscape ratio (1920/1080)
-                        frameRate: { ideal: 30, min: 15 }   // Smooth 30fps, acceptable 15fps minimum
+                // TRY MULTIPLE CONSTRAINT STRATEGIES for better camera resolution
+                let constraints;
+                let stream = null;
+                
+                // Strategy 1: Try device maximum resolution first (based on detected capabilities)
+                try {
+                    constraints = {
+                        video: {
+                            facingMode: { ideal: 'environment' },
+                            width: { ideal: 1920, min: 1280 },  // Prefer 1920 but require at least 1280
+                            height: { ideal: 1080, min: 720 },  // Prefer 1080 but require at least 720  
+                            aspectRatio: { ideal: 1.777777778, min: 1.6 }, // Prefer 16:9, require widescreen
+                            frameRate: { ideal: 30, min: 15 }
+                        }
+                    };
+                    console.log('📹 Trying Strategy 1 (high-res landscape):', constraints);
+                    stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    console.log('✅ Strategy 1 succeeded!');
+                } catch (error) {
+                    console.log('❌ Strategy 1 failed:', error.message);
+                    
+                    // Strategy 2: Try maximum device capability without aspect ratio constraint
+                    try {
+                        constraints = {
+                            video: {
+                                facingMode: { ideal: 'environment' },
+                                width: { ideal: 1280 },  // Use device max from capabilities
+                                height: { ideal: 720 },  // Use device max from capabilities
+                                frameRate: { ideal: 30, min: 15 }
+                            }
+                        };
+                        console.log('📹 Trying Strategy 2 (device max without aspect ratio):', constraints);
+                        stream = await navigator.mediaDevices.getUserMedia(constraints);
+                        console.log('✅ Strategy 2 succeeded!');
+                    } catch (error) {
+                        console.log('❌ Strategy 2 failed:', error.message);
+                        
+                        // Strategy 3: Basic fallback - no constraints except facing mode
+                        constraints = {
+                            video: {
+                                facingMode: { ideal: 'environment' }
+                            }
+                        };
+                        console.log('📹 Trying Strategy 3 (basic fallback):', constraints);
+                        stream = await navigator.mediaDevices.getUserMedia(constraints);
+                        console.log('✅ Strategy 3 succeeded!');
                     }
-                };
-
-                console.log('📹 About to request camera with constraints:', constraints);
-                this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-                console.log('📹 Got camera stream:', this.stream);
+                }
+                
+                this.stream = stream;
+                console.log('📹 Final camera stream obtained:', this.stream);
                 
                 // Get video track for camera controls
                 this.videoTrack = this.stream.getVideoTracks()[0];
