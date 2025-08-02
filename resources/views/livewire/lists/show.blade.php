@@ -1120,7 +1120,7 @@
             </div>
 
             <!-- Scanner Component -->
-            <div x-data="window.barcodeScanner ? window.barcodeScanner() : { init() {}, startScanning() {}, stopScanning() {}, toggleTorch() {}, optimizeForCloseUp() {}, isSupported: false, isScanning: false, status: 'Scanner not available', torchSupported: false, torchEnabled: false }"
+            <div x-data="window.barcodeScanner ? window.barcodeScanner() : { init() {}, startScanning() {}, stopScanning() {}, toggleTorch() {}, isSupported: false, isScanning: false, status: 'Scanner not available', torchSupported: false, torchEnabled: false }"
                 x-ref="barcodeScanner" x-init="init()"
                 x-effect="if (showBarcodeScanner && isSupported && !isScanning) { $nextTick(() => startScanning()); } else if (!showBarcodeScanner && isScanning) { stopScanning(); }"
                 class="space-y-4">
@@ -1171,28 +1171,17 @@
                 </div>
 
                 <!-- Camera Controls (only shown when scanning) -->
-                <div x-show="isScanning" x-transition class="flex justify-center space-x-3">
+                <div x-show="isScanning" x-transition class="flex justify-center">
                     <!-- Flashlight Toggle -->
                     <button @click="$refs.barcodeScanner.toggleTorch?.()" x-show="$refs.barcodeScanner.torchSupported"
-                        class="flex items-center px-3 py-2 text-sm font-medium rounded-md border transition-colors"
+                        class="flex items-center px-4 py-2 text-sm font-medium rounded-md border transition-colors"
                         :class="$refs.barcodeScanner.torchEnabled ? 'bg-yellow-500 text-white border-yellow-500 hover:bg-yellow-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
                         title="Toggle flashlight">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
                                   :d="$refs.barcodeScanner.torchEnabled ? 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z' : 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z'"></path>
                         </svg>
                         <span x-text="$refs.barcodeScanner.torchEnabled ? 'Flash ON' : 'Flash'"></span>
-                    </button>
-
-                    <!-- Close-up Focus Button -->
-                    <button @click="$refs.barcodeScanner.optimizeForCloseUp?.()"
-                        class="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-                        title="Optimize for close-up scanning">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path>
-                        </svg>
-                        Focus
                     </button>
                 </div>
 

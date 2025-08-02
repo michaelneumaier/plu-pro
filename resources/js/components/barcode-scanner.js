@@ -83,11 +83,14 @@ export default function barcodeScanner() {
                 this.isScanning = true;
                 this.status = 'Starting camera...';
 
-                // Simplified camera constraints to avoid AbortError
+                // High-resolution camera constraints for iOS and Android
                 const constraints = {
                     video: {
-                        facingMode: { ideal: 'environment' }
-                        // Removed advanced constraints that might cause AbortError
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1920, min: 1280 }, // Force higher resolution
+                        height: { ideal: 1080, min: 720 },
+                        frameRate: { ideal: 30, min: 15 }, // Smooth video feed
+                        aspectRatio: { ideal: 16/9 } // Standard aspect ratio
                     }
                 };
 
