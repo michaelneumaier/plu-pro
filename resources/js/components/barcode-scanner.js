@@ -103,14 +103,15 @@ export default function barcodeScanner() {
                 this.status = 'Starting camera...';
                 console.log('Set isScanning=true, status=', this.status);
 
-                // High-resolution camera constraints for iOS and Android
+                // High-resolution camera constraints optimized for mobile and desktop
                 const constraints = {
                     video: {
                         facingMode: { ideal: 'environment' },
-                        width: { ideal: 1920, min: 1280 }, // Force higher resolution
-                        height: { ideal: 1080, min: 720 },
-                        frameRate: { ideal: 30, min: 15 }, // Smooth video feed
-                        aspectRatio: { ideal: 16/9 } // Standard aspect ratio
+                        // Support both landscape and portrait orientations
+                        width: { ideal: 1920, min: 1280 }, // Preferred: 1920, minimum: 1280
+                        height: { ideal: 1080, min: 720 },  // Preferred: 1080, minimum: 720
+                        frameRate: { ideal: 30, min: 15 }   // Smooth 30fps, acceptable 15fps minimum
+                        // Removed aspectRatio to allow mobile portrait mode
                     }
                 };
 
@@ -180,6 +181,20 @@ export default function barcodeScanner() {
                     };
                     
                     console.log('Stored video resolution:', this.videoResolution);
+                    
+                    // FIX iOS VIDEO QUALITY: Force video element to match track resolution
+                    if (this.actualSettings && (video.videoWidth !== this.actualSettings.width || video.videoHeight !== this.actualSettings.height)) {
+                        console.log('🔧 FIXING iOS VIDEO RESOLUTION MISMATCH');
+                        console.log('Track resolution:', this.actualSettings.width + 'x' + this.actualSettings.height);
+                        console.log('Video resolution:', video.videoWidth + 'x' + video.videoHeight);
+                        
+                        // Force the video element to display at full track resolution
+                        video.style.width = this.actualSettings.width + 'px';
+                        video.style.height = this.actualSettings.height + 'px';
+                        video.style.objectFit = 'cover'; // Maintain aspect ratio and crop if needed
+                        
+                        console.log('✅ Applied full resolution styles to video element');
+                    }
                 });
 
                 if (this.scannerType === 'native') {
@@ -328,15 +343,12 @@ export default function barcodeScanner() {
 
         handleScannedCode(code) {
             try {
-                // SUPER VERBOSE LOGGING - Force alerts and console logs
+                // Console logging for debugging (no more alert popup)
                 console.log('=== BARCODE SCAN EVENT ===');
                 console.log('Raw scanned code:', code);
                 console.log('Code length:', code.length);
                 console.log('Code type:', typeof code);
                 console.log('Code as string:', String(code));
-                
-                // Also show an alert so we can see it on mobile
-                alert(`SCANNED: ${code} (Length: ${code.length})`);
                 
                 const now = Date.now();
                 
@@ -357,8 +369,8 @@ export default function barcodeScanner() {
                 
                 this.status = `Scanned: ${processedCode.displayCode} (${processedCode.type})`;
                 
-                // DON'T stop scanning immediately to avoid AbortError - let it continue
-                // this.stopScanning();
+                // Stop scanning after successful scan
+                this.stopScanning();
                 
                 // Emit event to parent component after a brief delay
                 setTimeout(() => {
@@ -376,7 +388,6 @@ export default function barcodeScanner() {
                 }
             } catch (error) {
                 console.error('Error in handleScannedCode:', error);
-                alert(`Error handling scan: ${error.message}`);
             }
         },
 

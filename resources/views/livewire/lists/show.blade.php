@@ -1178,8 +1178,8 @@
                 class="space-y-4">
 
                 <!-- Camera Preview -->
-                <div class="relative bg-black rounded-lg overflow-hidden" style="aspect-ratio: 4/3;">
-                    <video x-ref="video" class="w-full h-full object-cover" playsinline muted>
+                <div class="relative bg-black rounded-lg overflow-hidden" style="min-height: 300px; max-height: 70vh;">
+                    <video x-ref="video" class="w-full h-auto object-contain" playsinline muted>
                     </video>
 
                     <!-- Overlay for scanning guidance -->
