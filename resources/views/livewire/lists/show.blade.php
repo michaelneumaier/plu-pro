@@ -1177,9 +1177,9 @@
                 "
                 class="space-y-4">
 
-                <!-- Camera Preview -->
-                <div class="relative bg-black rounded-lg overflow-hidden" style="min-height: 300px; max-height: 70vh;">
-                    <video x-ref="video" class="w-full h-auto object-contain" playsinline muted>
+                <!-- Camera Preview - LANDSCAPE MODE: Full screen video for 1920x1080 -->
+                <div class="relative bg-black overflow-hidden fixed inset-0 z-50">
+                    <video x-ref="video" class="w-full h-full object-cover" playsinline muted>
                     </video>
 
                     <!-- Overlay for scanning guidance -->

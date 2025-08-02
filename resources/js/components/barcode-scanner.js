@@ -103,15 +103,15 @@ export default function barcodeScanner() {
                 this.status = 'Starting camera...';
                 console.log('Set isScanning=true, status=', this.status);
 
-                // High-resolution camera constraints optimized for mobile and desktop
+                // FORCE LANDSCAPE: Camera constraints to enforce horizontal 1920x1080 on all devices including iPhone
                 const constraints = {
                     video: {
                         facingMode: { ideal: 'environment' },
-                        // Support both landscape and portrait orientations
-                        width: { ideal: 1920, min: 1280 }, // Preferred: 1920, minimum: 1280
-                        height: { ideal: 1080, min: 720 },  // Preferred: 1080, minimum: 720
+                        // Force landscape orientation with strict 1920x1080
+                        width: { ideal: 1920, min: 1920 },  // Force 1920 width (no fallback)
+                        height: { ideal: 1080, min: 1080 }, // Force 1080 height (no fallback)
+                        aspectRatio: { ideal: 1.777777778 }, // Force 16:9 landscape ratio (1920/1080)
                         frameRate: { ideal: 30, min: 15 }   // Smooth 30fps, acceptable 15fps minimum
-                        // Removed aspectRatio to allow mobile portrait mode
                     }
                 };
 
@@ -182,19 +182,29 @@ export default function barcodeScanner() {
                     
                     console.log('Stored video resolution:', this.videoResolution);
                     
-                    // FIX iOS VIDEO QUALITY: Force video element to match track resolution
-                    if (this.actualSettings && (video.videoWidth !== this.actualSettings.width || video.videoHeight !== this.actualSettings.height)) {
-                        console.log('🔧 FIXING iOS VIDEO RESOLUTION MISMATCH');
-                        console.log('Track resolution:', this.actualSettings.width + 'x' + this.actualSettings.height);
-                        console.log('Video resolution:', video.videoWidth + 'x' + video.videoHeight);
-                        
-                        // Force the video element to display at full track resolution
-                        video.style.width = this.actualSettings.width + 'px';
-                        video.style.height = this.actualSettings.height + 'px';
-                        video.style.objectFit = 'cover'; // Maintain aspect ratio and crop if needed
-                        
-                        console.log('✅ Applied full resolution styles to video element');
+                    // FORCE LANDSCAPE VIDEO: Always set video to 1920x1080 landscape orientation
+                    console.log('🔧 APPLYING LANDSCAPE VIDEO CONSTRAINTS');
+                    console.log('Track settings:', this.actualSettings);
+                    console.log('Video dimensions before fix:', video.videoWidth + 'x' + video.videoHeight);
+                    
+                    // Force landscape orientation regardless of device orientation
+                    video.style.width = '100vw';  // Full viewport width
+                    video.style.height = '100vh'; // Full viewport height
+                    video.style.objectFit = 'cover'; // Cover entire area, crop if needed
+                    video.style.objectPosition = 'center'; // Center the video content
+                    
+                    // Ensure the video container handles landscape mode properly
+                    const videoContainer = video.parentElement;
+                    if (videoContainer) {
+                        videoContainer.style.overflow = 'hidden';
+                        videoContainer.style.position = 'fixed';
+                        videoContainer.style.top = '0';
+                        videoContainer.style.left = '0';
+                        videoContainer.style.width = '100vw';
+                        videoContainer.style.height = '100vh';
                     }
+                    
+                    console.log('✅ Applied landscape video styles - forcing 1920x1080 capture in landscape mode');
                 });
 
                 if (this.scannerType === 'native') {
