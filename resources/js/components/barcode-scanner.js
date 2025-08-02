@@ -23,9 +23,14 @@ export default function barcodeScanner() {
         videoTrack: null,
 
         async init() {
+            console.log('=== BARCODE SCANNER INITIALIZING ===');
+            console.log('Scanner component loaded successfully');
+            
             // Check camera permission and support
             await this.checkCameraSupport();
             await this.checkPermissions();
+            
+            console.log('Scanner initialization complete. Support:', this.isSupported, 'Type:', this.scannerType);
         },
 
         async checkCameraSupport() {
@@ -78,18 +83,11 @@ export default function barcodeScanner() {
                 this.isScanning = true;
                 this.status = 'Starting camera...';
 
-                // Enhanced camera constraints for close-up barcode scanning
+                // Simplified camera constraints to avoid AbortError
                 const constraints = {
                     video: {
-                        facingMode: { ideal: 'environment' },
-                        width: { ideal: 1920, min: 1280 }, // Higher resolution for small barcodes
-                        height: { ideal: 1080, min: 720 },
-                        focusMode: { ideal: 'continuous' }, // Continuous autofocus
-                        // Advanced camera controls for close-up scanning
-                        advanced: [
-                            { focusDistance: { ideal: 0.1 } }, // Close focus distance
-                            { torch: false } // Start with flashlight off
-                        ]
+                        facingMode: { ideal: 'environment' }
+                        // Removed advanced constraints that might cause AbortError
                     }
                 };
 
@@ -158,6 +156,7 @@ export default function barcodeScanner() {
 
         async startZXingScanning(video) {
             try {
+                console.log('=== STARTING ZXING SCANNING ===');
                 this.reader = new BrowserMultiFormatReader();
                 this.status = 'Scanning with ZXing...';
                 
@@ -177,15 +176,34 @@ export default function barcodeScanner() {
                     video,
                     (result, error, controls) => {
                         if (result) {
-                            this.handleScannedCode(result.getText());
-                            controls.stop();
+                            console.log('=== ZXING DECODE SUCCESS ===');
+                            console.log('ZXing result object:', result);
+                            console.log('ZXing getText():', result.getText());
+                            
+                            try {
+                                this.handleScannedCode(result.getText());
+                                // Don't stop controls immediately - let it continue scanning
+                                // controls.stop();
+                            } catch (handleError) {
+                                console.error('Error in handleScannedCode:', handleError);
+                                alert(`Error processing scan: ${handleError.message}`);
+                            }
                         }
-                        // Ignore decode errors - they're expected during scanning
+                        if (error) {
+                            // Log more errors to understand what's happening
+                            if (error.name === 'AbortError') {
+                                console.error('ZXing AbortError:', error);
+                                alert(`ZXing AbortError: ${error.message}`);
+                            } else if (Math.random() < 0.05) { // 5% chance for other errors
+                                console.log('ZXing decode attempt:', error.name, error.message);
+                            }
+                        }
                     }
                 );
                 
                 // Store controls for cleanup
                 this.zxingControls = controls;
+                console.log('ZXing scanning started successfully');
                 
             } catch (error) {
                 console.error('ZXing scanning error:', error);
@@ -194,64 +212,108 @@ export default function barcodeScanner() {
         },
 
         handleScannedCode(code) {
-            const now = Date.now();
-            
-            // Debounce duplicate scans
-            if (this.lastScannedCode === code && 
-                (now - this.lastScannedTime) < this.debounceDelay) {
-                return;
-            }
-            
-            this.lastScannedCode = code;
-            this.lastScannedTime = now;
-            
-            // Enhanced logging for testing
-            console.log('Raw scanned code:', code, 'Length:', code.length);
-            
-            // Process the scanned code to determine type and extract relevant data
-            const processedCode = this.processBarcodeData(code);
-            
-            console.log('Processed code result:', processedCode);
-            
-            this.status = `Scanned: ${processedCode.displayCode} (${processedCode.type})`;
-            
-            // Stop scanning immediately to prevent multiple scans
-            this.stopScanning();
-            
-            // Emit event to parent component after a brief delay
-            setTimeout(() => {
-                this.$dispatch('barcode-scanned', { 
-                    code: processedCode.searchCode,
-                    type: processedCode.type,
-                    originalCode: code
-                });
-            }, 100);
-            
-            // Provide haptic feedback on mobile
-            if (navigator.vibrate) {
-                navigator.vibrate(100);
+            try {
+                // SUPER VERBOSE LOGGING - Force alerts and console logs
+                console.log('=== BARCODE SCAN EVENT ===');
+                console.log('Raw scanned code:', code);
+                console.log('Code length:', code.length);
+                console.log('Code type:', typeof code);
+                console.log('Code as string:', String(code));
+                
+                // Also show an alert so we can see it on mobile
+                alert(`SCANNED: ${code} (Length: ${code.length})`);
+                
+                const now = Date.now();
+                
+                // Debounce duplicate scans
+                if (this.lastScannedCode === code && 
+                    (now - this.lastScannedTime) < this.debounceDelay) {
+                    console.log('Duplicate scan ignored');
+                    return;
+                }
+                
+                this.lastScannedCode = code;
+                this.lastScannedTime = now;
+                
+                // Process the scanned code to determine type and extract relevant data
+                const processedCode = this.processBarcodeData(code);
+                
+                console.log('Processed code result:', processedCode);
+                
+                this.status = `Scanned: ${processedCode.displayCode} (${processedCode.type})`;
+                
+                // DON'T stop scanning immediately to avoid AbortError - let it continue
+                // this.stopScanning();
+                
+                // Emit event to parent component after a brief delay
+                setTimeout(() => {
+                    console.log('Dispatching barcode-scanned event with:', processedCode);
+                    this.$dispatch('barcode-scanned', { 
+                        code: processedCode.searchCode,
+                        type: processedCode.type,
+                        originalCode: code
+                    });
+                }, 100);
+                
+                // Provide haptic feedback on mobile
+                if (navigator.vibrate) {
+                    navigator.vibrate(100);
+                }
+            } catch (error) {
+                console.error('Error in handleScannedCode:', error);
+                alert(`Error handling scan: ${error.message}`);
             }
         },
 
         processBarcodeData(code) {
-            // DEBUGGING: Pass through raw scanned code without any processing
-            console.log('DEBUG: Raw scanned code being passed through:', code);
+            console.log('DEBUG: Processing scanned code:', code);
             
-            // Determine basic type for display purposes only
-            let detectedType = 'RAW';
-            if (/^\d{4,5}$/.test(code)) {
-                detectedType = 'PLU-LIKE';
-            } else if (/^\d{12,13}$/.test(code)) {
-                detectedType = 'UPC-LIKE';
-            } else if (code.length > 10) {
-                detectedType = 'LONG-CODE';
+            // Check if it's a GTIN-14 format (14 digits) - PLU barcode
+            if (/^\d{14}$/.test(code)) {
+                console.log('DEBUG: Detected 14-digit GTIN-14 format (PLU barcode)');
+                
+                // For PLU 4593 -> 00684924045936
+                // The PLU appears to be in positions 8-11 (zero-indexed: 7-10)
+                const extractedPLU = code.substring(7, 11);
+                console.log('DEBUG: Extracted PLU from positions 7-10:', extractedPLU);
+                
+                // Remove leading zeros but keep at least 4 digits
+                const cleanedPLU = extractedPLU.replace(/^0+/, '') || extractedPLU;
+                console.log('DEBUG: Cleaned PLU:', cleanedPLU);
+                
+                return {
+                    type: 'PLU',
+                    searchCode: cleanedPLU,
+                    displayCode: cleanedPLU,
+                    originalCode: code
+                };
             }
             
-            // Return the exact scanned code without any modification
+            // Check if it's a UPC format (12-13 digits)
+            if (/^\d{12,13}$/.test(code)) {
+                return {
+                    type: 'UPC',
+                    searchCode: code,
+                    displayCode: code,
+                    originalCode: code
+                };
+            }
+            
+            // Check if it's already a PLU code (4-5 digits)
+            if (/^\d{4,5}$/.test(code)) {
+                return {
+                    type: 'PLU',
+                    searchCode: code,
+                    displayCode: code,
+                    originalCode: code
+                };
+            }
+            
+            // Unknown format - pass through as-is for debugging
             return {
-                type: detectedType,
-                searchCode: code, // Use exact scanned code
-                displayCode: code, // Show exact scanned code
+                type: 'UNKNOWN',
+                searchCode: code,
+                displayCode: code,
                 originalCode: code
             };
         },
