@@ -39,27 +39,11 @@ export default function barcodeScanner() {
                     return;
                 }
 
-                // Check for native BarcodeDetector support
-                if ('BarcodeDetector' in window) {
-                    try {
-                        const supported = await window.BarcodeDetector.getSupportedFormats();
-                        const needed = ['ean_13', 'upc_a', 'upc_e', 'gs1_databar', 'gs1_databar_stacked'];
-                        
-                        if (needed.some(format => supported.includes(format))) {
-                            this.scannerType = 'native';
-                            this.isSupported = true;
-                            this.status = 'Native barcode detection available (UPC + PLU)';
-                            return;
-                        }
-                    } catch (e) {
-                        console.warn('BarcodeDetector not fully supported:', e);
-                    }
-                }
-
-                // Fallback to ZXing
+                // FORCE ZXing only for testing GS1 DataBar
+                console.log('Testing: Forcing ZXing scanner for GS1 DataBar support');
                 this.scannerType = 'zxing';
                 this.isSupported = true;
-                this.status = 'ZXing barcode scanner available (UPC + PLU)';
+                this.status = 'ZXing scanner (testing GS1 DataBar support)';
 
             } catch (error) {
                 console.error('Error checking camera support:', error);
@@ -122,7 +106,7 @@ export default function barcodeScanner() {
         async startNativeScanning(video) {
             try {
                 this.detector = new window.BarcodeDetector({
-                    formats: ['ean_13', 'upc_a', 'upc_e', 'gs1_databar', 'gs1_databar_stacked']
+                    formats: ['ean_13', 'upc_a', 'upc_e']
                 });
                 
                 this.status = 'Scanning with native detector...';
@@ -161,9 +145,15 @@ export default function barcodeScanner() {
                 this.status = 'Scanning with ZXing...';
                 
                 const hints = new Map();
-                hints.set(2, 'UPC_A,UPC_E,EAN_13,RSS_14'); // DecodeHintType.POSSIBLE_FORMATS (RSS_14 = GS1 DataBar)
-                hints.set(3, true); // DecodeHintType.ASSUME_GS1
-                hints.set(1, true); // DecodeHintType.TRY_HARDER
+                hints.set(2, 'UPC_A,UPC_E,EAN_13,RSS_14,RSS_EXPANDED'); // DecodeHintType.POSSIBLE_FORMATS - Added GS1 DataBar formats
+                hints.set(3, true); // DecodeHintType.ASSUME_GS1 - Enable GS1 parsing
+                hints.set(1, true); // DecodeHintType.TRY_HARDER - More aggressive scanning
+                
+                console.log('ZXing configured with GS1 DataBar support:', {
+                    formats: 'UPC_A,UPC_E,EAN_13,RSS_14,RSS_EXPANDED',
+                    assumeGS1: true,
+                    tryHarder: true
+                });
                 
                 const controls = await this.reader.decodeFromVideoDevice(
                     null, // Use default camera
@@ -198,8 +188,13 @@ export default function barcodeScanner() {
             this.lastScannedCode = code;
             this.lastScannedTime = now;
             
+            // Enhanced logging for testing
+            console.log('Raw scanned code:', code, 'Length:', code.length);
+            
             // Process the scanned code to determine type and extract relevant data
             const processedCode = this.processBarcodeData(code);
+            
+            console.log('Processed code result:', processedCode);
             
             this.status = `Scanned: ${processedCode.displayCode} (${processedCode.type})`;
             
@@ -263,50 +258,92 @@ export default function barcodeScanner() {
         },
 
         isGS1DataBar(code) {
-            // GS1 DataBar typically produces GTIN-14 format
-            // May start with "01" (Application Identifier) or be 14 digits
-            return /^01\d{14}$/.test(code) || /^\d{14}$/.test(code);
+            // GS1 DataBar/RSS formats can produce various outputs:
+            // - GTIN-14 format (14 digits)
+            // - With GS1 Application Identifier "01" prefix
+            // - RSS_14 format from ZXing
+            console.log('Testing if GS1 DataBar:', code);
+            
+            const patterns = [
+                /^01\d{14}$/.test(code),  // GS1 AI format: 01 + 14 digits
+                /^\d{14}$/.test(code),    // Pure 14 digits
+                /^RSS/.test(code),        // RSS prefix
+                code.length > 10 && code.length < 20 // Reasonable length for DataBar
+            ];
+            
+            const isDataBar = patterns.some(pattern => pattern);
+            console.log('GS1 DataBar check result:', isDataBar, 'Patterns:', patterns);
+            
+            return isDataBar;
         },
 
         extractPLUFromGS1(code) {
-            let gtin14;
+            console.log('Extracting PLU from GS1/DataBar code:', code);
+            
+            let workingCode = code;
             
             // Remove GS1 Application Identifier if present
-            if (code.startsWith('01')) {
-                gtin14 = code.substring(2); // Remove "01" prefix
-            } else {
-                gtin14 = code;
+            if (workingCode.startsWith('01')) {
+                workingCode = workingCode.substring(2); // Remove "01" prefix
+                console.log('Removed GS1 AI prefix, working with:', workingCode);
             }
             
-            // Extract PLU from GTIN-14
-            // GTIN-14 structure: [Indicator][Company][PLU][Check]
-            // For produce, PLU is typically in positions 8-11 or 9-12
-            // This may need adjustment based on your PLU database structure
-            
-            if (gtin14.length === 14) {
-                // Try to extract 4-digit PLU from positions 8-11
-                let plu = gtin14.substring(7, 11);
+            // Try multiple extraction strategies
+            const extractionStrategies = [
+                // Strategy 1: Standard GTIN-14 PLU extraction (positions 8-11)
+                () => {
+                    if (workingCode.length === 14) {
+                        return workingCode.substring(7, 11).replace(/^0+/, '') || '0';
+                    }
+                    return null;
+                },
                 
-                // Remove leading zeros
-                plu = plu.replace(/^0+/, '') || '0';
+                // Strategy 2: Alternative PLU positions (6-10)
+                () => {
+                    if (workingCode.length === 14) {
+                        return workingCode.substring(6, 10).replace(/^0+/, '') || '0';
+                    }
+                    return null;
+                },
                 
-                // Validate PLU range (typically 3000-9999 for produce)
-                const pluNum = parseInt(plu);
-                if (pluNum >= 3000 && pluNum <= 9999) {
-                    return plu;
+                // Strategy 3: Last 4-5 digits (common for simple encoding)
+                () => {
+                    if (workingCode.length >= 4) {
+                        return workingCode.slice(-5, -1).replace(/^0+/, '') || workingCode.slice(-4).replace(/^0+/, '') || '0';
+                    }
+                    return null;
+                },
+                
+                // Strategy 4: Look for 4-digit patterns in any position
+                () => {
+                    const matches = workingCode.match(/(\d{4})/g);
+                    if (matches) {
+                        for (const match of matches) {
+                            const num = parseInt(match);
+                            if (num >= 3000 && num <= 9999) {
+                                return match.replace(/^0+/, '') || '0';
+                            }
+                        }
+                    }
+                    return null;
                 }
-                
-                // Fallback: try 5-digit PLU from positions 7-11
-                plu = gtin14.substring(6, 11);
-                plu = plu.replace(/^0+/, '') || '0';
-                
-                const pluNum5 = parseInt(plu);
-                if (pluNum5 >= 3000 && pluNum5 <= 99999) {
-                    return plu;
+            ];
+            
+            for (let i = 0; i < extractionStrategies.length; i++) {
+                const plu = extractionStrategies[i]();
+                if (plu) {
+                    const pluNum = parseInt(plu);
+                    console.log(`Strategy ${i + 1} extracted PLU:`, plu, 'Number:', pluNum);
+                    
+                    // Validate PLU range
+                    if (pluNum >= 3000 && pluNum <= 99999) {
+                        console.log('Valid PLU found:', plu);
+                        return plu;
+                    }
                 }
             }
             
-            // If extraction fails, return original code
+            console.log('PLU extraction failed, returning original code:', code);
             return code;
         },
 
