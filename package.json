@@ -21,6 +21,7 @@
         "workbox-webpack-plugin": "^7.3.0"
     },
     "dependencies": {
+        "@zxing/browser": "^0.1.5",
         "qrcode": "^1.5.4"
     }
 }

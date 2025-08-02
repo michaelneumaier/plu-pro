@@ -97,7 +97,16 @@ class SearchPLUCode extends Component
      */
     private function isUPCFormat(string $term): bool
     {
-        return preg_match('/^\d{12,13}$/', trim($term));
+        $trimmed = trim($term);
+        // Match 12-13 digit codes, or 13-digit codes starting with 0 (our formatted UPCs)
+        return preg_match('/^\d{12,13}$/', $trimmed) || preg_match('/^0\d{12}$/', $trimmed);
+    }
+
+    private function isPLUFormat(string $term): bool
+    {
+        $trimmed = trim($term);
+        // Match 4-5 digit PLU codes
+        return preg_match('/^\d{4,5}$/', $trimmed);
     }
 
     /**
