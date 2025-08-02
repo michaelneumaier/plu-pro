@@ -16,6 +16,11 @@ export default function barcodeScanner() {
         lastScannedCode: null,
         lastScannedTime: 0,
         debounceDelay: 2000, // 2 seconds to prevent duplicate scans
+        
+        // Camera controls
+        torchSupported: false,
+        torchEnabled: false,
+        videoTrack: null,
 
         async init() {
             // Check camera permission and support
@@ -73,16 +78,28 @@ export default function barcodeScanner() {
                 this.isScanning = true;
                 this.status = 'Starting camera...';
 
-                // Request camera access with rear camera preference
+                // Enhanced camera constraints for close-up barcode scanning
                 const constraints = {
                     video: {
                         facingMode: { ideal: 'environment' },
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
+                        width: { ideal: 1920, min: 1280 }, // Higher resolution for small barcodes
+                        height: { ideal: 1080, min: 720 },
+                        focusMode: { ideal: 'continuous' }, // Continuous autofocus
+                        // Advanced camera controls for close-up scanning
+                        advanced: [
+                            { focusDistance: { ideal: 0.1 } }, // Close focus distance
+                            { torch: false } // Start with flashlight off
+                        ]
                     }
                 };
 
                 this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                // Get video track for camera controls
+                this.videoTrack = this.stream.getVideoTracks()[0];
+                
+                // Check if torch (flashlight) is supported
+                this.checkTorchSupport();
                 
                 const video = this.$refs.video;
                 video.srcObject = this.stream;
@@ -432,6 +449,84 @@ export default function barcodeScanner() {
             } catch (error) {
                 console.error('File processing error:', error);
                 this.status = 'Error processing image';
+            }
+        },
+
+        // Check if torch (flashlight) is supported
+        checkTorchSupport() {
+            if (this.videoTrack) {
+                const capabilities = this.videoTrack.getCapabilities();
+                this.torchSupported = !!(capabilities.torch);
+                console.log('Torch support:', this.torchSupported);
+            }
+        },
+
+        // Toggle flashlight/torch
+        async toggleTorch() {
+            if (!this.torchSupported || !this.videoTrack) {
+                console.warn('Torch not supported or no video track available');
+                return;
+            }
+
+            try {
+                this.torchEnabled = !this.torchEnabled;
+                await this.videoTrack.applyConstraints({
+                    advanced: [{ torch: this.torchEnabled }]
+                });
+                
+                console.log('Torch toggled:', this.torchEnabled);
+                this.status = `Flashlight ${this.torchEnabled ? 'ON' : 'OFF'}`;
+                
+                // Reset status after a moment
+                setTimeout(() => {
+                    if (this.isScanning) {
+                        this.status = 'Scanning...';
+                    }
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Failed to toggle torch:', error);
+                this.torchEnabled = !this.torchEnabled; // Revert on error
+            }
+        },
+
+        // Set optimal camera settings for close-up scanning
+        async optimizeForCloseUp() {
+            if (!this.videoTrack) return;
+
+            try {
+                const capabilities = this.videoTrack.getCapabilities();
+                console.log('Camera capabilities:', capabilities);
+                
+                const constraints = {
+                    advanced: []
+                };
+
+                // Set focus for close-up if supported
+                if (capabilities.focusMode && capabilities.focusMode.includes('manual')) {
+                    constraints.advanced.push({ focusMode: 'manual' });
+                    if (capabilities.focusDistance) {
+                        constraints.advanced.push({ 
+                            focusDistance: Math.min(capabilities.focusDistance.max, 0.1) 
+                        });
+                    }
+                } else if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+                    constraints.advanced.push({ focusMode: 'continuous' });
+                }
+
+                // Set zoom if supported
+                if (capabilities.zoom) {
+                    const zoomLevel = Math.min(capabilities.zoom.max, 2.0); // 2x zoom max
+                    constraints.advanced.push({ zoom: zoomLevel });
+                }
+
+                if (constraints.advanced.length > 0) {
+                    await this.videoTrack.applyConstraints(constraints);
+                    console.log('Applied close-up camera settings');
+                }
+
+            } catch (error) {
+                console.warn('Could not optimize camera for close-up:', error);
             }
         },
 
