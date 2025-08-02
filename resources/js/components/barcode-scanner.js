@@ -234,42 +234,24 @@ export default function barcodeScanner() {
         },
 
         processBarcodeData(code) {
-            // Check if it's a GS1 DataBar (GTIN-14 format)
-            if (this.isGS1DataBar(code)) {
-                const pluCode = this.extractPLUFromGS1(code);
-                return {
-                    type: 'PLU',
-                    searchCode: pluCode,
-                    displayCode: pluCode,
-                    originalCode: code
-                };
-            }
+            // DEBUGGING: Pass through raw scanned code without any processing
+            console.log('DEBUG: Raw scanned code being passed through:', code);
             
-            // Check if it's a UPC format (12-13 digits)
-            if (/^\d{12,13}$/.test(code)) {
-                return {
-                    type: 'UPC',
-                    searchCode: code,
-                    displayCode: code,
-                    originalCode: code
-                };
-            }
-            
-            // Check if it's already a PLU code (4-5 digits)
+            // Determine basic type for display purposes only
+            let detectedType = 'RAW';
             if (/^\d{4,5}$/.test(code)) {
-                return {
-                    type: 'PLU',
-                    searchCode: code,
-                    displayCode: code,
-                    originalCode: code
-                };
+                detectedType = 'PLU-LIKE';
+            } else if (/^\d{12,13}$/.test(code)) {
+                detectedType = 'UPC-LIKE';
+            } else if (code.length > 10) {
+                detectedType = 'LONG-CODE';
             }
             
-            // Unknown format - pass through as-is
+            // Return the exact scanned code without any modification
             return {
-                type: 'UNKNOWN',
-                searchCode: code,
-                displayCode: code,
+                type: detectedType,
+                searchCode: code, // Use exact scanned code
+                displayCode: code, // Show exact scanned code
                 originalCode: code
             };
         },
