@@ -21,6 +21,12 @@ export default function barcodeScanner() {
         torchSupported: false,
         torchEnabled: false,
         videoTrack: null,
+        
+        // Camera info for debugging
+        actualConstraints: null,
+        actualCapabilities: null,
+        actualSettings: null,
+        videoResolution: null,
 
         async init() {
             console.log('=== BARCODE SCANNER INITIALIZING ===');
@@ -53,7 +59,13 @@ export default function barcodeScanner() {
                 console.log('Testing: Forcing ZXing scanner for GS1 DataBar support');
                 this.scannerType = 'zxing';
                 this.isSupported = true;
-                this.status = 'ZXing scanner (testing GS1 DataBar support)';
+                this.status = 'ZXing scanner ready';
+                
+                console.log('Scanner state after init:', {
+                    scannerType: this.scannerType,
+                    isSupported: this.isSupported,
+                    status: this.status
+                });
 
             } catch (error) {
                 console.error('Error checking camera support:', error);
@@ -77,11 +89,19 @@ export default function barcodeScanner() {
         },
 
         async startScanning() {
-            if (!this.isSupported || this.isScanning) return;
+            console.log('=== START SCANNING CALLED ===');
+            console.log('Current state:', { isSupported: this.isSupported, isScanning: this.isScanning });
+            
+            if (!this.isSupported || this.isScanning) {
+                console.log('❌ Early return from startScanning - isSupported:', this.isSupported, 'isScanning:', this.isScanning);
+                return;
+            }
 
             try {
+                console.log('=== STARTING SCAN PROCESS ===');
                 this.isScanning = true;
                 this.status = 'Starting camera...';
+                console.log('Set isScanning=true, status=', this.status);
 
                 // High-resolution camera constraints for iOS and Android
                 const constraints = {
@@ -94,10 +114,42 @@ export default function barcodeScanner() {
                     }
                 };
 
+                console.log('📹 About to request camera with constraints:', constraints);
                 this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+                console.log('📹 Got camera stream:', this.stream);
                 
                 // Get video track for camera controls
                 this.videoTrack = this.stream.getVideoTracks()[0];
+                
+                // Capture actual camera settings for debugging
+                console.log('=== CAMERA DEBUG INFO ===');
+                console.log('Requested constraints:', constraints);
+                
+                // Log video track info
+                console.log('Video track exists:', !!this.videoTrack);
+                if (this.videoTrack) {
+                    console.log('Video track state:', this.videoTrack.readyState);
+                    console.log('Video track enabled:', this.videoTrack.enabled);
+                    
+                    // Try to get capabilities and settings
+                    try {
+                        this.actualCapabilities = this.videoTrack.getCapabilities();
+                        console.log('✅ Actual capabilities:', this.actualCapabilities);
+                    } catch (error) {
+                        console.error('❌ Error getting capabilities:', error);
+                    }
+                    
+                    try {
+                        this.actualSettings = this.videoTrack.getSettings();
+                        console.log('✅ Actual settings:', this.actualSettings);
+                    } catch (error) {
+                        console.error('❌ Error getting settings:', error);
+                    }
+                } else {
+                    console.error('❌ No video track available');
+                }
+                
+                this.actualConstraints = constraints;
                 
                 // Check if torch (flashlight) is supported
                 this.checkTorchSupport();
@@ -106,7 +158,29 @@ export default function barcodeScanner() {
                 video.srcObject = this.stream;
                 video.setAttribute('playsinline', '');
                 
+                console.log('=== VIDEO ELEMENT SETUP ===');
+                console.log('Video element exists:', !!video);
+                
                 await video.play();
+                
+                // Wait a moment for video to load metadata
+                video.addEventListener('loadedmetadata', () => {
+                    console.log('=== VIDEO METADATA LOADED ===');
+                    console.log('Video element dimensions:', {
+                        videoWidth: video.videoWidth,
+                        videoHeight: video.videoHeight,
+                        clientWidth: video.clientWidth,
+                        clientHeight: video.clientHeight
+                    });
+                    
+                    // Store video resolution for debugging
+                    this.videoResolution = {
+                        width: video.videoWidth,
+                        height: video.videoHeight
+                    };
+                    
+                    console.log('Stored video resolution:', this.videoResolution);
+                });
 
                 if (this.scannerType === 'native') {
                     await this.startNativeScanning(video);
@@ -207,6 +281,44 @@ export default function barcodeScanner() {
                 // Store controls for cleanup
                 this.zxingControls = controls;
                 console.log('ZXing scanning started successfully');
+                
+                // Force update the status to show we're actively scanning
+                this.status = 'Scanning for barcodes...';
+                
+                // Set up periodic logging to capture camera info
+                this.debugInterval = setInterval(() => {
+                    console.log('=== PERIODIC DEBUG CHECK ===');
+                    
+                    // Log video track info
+                    if (this.videoTrack) {
+                        try {
+                            const currentSettings = this.videoTrack.getSettings();
+                            console.log('Current track settings:', currentSettings);
+                            this.actualSettings = currentSettings;
+                        } catch (error) {
+                            console.log('Error getting current settings:', error);
+                        }
+                    }
+                    
+                    // Log video element info
+                    const video = this.$refs.video;
+                    if (video && video.videoWidth && video.videoHeight) {
+                        console.log('Current video element resolution:', video.videoWidth + 'x' + video.videoHeight);
+                        this.videoResolution = {
+                            width: video.videoWidth,
+                            height: video.videoHeight
+                        };
+                    }
+                    
+                    console.log('All stored debug data:', {
+                        actualSettings: this.actualSettings,
+                        actualCapabilities: this.actualCapabilities,
+                        videoResolution: this.videoResolution,
+                        scannerType: this.scannerType,
+                        isScanning: this.isScanning,
+                        status: this.status
+                    });
+                }, 3000); // Log every 3 seconds
                 
             } catch (error) {
                 console.error('ZXing scanning error:', error);
@@ -414,6 +526,12 @@ export default function barcodeScanner() {
         stopScanning() {
             this.isScanning = false;
             this.status = 'Ready';
+            
+            // Clean up debug interval
+            if (this.debugInterval) {
+                clearInterval(this.debugInterval);
+                this.debugInterval = null;
+            }
             
             // Clean up animation frame
             if (this.animationFrame) {

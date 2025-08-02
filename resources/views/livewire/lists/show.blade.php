@@ -1120,9 +1120,61 @@
             </div>
 
             <!-- Scanner Component -->
-            <div x-data="window.barcodeScanner ? window.barcodeScanner() : { init() {}, startScanning() {}, stopScanning() {}, toggleTorch() {}, isSupported: false, isScanning: false, status: 'Scanner not available', torchSupported: false, torchEnabled: false }"
+            <div x-data="window.barcodeScanner ? window.barcodeScanner() : { 
+                init() { console.log('Fallback init called'); }, 
+                startScanning() { console.log('Fallback startScanning called'); }, 
+                stopScanning() { console.log('Fallback stopScanning called'); }, 
+                toggleTorch() { console.log('Fallback toggleTorch called'); }, 
+                isSupported: false, 
+                isScanning: false, 
+                status: 'Scanner not available', 
+                torchSupported: false, 
+                torchEnabled: false, 
+                actualSettings: null, 
+                actualCapabilities: null, 
+                videoResolution: null,
+                scannerType: 'fallback'
+            }"
                 x-ref="barcodeScanner" x-init="init()"
-                x-effect="if (showBarcodeScanner && isSupported && !isScanning) { $nextTick(() => startScanning()); } else if (!showBarcodeScanner && isScanning) { stopScanning(); }"
+                x-effect="
+                    console.log('x-effect triggered:', { 
+                        showBarcodeScanner: showBarcodeScanner, 
+                        isSupported: isSupported, 
+                        isScanning: isScanning 
+                    });
+                    if (showBarcodeScanner && isSupported && !isScanning) { 
+                        console.log('Starting scanning via x-effect');
+                        $nextTick(() => {
+                            // Access Alpine.js component data from the DOM element
+                            const scannerElement = $refs.barcodeScanner;
+                            const scannerData = scannerElement._x_dataStack[0];
+                            
+                            console.log('Scanner element:', scannerElement);
+                            console.log('Scanner data:', scannerData);
+                            console.log('Available methods:', Object.keys(scannerData || {}));
+                            
+                            if (scannerData && scannerData.startScanning) {
+                                console.log('Calling startScanning on scanner data');
+                                scannerData.startScanning();
+                            } else {
+                                console.log('Fallback to local startScanning');
+                                startScanning();
+                            }
+                        }); 
+                    } else if (!showBarcodeScanner && isScanning) { 
+                        console.log('Stopping scanning via x-effect');
+                        $nextTick(() => {
+                            const scannerElement = $refs.barcodeScanner;
+                            const scannerData = scannerElement._x_dataStack[0];
+                            
+                            if (scannerData && scannerData.stopScanning) {
+                                scannerData.stopScanning();
+                            } else {
+                                stopScanning();
+                            }
+                        });
+                    }
+                "
                 class="space-y-4">
 
                 <!-- Camera Preview -->
@@ -1157,6 +1209,25 @@
                     </div>
                 </div>
 
+                <!-- Camera Debug Info (always shown when scanning) -->
+                <div x-show="isScanning" x-transition class="bg-blue-50 border border-blue-200 p-3 rounded-lg text-xs">
+                    <div class="font-medium text-blue-800 mb-2">📱 Camera Debug Info:</div>
+                    <div class="space-y-1 text-blue-700">
+                        <div>Component Reference: <span x-text="$refs.barcodeScanner ? 'Working' : 'Missing'"></span></div>
+                        <div>Scanner Status: <span x-text="($refs.barcodeScanner?._x_dataStack?.[0]?.status) || 'N/A'"></span></div>
+                        <div>Scanner Type: <span x-text="($refs.barcodeScanner?._x_dataStack?.[0]?.scannerType) || 'N/A'"></span></div>
+                        <div>Is Scanning: <span x-text="($refs.barcodeScanner?._x_dataStack?.[0]?.isScanning) ? 'Yes' : 'No'"></span></div>
+                        <div>Data Status: <span x-text="($refs.barcodeScanner?._x_dataStack?.[0]?.actualSettings) ? 'Data Available' : 'Loading...'"></span></div>
+                        <div>Video Resolution: <span x-text="($refs.barcodeScanner?._x_dataStack?.[0]?.videoResolution) ? ($refs.barcodeScanner._x_dataStack[0].videoResolution.width + 'x' + $refs.barcodeScanner._x_dataStack[0].videoResolution.height) : 'N/A'"></span></div>
+                        <div>Track Resolution: <span x-text="($refs.barcodeScanner?._x_dataStack?.[0]?.actualSettings) ? ($refs.barcodeScanner._x_dataStack[0].actualSettings.width + 'x' + $refs.barcodeScanner._x_dataStack[0].actualSettings.height) : 'N/A'"></span></div>
+                        <div>Frame Rate: <span x-text="($refs.barcodeScanner?._x_dataStack?.[0]?.actualSettings) ? ($refs.barcodeScanner._x_dataStack[0].actualSettings.frameRate + 'fps') : 'N/A'"></span></div>
+                        <div>Facing Mode: <span x-text="($refs.barcodeScanner?._x_dataStack?.[0]?.actualSettings?.facingMode) || 'N/A'"></span></div>
+                        <div x-show="$refs.barcodeScanner?._x_dataStack?.[0]?.actualSettings?.zoom">Zoom: <span x-text="$refs.barcodeScanner?._x_dataStack?.[0]?.actualSettings?.zoom"></span></div>
+                        <div>Available Width: <span x-text="($refs.barcodeScanner?._x_dataStack?.[0]?.actualCapabilities?.width) ? ($refs.barcodeScanner._x_dataStack[0].actualCapabilities.width.min + '-' + $refs.barcodeScanner._x_dataStack[0].actualCapabilities.width.max) : 'N/A'"></span></div>
+                        <div>Available Height: <span x-text="($refs.barcodeScanner?._x_dataStack?.[0]?.actualCapabilities?.height) ? ($refs.barcodeScanner._x_dataStack[0].actualCapabilities.height.min + '-' + $refs.barcodeScanner._x_dataStack[0].actualCapabilities.height.max) : 'N/A'"></span></div>
+                    </div>
+                </div>
+
                 <!-- Control Buttons -->
                 <div class="flex justify-center space-x-3">
                     <button x-show="isScanning" @click="stopScanning()"
@@ -1167,6 +1238,42 @@
                     <button x-show="isSupported && !isScanning" @click="startScanning()"
                         class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                         Restart Scanning
+                    </button>
+                    
+                    <!-- Debug button to manually start scanning -->
+                    <button x-show="!isScanning" @click="console.log('Manual start clicked'); startScanning();"
+                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                        🔧 Force Start
+                    </button>
+                    
+                    <!-- Debug button to get camera info -->
+                    <button @click="
+                        const scannerData = $refs.barcodeScanner._x_dataStack[0];
+                        if (scannerData && scannerData.videoTrack) {
+                            console.log('=== MANUAL CAMERA DEBUG ===');
+                            console.log('Video track:', scannerData.videoTrack);
+                            try {
+                                const settings = scannerData.videoTrack.getSettings();
+                                console.log('✅ Current settings:', settings);
+                                scannerData.actualSettings = settings;
+                            } catch (e) { console.error('❌ Settings error:', e); }
+                            try {
+                                const capabilities = scannerData.videoTrack.getCapabilities();
+                                console.log('✅ Capabilities:', capabilities);
+                                scannerData.actualCapabilities = capabilities;
+                            } catch (e) { console.error('❌ Capabilities error:', e); }
+                            
+                            const video = $refs.video;
+                            if (video && video.videoWidth) {
+                                console.log('✅ Video element resolution:', video.videoWidth + 'x' + video.videoHeight);
+                                scannerData.videoResolution = { width: video.videoWidth, height: video.videoHeight };
+                            }
+                        } else {
+                            console.error('No video track available');
+                        }
+                    "
+                        class="px-3 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors">
+                        📊 Get Camera Info
                     </button>
                 </div>
 
