@@ -182,29 +182,19 @@ export default function barcodeScanner() {
                     
                     console.log('Stored video resolution:', this.videoResolution);
                     
-                    // FORCE LANDSCAPE VIDEO: Always set video to 1920x1080 landscape orientation
-                    console.log('🔧 APPLYING LANDSCAPE VIDEO CONSTRAINTS');
-                    console.log('Track settings:', this.actualSettings);
-                    console.log('Video dimensions before fix:', video.videoWidth + 'x' + video.videoHeight);
-                    
-                    // Force landscape orientation regardless of device orientation
-                    video.style.width = '100vw';  // Full viewport width
-                    video.style.height = '100vh'; // Full viewport height
-                    video.style.objectFit = 'cover'; // Cover entire area, crop if needed
-                    video.style.objectPosition = 'center'; // Center the video content
-                    
-                    // Ensure the video container handles landscape mode properly
-                    const videoContainer = video.parentElement;
-                    if (videoContainer) {
-                        videoContainer.style.overflow = 'hidden';
-                        videoContainer.style.position = 'fixed';
-                        videoContainer.style.top = '0';
-                        videoContainer.style.left = '0';
-                        videoContainer.style.width = '100vw';
-                        videoContainer.style.height = '100vh';
+                    // FIX iOS VIDEO QUALITY: Force video element to match track resolution
+                    if (this.actualSettings && (video.videoWidth !== this.actualSettings.width || video.videoHeight !== this.actualSettings.height)) {
+                        console.log('🔧 FIXING iOS VIDEO RESOLUTION MISMATCH');
+                        console.log('Track resolution:', this.actualSettings.width + 'x' + this.actualSettings.height);
+                        console.log('Video resolution:', video.videoWidth + 'x' + video.videoHeight);
+                        
+                        // Force the video element to display at full track resolution
+                        video.style.width = this.actualSettings.width + 'px';
+                        video.style.height = this.actualSettings.height + 'px';
+                        video.style.objectFit = 'cover'; // Maintain aspect ratio and crop if needed
+                        
+                        console.log('✅ Applied full resolution styles to video element');
                     }
-                    
-                    console.log('✅ Applied landscape video styles - forcing 1920x1080 capture in landscape mode');
                 });
 
                 if (this.scannerType === 'native') {
