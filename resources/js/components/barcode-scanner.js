@@ -107,20 +107,23 @@ export default function barcodeScanner() {
                 let constraints;
                 let stream = null;
                 
-                // Strategy 1: Try device maximum resolution first (based on detected capabilities)
+                // Strategy 1: Ultra high resolution with close-up focus for barcode scanning
                 try {
                     constraints = {
                         video: {
                             facingMode: { ideal: 'environment' },
-                            width: { ideal: 1920, min: 1280 },  // Prefer 1920 but require at least 1280
-                            height: { ideal: 1080, min: 720 },  // Prefer 1080 but require at least 720  
-                            aspectRatio: { ideal: 1.777777778, min: 1.6 }, // Prefer 16:9, require widescreen
+                            // Push for maximum device resolution (4032x3024 on capable phones)
+                            width: { ideal: 4032, min: 1920 },   // Prefer max device capability, fallback to 1920
+                            height: { ideal: 3024, min: 1080 },  // Prefer max device capability, fallback to 1080
+                            // Close-up focus settings for barcode scanning
+                            focusMode: { ideal: 'continuous', min: 'manual' },
+                            focusDistance: { ideal: 0.1 }, // Close focus for barcodes (10cm)
                             frameRate: { ideal: 30, min: 15 }
                         }
                     };
-                    console.log('📹 Trying Strategy 1 (high-res landscape):', constraints);
+                    console.log('📹 Trying Strategy 1 (ultra high-res + close focus):', constraints);
                     stream = await navigator.mediaDevices.getUserMedia(constraints);
-                    console.log('✅ Strategy 1 succeeded!');
+                    console.log('✅ Strategy 1 (ultra high-res) succeeded!');
                 } catch (error) {
                     console.log('❌ Strategy 1 failed:', error.message);
                     
