@@ -127,19 +127,21 @@ export default function barcodeScanner() {
                 } catch (error) {
                     console.log('❌ Strategy 1 failed:', error.message);
                     
-                    // Strategy 2: Safari-specific high resolution (exact constraints)
+                    // Strategy 2: High resolution with focus (less aggressive than Strategy 1)
                     try {
                         constraints = {
                             video: {
                                 facingMode: { ideal: 'environment' },
-                                width: { exact: 1280 },  // Force exact 1280 for Safari
-                                height: { exact: 720 },  // Force exact 720 for Safari
-                                frameRate: { ideal: 30 }
+                                width: { ideal: 1920, min: 1280 },   // More conservative high-res
+                                height: { ideal: 1440, min: 720 },   // More conservative high-res
+                                focusMode: { ideal: 'continuous' },  // Focus without exact distance
+                                aspectRatio: { ideal: 1.33 },        // Allow 4:3 aspect ratio
+                                frameRate: { ideal: 30, min: 15 }
                             }
                         };
-                        console.log('📹 Trying Strategy 2 (Safari exact constraints):', constraints);
+                        console.log('📹 Trying Strategy 2 (high-res + focus fallback):', constraints);
                         stream = await navigator.mediaDevices.getUserMedia(constraints);
-                        console.log('✅ Strategy 2 succeeded!');
+                        console.log('✅ Strategy 2 (high-res + focus) succeeded!');
                     } catch (error) {
                         console.log('❌ Strategy 2 failed:', error.message);
                         
