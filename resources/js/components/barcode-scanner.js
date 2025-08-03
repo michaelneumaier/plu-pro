@@ -218,9 +218,27 @@ export default function barcodeScanner() {
                     
                     console.log('Stored video resolution:', this.videoResolution);
                     
-                    // Let browser handle video element sizing naturally - no forced dimensions
+                    // DYNAMIC ASPECT RATIO: Set container to match actual camera stream aspect ratio
                     console.log('Track resolution:', this.actualSettings.width + 'x' + this.actualSettings.height);
                     console.log('Video element resolution:', video.videoWidth + 'x' + video.videoHeight);
+                    
+                    // Calculate and apply dynamic aspect ratio to eliminate black bars
+                    const streamWidth = this.actualSettings.width;
+                    const streamHeight = this.actualSettings.height;
+                    const aspectRatio = streamWidth / streamHeight;
+                    
+                    console.log('Calculated aspect ratio:', aspectRatio, `(${streamWidth}/${streamHeight})`);
+                    
+                    // Apply aspect ratio to video container
+                    const videoContainer = video.parentElement;
+                    if (videoContainer && aspectRatio) {
+                        videoContainer.style.aspectRatio = aspectRatio.toString();
+                        videoContainer.style.height = 'auto'; // Let aspect ratio determine height
+                        videoContainer.style.minHeight = 'unset'; // Remove fixed min height
+                        videoContainer.style.maxHeight = '70vh'; // Keep reasonable max height
+                        
+                        console.log('✅ Applied dynamic aspect ratio to video container:', aspectRatio);
+                    }
                 });
 
                 if (this.scannerType === 'native') {
