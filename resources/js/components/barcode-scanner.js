@@ -34,16 +34,16 @@ export default function barcodeScanner() {
             // Detect mobile device
             this.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             console.log('Is mobile device:', this.isMobile);
-            
+
             // Check if running as installed PWA
-            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                               window.navigator.standalone || 
-                               document.referrer.includes('android-app://');
-            
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                window.navigator.standalone ||
+                document.referrer.includes('android-app://');
+
             if (!isStandalone && this.isMobile) {
                 console.log('📱 Running in browser - consider installing as PWA for better camera permission persistence');
             }
-            
+
             // Check camera permission and support
             await this.checkCameraSupport();
             await this.checkPermissions();
@@ -178,11 +178,11 @@ export default function barcodeScanner() {
                 // iOS fix: Set up video container before playing
                 const setupVideoContainer = () => {
                     if (!this.actualSettings) return;
-                    
+
                     const streamWidth = this.actualSettings.width;
                     const streamHeight = this.actualSettings.height;
                     const aspectRatio = streamWidth / streamHeight;
-                    
+
                     const videoContainer = video.parentElement;
                     if (videoContainer && aspectRatio) {
                         // For mobile portrait mode, we need to handle the rotated stream
@@ -198,10 +198,10 @@ export default function barcodeScanner() {
                         videoContainer.style.maxHeight = '70vh';
                     }
                 };
-                
+
                 // Set container immediately if we have settings
                 setupVideoContainer();
-                
+
                 await video.play();
 
                 // Also handle loadedmetadata for additional setup
@@ -211,7 +211,7 @@ export default function barcodeScanner() {
                         width: video.videoWidth,
                         height: video.videoHeight
                     };
-                    
+
                     // Reapply container setup in case settings weren't ready initially
                     setupVideoContainer();
                 });
@@ -324,8 +324,8 @@ export default function barcodeScanner() {
             const ctx = canvas.getContext('2d');
 
             // Enhanced scanning parameters
-            const scanInterval = this.isMobile ? 1500 : 1000; // Slower on mobile to prevent flicker
-            const zoomFactors = this.isMobile ? [3] : [4]; // Less zoom on mobile
+            const scanInterval = 1000; // Slower on mobile to prevent flicker
+            const zoomFactors = [6]; // Less zoom on mobile
             let currentZoomIndex = 0;
 
             const enhancedScan = () => {
@@ -663,19 +663,19 @@ export default function barcodeScanner() {
             // We need to handle the coordinate transformation correctly
             let scaleX, scaleY;
             let transformedX, transformedY, transformedWidth, transformedHeight;
-            
+
             // Check if we have a mismatch between video stream orientation and display orientation
             const streamIsLandscape = videoWidth > videoHeight;
             const displayIsPortrait = displayWidth < displayHeight;
-            
+
             if (this.isMobile && streamIsLandscape && displayIsPortrait) {
                 // Mobile portrait mode with landscape video stream
                 // The video is rotated 90 degrees, so we need to transform coordinates
-                
+
                 // Scale factors when rotated
                 scaleX = displayWidth / videoHeight;
                 scaleY = displayHeight / videoWidth;
-                
+
                 // Transform the crop area coordinates for 90-degree rotation
                 // Original crop is in landscape coordinates, need to convert to portrait
                 transformedX = (videoHeight - cropY - cropHeight) * scaleX;
@@ -686,7 +686,7 @@ export default function barcodeScanner() {
                 // Normal scaling (desktop or matching orientations)
                 scaleX = displayWidth / videoWidth;
                 scaleY = displayHeight / videoHeight;
-                
+
                 transformedX = cropX * scaleX;
                 transformedY = cropY * scaleY;
                 transformedWidth = cropWidth * scaleX;
