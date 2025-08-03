@@ -124,17 +124,17 @@ export default function barcodeScanner() {
                 } catch (error) {
                     console.log('❌ Strategy 1 failed:', error.message);
                     
-                    // Strategy 2: Try maximum device capability without aspect ratio constraint
+                    // Strategy 2: Safari-specific high resolution (exact constraints)
                     try {
                         constraints = {
                             video: {
                                 facingMode: { ideal: 'environment' },
-                                width: { ideal: 1280 },  // Use device max from capabilities
-                                height: { ideal: 720 },  // Use device max from capabilities
-                                frameRate: { ideal: 30, min: 15 }
+                                width: { exact: 1280 },  // Force exact 1280 for Safari
+                                height: { exact: 720 },  // Force exact 720 for Safari
+                                frameRate: { ideal: 30 }
                             }
                         };
-                        console.log('📹 Trying Strategy 2 (device max without aspect ratio):', constraints);
+                        console.log('📹 Trying Strategy 2 (Safari exact constraints):', constraints);
                         stream = await navigator.mediaDevices.getUserMedia(constraints);
                         console.log('✅ Strategy 2 succeeded!');
                     } catch (error) {
@@ -218,19 +218,9 @@ export default function barcodeScanner() {
                     
                     console.log('Stored video resolution:', this.videoResolution);
                     
-                    // FIX iOS VIDEO QUALITY: Force video element to match track resolution
-                    if (this.actualSettings && (video.videoWidth !== this.actualSettings.width || video.videoHeight !== this.actualSettings.height)) {
-                        console.log('🔧 FIXING iOS VIDEO RESOLUTION MISMATCH');
-                        console.log('Track resolution:', this.actualSettings.width + 'x' + this.actualSettings.height);
-                        console.log('Video resolution:', video.videoWidth + 'x' + video.videoHeight);
-                        
-                        // Force the video element to display at full track resolution
-                        video.style.width = this.actualSettings.width + 'px';
-                        video.style.height = this.actualSettings.height + 'px';
-                        video.style.objectFit = 'cover'; // Maintain aspect ratio and crop if needed
-                        
-                        console.log('✅ Applied full resolution styles to video element');
-                    }
+                    // Let browser handle video element sizing naturally - no forced dimensions
+                    console.log('Track resolution:', this.actualSettings.width + 'x' + this.actualSettings.height);
+                    console.log('Video element resolution:', video.videoWidth + 'x' + video.videoHeight);
                 });
 
                 if (this.scannerType === 'native') {
