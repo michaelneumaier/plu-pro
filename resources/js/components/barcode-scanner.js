@@ -7,7 +7,7 @@ export default function barcodeScanner() {
         scannerType: null,
         status: 'Ready',
         permissionStatus: 'unknown',
-        
+
         // Internal state
         stream: null,
         detector: null,
@@ -16,12 +16,12 @@ export default function barcodeScanner() {
         lastScannedCode: null,
         lastScannedTime: 0,
         debounceDelay: 2000, // 2 seconds to prevent duplicate scans
-        
+
         // Camera controls
         torchSupported: false,
         torchEnabled: false,
         videoTrack: null,
-        
+
         // Camera info for debugging
         actualConstraints: null,
         actualCapabilities: null,
@@ -29,14 +29,9 @@ export default function barcodeScanner() {
         videoResolution: null,
 
         async init() {
-            console.log('=== BARCODE SCANNER INITIALIZING ===');
-            console.log('Scanner component loaded successfully');
-            
             // Check camera permission and support
             await this.checkCameraSupport();
             await this.checkPermissions();
-            
-            console.log('Scanner initialization complete. Support:', this.isSupported, 'Type:', this.scannerType);
         },
 
         async checkCameraSupport() {
@@ -44,31 +39,21 @@ export default function barcodeScanner() {
                 // Check if getUserMedia is available
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                     this.status = 'Camera API not available';
-                    console.warn('getUserMedia not supported');
                     return;
                 }
 
                 // Check if we're on HTTPS or localhost
                 if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
                     this.status = 'Camera requires HTTPS';
-                    console.warn('Camera access requires HTTPS or localhost');
                     return;
                 }
 
                 // FORCE ZXing only for testing GS1 DataBar
-                console.log('Testing: Forcing ZXing scanner for GS1 DataBar support');
                 this.scannerType = 'zxing';
                 this.isSupported = true;
                 this.status = 'ZXing scanner ready';
-                
-                console.log('Scanner state after init:', {
-                    scannerType: this.scannerType,
-                    isSupported: this.isSupported,
-                    status: this.status
-                });
 
             } catch (error) {
-                console.error('Error checking camera support:', error);
                 this.status = 'Error checking camera support';
             }
         },
@@ -78,35 +63,29 @@ export default function barcodeScanner() {
                 if (navigator.permissions) {
                     const permission = await navigator.permissions.query({ name: 'camera' });
                     this.permissionStatus = permission.state;
-                    
+
                     permission.onchange = () => {
                         this.permissionStatus = permission.state;
                     };
                 }
             } catch (error) {
-                console.warn('Could not check camera permissions:', error);
+                // Could not check camera permissions
             }
         },
 
         async startScanning() {
-            console.log('=== START SCANNING CALLED ===');
-            console.log('Current state:', { isSupported: this.isSupported, isScanning: this.isScanning });
-            
             if (!this.isSupported || this.isScanning) {
-                console.log('❌ Early return from startScanning - isSupported:', this.isSupported, 'isScanning:', this.isScanning);
                 return;
             }
 
             try {
-                console.log('=== STARTING SCAN PROCESS ===');
                 this.isScanning = true;
                 this.status = 'Starting camera...';
-                console.log('Set isScanning=true, status=', this.status);
 
                 // TRY MULTIPLE CONSTRAINT STRATEGIES for better camera resolution
                 let constraints;
                 let stream = null;
-                
+
                 // Strategy 1: Ultra high resolution with close-up focus for barcode scanning
                 try {
                     constraints = {
@@ -121,12 +100,9 @@ export default function barcodeScanner() {
                             frameRate: { ideal: 30, min: 15 }
                         }
                     };
-                    console.log('📹 Trying Strategy 1 (ultra high-res + close focus):', constraints);
                     stream = await navigator.mediaDevices.getUserMedia(constraints);
-                    console.log('✅ Strategy 1 (ultra high-res) succeeded!');
                 } catch (error) {
-                    console.log('❌ Strategy 1 failed:', error.message);
-                    
+
                     // Strategy 2: High resolution with focus (less aggressive than Strategy 1)
                     try {
                         constraints = {
@@ -139,101 +115,67 @@ export default function barcodeScanner() {
                                 frameRate: { ideal: 30, min: 15 }
                             }
                         };
-                        console.log('📹 Trying Strategy 2 (high-res + focus fallback):', constraints);
                         stream = await navigator.mediaDevices.getUserMedia(constraints);
-                        console.log('✅ Strategy 2 (high-res + focus) succeeded!');
                     } catch (error) {
-                        console.log('❌ Strategy 2 failed:', error.message);
-                        
+
                         // Strategy 3: Basic fallback - no constraints except facing mode
                         constraints = {
                             video: {
                                 facingMode: { ideal: 'environment' }
                             }
                         };
-                        console.log('📹 Trying Strategy 3 (basic fallback):', constraints);
                         stream = await navigator.mediaDevices.getUserMedia(constraints);
-                        console.log('✅ Strategy 3 succeeded!');
                     }
                 }
-                
+
                 this.stream = stream;
-                console.log('📹 Final camera stream obtained:', this.stream);
-                
+
                 // Get video track for camera controls
                 this.videoTrack = this.stream.getVideoTracks()[0];
-                
+
                 // Capture actual camera settings for debugging
-                console.log('=== CAMERA DEBUG INFO ===');
-                console.log('Requested constraints:', constraints);
-                
-                // Log video track info
-                console.log('Video track exists:', !!this.videoTrack);
                 if (this.videoTrack) {
-                    console.log('Video track state:', this.videoTrack.readyState);
-                    console.log('Video track enabled:', this.videoTrack.enabled);
-                    
                     // Try to get capabilities and settings
                     try {
                         this.actualCapabilities = this.videoTrack.getCapabilities();
-                        console.log('✅ Actual capabilities:', this.actualCapabilities);
                     } catch (error) {
-                        console.error('❌ Error getting capabilities:', error);
+                        // Error getting capabilities
                     }
-                    
+
                     try {
                         this.actualSettings = this.videoTrack.getSettings();
-                        console.log('✅ Actual settings:', this.actualSettings);
                     } catch (error) {
-                        console.error('❌ Error getting settings:', error);
+                        // Error getting settings
                     }
-                } else {
-                    console.error('❌ No video track available');
                 }
-                
+
                 this.actualConstraints = constraints;
-                
+
                 // Check if torch (flashlight) is supported
                 this.checkTorchSupport();
-                
+
                 const video = this.$refs.video;
                 video.srcObject = this.stream;
                 video.setAttribute('playsinline', '');
-                
-                console.log('=== VIDEO ELEMENT SETUP ===');
-                console.log('Video element exists:', !!video);
-                
+
+
+
                 await video.play();
-                
+
                 // Wait a moment for video to load metadata
                 video.addEventListener('loadedmetadata', () => {
-                    console.log('=== VIDEO METADATA LOADED ===');
-                    console.log('Video element dimensions:', {
-                        videoWidth: video.videoWidth,
-                        videoHeight: video.videoHeight,
-                        clientWidth: video.clientWidth,
-                        clientHeight: video.clientHeight
-                    });
-                    
                     // Store video resolution for debugging
                     this.videoResolution = {
                         width: video.videoWidth,
                         height: video.videoHeight
                     };
-                    
-                    console.log('Stored video resolution:', this.videoResolution);
-                    
+
                     // DYNAMIC ASPECT RATIO: Set container to match actual camera stream aspect ratio
-                    console.log('Track resolution:', this.actualSettings.width + 'x' + this.actualSettings.height);
-                    console.log('Video element resolution:', video.videoWidth + 'x' + video.videoHeight);
-                    
                     // Calculate and apply dynamic aspect ratio to eliminate black bars
                     const streamWidth = this.actualSettings.width;
                     const streamHeight = this.actualSettings.height;
                     const aspectRatio = streamWidth / streamHeight;
-                    
-                    console.log('Calculated aspect ratio:', aspectRatio, `(${streamWidth}/${streamHeight})`);
-                    
+
                     // Apply aspect ratio to video container
                     const videoContainer = video.parentElement;
                     if (videoContainer && aspectRatio) {
@@ -241,8 +183,6 @@ export default function barcodeScanner() {
                         videoContainer.style.height = 'auto'; // Let aspect ratio determine height
                         videoContainer.style.minHeight = 'unset'; // Remove fixed min height
                         videoContainer.style.maxHeight = '70vh'; // Keep reasonable max height
-                        
-                        console.log('✅ Applied dynamic aspect ratio to video container:', aspectRatio);
                     }
                 });
 
@@ -253,7 +193,6 @@ export default function barcodeScanner() {
                 }
 
             } catch (error) {
-                console.error('Error starting scanner:', error);
                 this.status = `Error: ${error.message}`;
                 this.stopScanning();
             }
@@ -264,15 +203,15 @@ export default function barcodeScanner() {
                 this.detector = new window.BarcodeDetector({
                     formats: ['ean_13', 'upc_a', 'upc_e']
                 });
-                
+
                 this.status = 'Scanning with native detector...';
-                
+
                 const scan = async () => {
                     if (!this.isScanning) return;
-                    
+
                     try {
                         const codes = await this.detector.detect(video);
-                        
+
                         if (codes.length > 0) {
                             const code = codes[0];
                             this.handleScannedCode(code.rawValue);
@@ -281,26 +220,24 @@ export default function barcodeScanner() {
                     } catch (e) {
                         // Ignore transient detection errors
                     }
-                    
+
                     if (this.isScanning) {
                         this.animationFrame = requestAnimationFrame(scan);
                     }
                 };
-                
+
                 this.animationFrame = requestAnimationFrame(scan);
-                
+
             } catch (error) {
-                console.error('Native scanning error:', error);
                 throw error;
             }
         },
 
         async startZXingScanning(video) {
             try {
-                console.log('=== STARTING ZXING SCANNING ===');
                 this.reader = new BrowserMultiFormatReader();
                 this.status = 'Scanning with ZXing...';
-                
+
                 // OPTIMIZED HINTS for small GS1 DataBar PLU stickers
                 const hints = new Map();
                 hints.set(2, 'RSS_14,RSS_EXPANDED,UPC_A,UPC_E,EAN_13'); // Prioritize GS1 DataBar formats first
@@ -309,149 +246,97 @@ export default function barcodeScanner() {
                 hints.set(4, true); // DecodeHintType.PURE_BARCODE - Assume image contains only barcode
                 hints.set(5, true); // DecodeHintType.CHARACTER_SET - UTF-8 for international support
                 hints.set(6, 0.5);  // DecodeHintType.ALLOWED_LENGTHS - Allow shorter codes
-                
+
                 // Apply hints to reader for small barcode optimization
                 this.reader.hints = hints;
-                
-                console.log('ZXing optimized for small GS1 DataBar PLU stickers:', {
-                    formats: 'RSS_14,RSS_EXPANDED (prioritized),UPC_A,UPC_E,EAN_13',
-                    assumeGS1: true,
-                    tryHarder: true,
-                    pureBarcode: true,
-                    optimizedForSmall: true
-                });
-                
-                // Use our pre-configured camera stream directly with ZXing
-                console.log('📷 Using our configured camera stream with ZXing instead of device selection');
-                console.log('Stream tracks:', this.stream.getTracks().map(t => ({ kind: t.kind, settings: t.getSettings() })));
-                
+
                 const controls = await this.reader.decodeFromStream(
                     this.stream, // Use OUR pre-configured high-resolution stream
                     video,
                     (result, error, controls) => {
                         if (result) {
-                            console.log('=== ZXING DECODE SUCCESS ===');
-                            console.log('ZXing result object:', result);
-                            console.log('ZXing getText():', result.getText());
-                            
                             try {
                                 this.handleScannedCode(result.getText());
                                 // Don't stop controls immediately - let it continue scanning
                                 // controls.stop();
                             } catch (handleError) {
-                                console.error('Error in handleScannedCode:', handleError);
                                 alert(`Error processing scan: ${handleError.message}`);
                             }
                         }
                         if (error) {
-                            // Log more errors to understand what's happening
+                            // Handle errors quietly
                             if (error.name === 'AbortError') {
-                                console.error('ZXing AbortError:', error);
                                 alert(`ZXing AbortError: ${error.message}`);
-                            } else if (Math.random() < 0.05) { // 5% chance for other errors
-                                console.log('ZXing decode attempt:', error.name, error.message);
                             }
                         }
                     }
                 );
-                
+
                 // Store controls for cleanup
                 this.zxingControls = controls;
-                console.log('ZXing scanning started successfully');
-                
+
                 // ENHANCED SCANNING for small PLU stickers - digital zoom + cropping
                 this.startEnhancedSmallBarcodeScanning(video);
-                
+
                 // Force update the status to show we're actively scanning
                 this.status = 'Scanning for barcodes...';
-                
-                // Set up periodic logging to capture camera info
-                this.debugInterval = setInterval(() => {
-                    console.log('=== PERIODIC DEBUG CHECK ===');
-                    
-                    // Log video track info
-                    if (this.videoTrack) {
-                        try {
-                            const currentSettings = this.videoTrack.getSettings();
-                            console.log('Current track settings:', currentSettings);
-                            this.actualSettings = currentSettings;
-                        } catch (error) {
-                            console.log('Error getting current settings:', error);
-                        }
-                    }
-                    
-                    // Log video element info
-                    const video = this.$refs.video;
-                    if (video && video.videoWidth && video.videoHeight) {
-                        console.log('Current video element resolution:', video.videoWidth + 'x' + video.videoHeight);
-                        this.videoResolution = {
-                            width: video.videoWidth,
-                            height: video.videoHeight
-                        };
-                    }
-                    
-                    console.log('All stored debug data:', {
-                        actualSettings: this.actualSettings,
-                        actualCapabilities: this.actualCapabilities,
-                        videoResolution: this.videoResolution,
-                        scannerType: this.scannerType,
-                        isScanning: this.isScanning,
-                        status: this.status
-                    });
-                }, 3000); // Log every 3 seconds
-                
+
             } catch (error) {
-                console.error('ZXing scanning error:', error);
                 throw error;
             }
         },
-        
+
         // ENHANCED SMALL BARCODE SCANNING - Digital zoom and cropping for tiny PLU stickers
         startEnhancedSmallBarcodeScanning(video) {
-            console.log('🔍 Starting enhanced scanning for small PLU stickers');
-            
+
             // Create canvas for image processing
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            
+
             // Enhanced scanning parameters
-            const scanInterval = 1000; // Scan every 1 second
-            const zoomFactors = [2, 3, 4]; // Different zoom levels to try
+            const scanInterval = 300; // Scan every 1 second
+            const zoomFactors = [6]; // Different zoom levels to try
             let currentZoomIndex = 0;
-            
+
             const enhancedScan = () => {
                 if (!this.isScanning || !video.videoWidth || !video.videoHeight) {
                     return;
                 }
-                
+
                 try {
                     const zoomFactor = zoomFactors[currentZoomIndex];
                     const sourceWidth = video.videoWidth;
                     const sourceHeight = video.videoHeight;
-                    
+
+
+
                     // Calculate crop area (center of image)
                     const cropWidth = sourceWidth / zoomFactor;
                     const cropHeight = sourceHeight / zoomFactor;
                     const cropX = (sourceWidth - cropWidth) / 2;
                     const cropY = (sourceHeight - cropHeight) / 2;
-                    
+
+                    // Update overlay to show crop area visually
+                    this.updateEnhancedScanOverlay(cropX, cropY, cropWidth, cropHeight, sourceWidth, sourceHeight);
+
                     // Set canvas size for zoomed image
-                    canvas.width = cropWidth * 2; // 2x scale up for better detection
-                    canvas.height = cropHeight * 2;
-                    
+                    canvas.width = cropWidth * 10; // 2x scale up for better detection
+                    canvas.height = cropHeight * 10;
+
                     // Draw cropped and scaled portion
                     ctx.drawImage(
                         video,
                         cropX, cropY, cropWidth, cropHeight, // Source crop area
                         0, 0, canvas.width, canvas.height    // Destination full canvas
                     );
-                    
+
                     // Apply image enhancement for better barcode detection
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    this.enhanceImageForBarcode(imageData);
+                    //this.enhanceImageForBarcode(imageData);
                     ctx.putImageData(imageData, 0, 0);
-                    
+
                     // Try to decode from enhanced image
+
                     canvas.toBlob(blob => {
                         const reader = new FileReader();
                         reader.onload = () => {
@@ -460,11 +345,10 @@ export default function barcodeScanner() {
                                 if (this.reader) {
                                     this.reader.decodeFromImageElement(img)
                                         .then(result => {
-                                            console.log('🎯 Enhanced scan SUCCESS at zoom ' + zoomFactor + 'x:', result.getText());
                                             this.handleScannedCode(result.getText());
                                         })
                                         .catch(err => {
-                                            // Silent fail - this is supplementary scanning
+                                            // Enhanced scan failed
                                         });
                                 }
                             };
@@ -472,35 +356,35 @@ export default function barcodeScanner() {
                         };
                         reader.readAsDataURL(blob);
                     }, 'image/png');
-                    
+
                     // Cycle through zoom factors
                     currentZoomIndex = (currentZoomIndex + 1) % zoomFactors.length;
-                    
+
                 } catch (error) {
-                    console.warn('Enhanced scanning error:', error);
+                    // Enhanced scanning error
                 }
-                
+
                 // Schedule next enhanced scan
                 if (this.isScanning) {
                     this.enhancedScanTimeout = setTimeout(enhancedScan, scanInterval);
                 }
             };
-            
+
             // Start enhanced scanning
             this.enhancedScanTimeout = setTimeout(enhancedScan, scanInterval);
         },
-        
+
         // IMAGE ENHANCEMENT for better barcode detection on small stickers
         enhanceImageForBarcode(imageData) {
             const data = imageData.data;
-            
+
             // Convert to grayscale and increase contrast
             for (let i = 0; i < data.length; i += 4) {
                 const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-                
+
                 // Increase contrast (make darks darker, lights lighter)
                 const enhanced = gray < 128 ? Math.max(0, gray - 40) : Math.min(255, gray + 40);
-                
+
                 data[i] = enhanced;     // Red
                 data[i + 1] = enhanced; // Green  
                 data[i + 2] = enhanced; // Blue
@@ -510,45 +394,36 @@ export default function barcodeScanner() {
 
         handleScannedCode(code) {
             try {
-                // Console logging for debugging (no more alert popup)
-                console.log('=== BARCODE SCAN EVENT ===');
-                console.log('Raw scanned code:', code);
-                console.log('Code length:', code.length);
-                console.log('Code type:', typeof code);
-                console.log('Code as string:', String(code));
-                
+
                 const now = Date.now();
-                
+
                 // Debounce duplicate scans
-                if (this.lastScannedCode === code && 
+                if (this.lastScannedCode === code &&
                     (now - this.lastScannedTime) < this.debounceDelay) {
-                    console.log('Duplicate scan ignored');
                     return;
                 }
-                
+
                 this.lastScannedCode = code;
                 this.lastScannedTime = now;
-                
+
                 // Process the scanned code to determine type and extract relevant data
                 const processedCode = this.processBarcodeData(code);
-                
-                console.log('Processed code result:', processedCode);
-                
+
+
                 this.status = `Scanned: ${processedCode.displayCode} (${processedCode.type})`;
-                
+
                 // Stop scanning after successful scan
                 this.stopScanning();
-                
+
                 // Emit event to parent component after a brief delay
                 setTimeout(() => {
-                    console.log('Dispatching barcode-scanned event with:', processedCode);
-                    this.$dispatch('barcode-scanned', { 
+                    this.$dispatch('barcode-scanned', {
                         code: processedCode.searchCode,
                         type: processedCode.type,
                         originalCode: code
                     });
                 }, 100);
-                
+
                 // Provide haptic feedback on mobile
                 if (navigator.vibrate) {
                     navigator.vibrate(100);
@@ -559,21 +434,16 @@ export default function barcodeScanner() {
         },
 
         processBarcodeData(code) {
-            console.log('DEBUG: Processing scanned code:', code);
-            
             // Check if it's a GTIN-14 format (14 digits) - PLU barcode
             if (/^\d{14}$/.test(code)) {
-                console.log('DEBUG: Detected 14-digit GTIN-14 format (PLU barcode)');
-                
+
                 // For PLU 4593 -> 00684924045936
-                // The PLU appears to be in positions 8-11 (zero-indexed: 7-10)
-                const extractedPLU = code.substring(7, 11);
-                console.log('DEBUG: Extracted PLU from positions 7-10:', extractedPLU);
-                
+                // CORRECTED: The PLU is in positions 10-13 (zero-indexed: 9-12)
+                const extractedPLU = code.substring(9, 13);
+
                 // Remove leading zeros but keep at least 4 digits
                 const cleanedPLU = extractedPLU.replace(/^0+/, '') || extractedPLU;
-                console.log('DEBUG: Cleaned PLU:', cleanedPLU);
-                
+
                 return {
                     type: 'PLU',
                     searchCode: cleanedPLU,
@@ -581,7 +451,7 @@ export default function barcodeScanner() {
                     originalCode: code
                 };
             }
-            
+
             // Check if it's a UPC format (12-13 digits)
             if (/^\d{12,13}$/.test(code)) {
                 return {
@@ -591,7 +461,7 @@ export default function barcodeScanner() {
                     originalCode: code
                 };
             }
-            
+
             // Check if it's already a PLU code (4-5 digits)
             if (/^\d{4,5}$/.test(code)) {
                 return {
@@ -601,7 +471,7 @@ export default function barcodeScanner() {
                     originalCode: code
                 };
             }
-            
+
             // Unknown format - pass through as-is for debugging
             return {
                 type: 'UNKNOWN',
@@ -616,50 +486,45 @@ export default function barcodeScanner() {
             // - GTIN-14 format (14 digits)
             // - With GS1 Application Identifier "01" prefix
             // - RSS_14 format from ZXing
-            console.log('Testing if GS1 DataBar:', code);
-            
+
             const patterns = [
                 /^01\d{14}$/.test(code),  // GS1 AI format: 01 + 14 digits
                 /^\d{14}$/.test(code),    // Pure 14 digits
                 /^RSS/.test(code),        // RSS prefix
                 code.length > 10 && code.length < 20 // Reasonable length for DataBar
             ];
-            
+
             const isDataBar = patterns.some(pattern => pattern);
-            console.log('GS1 DataBar check result:', isDataBar, 'Patterns:', patterns);
-            
+
             return isDataBar;
         },
 
         extractPLUFromGS1(code) {
-            console.log('Extracting PLU from GS1/DataBar code:', code);
-            
             let workingCode = code;
-            
+
             // Remove GS1 Application Identifier if present
             if (workingCode.startsWith('01')) {
                 workingCode = workingCode.substring(2); // Remove "01" prefix
-                console.log('Removed GS1 AI prefix, working with:', workingCode);
             }
-            
+
             // Try multiple extraction strategies
             const extractionStrategies = [
-                // Strategy 1: Standard GTIN-14 PLU extraction (positions 8-11)
+                // Strategy 1: Correct GTIN-14 PLU extraction (positions 10-13, zero-indexed 9-12)
+                () => {
+                    if (workingCode.length === 14) {
+                        return workingCode.substring(9, 13).replace(/^0+/, '') || '0';
+                    }
+                    return null;
+                },
+
+                // Strategy 2: Fallback - old incorrect positions (8-11) in case format varies
                 () => {
                     if (workingCode.length === 14) {
                         return workingCode.substring(7, 11).replace(/^0+/, '') || '0';
                     }
                     return null;
                 },
-                
-                // Strategy 2: Alternative PLU positions (6-10)
-                () => {
-                    if (workingCode.length === 14) {
-                        return workingCode.substring(6, 10).replace(/^0+/, '') || '0';
-                    }
-                    return null;
-                },
-                
+
                 // Strategy 3: Last 4-5 digits (common for simple encoding)
                 () => {
                     if (workingCode.length >= 4) {
@@ -667,7 +532,7 @@ export default function barcodeScanner() {
                     }
                     return null;
                 },
-                
+
                 // Strategy 4: Look for 4-digit patterns in any position
                 () => {
                     const matches = workingCode.match(/(\d{4})/g);
@@ -682,67 +547,103 @@ export default function barcodeScanner() {
                     return null;
                 }
             ];
-            
+
             for (let i = 0; i < extractionStrategies.length; i++) {
                 const plu = extractionStrategies[i]();
                 if (plu) {
                     const pluNum = parseInt(plu);
-                    console.log(`Strategy ${i + 1} extracted PLU:`, plu, 'Number:', pluNum);
-                    
+
                     // Validate PLU range
                     if (pluNum >= 3000 && pluNum <= 99999) {
-                        console.log('Valid PLU found:', plu);
                         return plu;
                     }
                 }
             }
-            
-            console.log('PLU extraction failed, returning original code:', code);
+
             return code;
         },
 
         stopScanning() {
             this.isScanning = false;
             this.status = 'Ready';
-            
+
             // Clean up debug interval
             if (this.debugInterval) {
                 clearInterval(this.debugInterval);
                 this.debugInterval = null;
             }
-            
+
             // Clean up enhanced scanning timeout
             if (this.enhancedScanTimeout) {
                 clearTimeout(this.enhancedScanTimeout);
                 this.enhancedScanTimeout = null;
             }
-            
+
             // Clean up animation frame
             if (this.animationFrame) {
                 cancelAnimationFrame(this.animationFrame);
                 this.animationFrame = null;
             }
-            
+
             // Clean up ZXing controls
             if (this.zxingControls) {
                 this.zxingControls.stop();
                 this.zxingControls = null;
             }
-            
+
             // Clean up camera stream
             if (this.stream) {
                 this.stream.getTracks().forEach(track => track.stop());
                 this.stream = null;
             }
-            
+
             // Clear video source
             if (this.$refs.video) {
                 this.$refs.video.srcObject = null;
             }
-            
+
             // Reset scanner components
             this.detector = null;
             this.reader = null;
+
+            // Hide enhanced scan overlay
+            if (this.$refs.enhancedScanOverlay) {
+                this.$refs.enhancedScanOverlay.classList.add('hidden');
+            }
+        },
+
+        // Update enhanced scan overlay to show crop area
+        updateEnhancedScanOverlay(cropX, cropY, cropWidth, cropHeight, videoWidth, videoHeight) {
+            if (!this.$refs.enhancedScanOverlay || !this.$refs.video) {
+                return;
+            }
+
+            const overlay = this.$refs.enhancedScanOverlay;
+            const video = this.$refs.video;
+
+            // Get video element display dimensions
+            const videoRect = video.getBoundingClientRect();
+            const displayWidth = videoRect.width;
+            const displayHeight = videoRect.height;
+
+            // Calculate scale factor from actual video resolution to display size
+            const scaleX = displayWidth / videoWidth;
+            const scaleY = displayHeight / videoHeight;
+
+            // Calculate overlay position and size (scaled to display dimensions)
+            const overlayX = cropX * scaleX;
+            const overlayY = cropY * scaleY;
+            const overlayWidth = cropWidth * scaleX;
+            const overlayHeight = cropHeight * scaleY;
+
+            // Position and size the overlay
+            overlay.style.left = overlayX + 'px';
+            overlay.style.top = overlayY + 'px';
+            overlay.style.width = overlayWidth + 'px';
+            overlay.style.height = overlayHeight + 'px';
+
+            // Show the overlay
+            overlay.classList.remove('hidden');
         },
 
         toggleScanning() {
@@ -756,12 +657,12 @@ export default function barcodeScanner() {
         // Handle file input for photo upload fallback
         async handleFileInput(file) {
             if (!file || !this.isSupported) return;
-            
+
             try {
                 this.status = 'Processing image...';
-                
+
                 const imageUrl = URL.createObjectURL(file);
-                
+
                 if (this.scannerType === 'native' && this.detector) {
                     // Use native detector for image
                     const img = new Image();
@@ -784,17 +685,17 @@ export default function barcodeScanner() {
                     if (!this.reader) {
                         this.reader = new BrowserMultiFormatReader();
                     }
-                    
+
                     try {
                         const result = await this.reader.decodeFromImageUrl(imageUrl);
                         this.handleScannedCode(result.getText());
                     } catch (error) {
                         this.status = 'No barcode found in image';
                     }
-                    
+
                     URL.revokeObjectURL(imageUrl);
                 }
-                
+
             } catch (error) {
                 console.error('File processing error:', error);
                 this.status = 'Error processing image';
@@ -806,7 +707,6 @@ export default function barcodeScanner() {
             if (this.videoTrack) {
                 const capabilities = this.videoTrack.getCapabilities();
                 this.torchSupported = !!(capabilities.torch);
-                console.log('Torch support:', this.torchSupported);
             }
         },
 
@@ -822,17 +722,16 @@ export default function barcodeScanner() {
                 await this.videoTrack.applyConstraints({
                     advanced: [{ torch: this.torchEnabled }]
                 });
-                
-                console.log('Torch toggled:', this.torchEnabled);
+
                 this.status = `Flashlight ${this.torchEnabled ? 'ON' : 'OFF'}`;
-                
+
                 // Reset status after a moment
                 setTimeout(() => {
                     if (this.isScanning) {
                         this.status = 'Scanning...';
                     }
                 }, 1000);
-                
+
             } catch (error) {
                 console.error('Failed to toggle torch:', error);
                 this.torchEnabled = !this.torchEnabled; // Revert on error
@@ -845,8 +744,7 @@ export default function barcodeScanner() {
 
             try {
                 const capabilities = this.videoTrack.getCapabilities();
-                console.log('Camera capabilities:', capabilities);
-                
+
                 const constraints = {
                     advanced: []
                 };
@@ -855,8 +753,8 @@ export default function barcodeScanner() {
                 if (capabilities.focusMode && capabilities.focusMode.includes('manual')) {
                     constraints.advanced.push({ focusMode: 'manual' });
                     if (capabilities.focusDistance) {
-                        constraints.advanced.push({ 
-                            focusDistance: Math.min(capabilities.focusDistance.max, 0.1) 
+                        constraints.advanced.push({
+                            focusDistance: Math.min(capabilities.focusDistance.max, 0.1)
                         });
                     }
                 } else if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
@@ -871,7 +769,6 @@ export default function barcodeScanner() {
 
                 if (constraints.advanced.length > 0) {
                     await this.videoTrack.applyConstraints(constraints);
-                    console.log('Applied close-up camera settings');
                 }
 
             } catch (error) {
