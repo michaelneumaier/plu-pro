@@ -7,6 +7,7 @@ export default function barcodeScanner() {
         scannerType: null,
         status: 'Ready',
         permissionStatus: 'unknown',
+        isMobile: false,
 
         // Internal state
         stream: null,
@@ -16,6 +17,7 @@ export default function barcodeScanner() {
         lastScannedCode: null,
         lastScannedTime: 0,
         debounceDelay: 2000, // 2 seconds to prevent duplicate scans
+        enhancedScanTimeout: null,
 
         // Camera controls
         torchSupported: false,
@@ -29,6 +31,19 @@ export default function barcodeScanner() {
         videoResolution: null,
 
         async init() {
+            // Detect mobile device
+            this.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            console.log('Is mobile device:', this.isMobile);
+            
+            // Check if running as installed PWA
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                               window.navigator.standalone || 
+                               document.referrer.includes('android-app://');
+            
+            if (!isStandalone && this.isMobile) {
+                console.log('📱 Running in browser - consider installing as PWA for better camera permission persistence');
+            }
+            
             // Check camera permission and support
             await this.checkCameraSupport();
             await this.checkPermissions();
@@ -276,7 +291,10 @@ export default function barcodeScanner() {
                 this.zxingControls = controls;
 
                 // ENHANCED SCANNING for small PLU stickers - digital zoom + cropping
-                this.startEnhancedSmallBarcodeScanning(video);
+                // Disable on mobile due to performance issues
+                if (!this.isMobile) {
+                    this.startEnhancedSmallBarcodeScanning(video);
+                }
 
                 // Force update the status to show we're actively scanning
                 this.status = 'Scanning for barcodes...';
@@ -294,8 +312,8 @@ export default function barcodeScanner() {
             const ctx = canvas.getContext('2d');
 
             // Enhanced scanning parameters
-            const scanInterval = 300; // Scan every 1 second
-            const zoomFactors = [6]; // Different zoom levels to try
+            const scanInterval = 1000; // Scan every 1 second (increased from 300ms)
+            const zoomFactors = [4]; // Reduced zoom for better performance
             let currentZoomIndex = 0;
 
             const enhancedScan = () => {
@@ -320,8 +338,8 @@ export default function barcodeScanner() {
                     this.updateEnhancedScanOverlay(cropX, cropY, cropWidth, cropHeight, sourceWidth, sourceHeight);
 
                     // Set canvas size for zoomed image
-                    canvas.width = cropWidth * 10; // 2x scale up for better detection
-                    canvas.height = cropHeight * 10;
+                    canvas.width = cropWidth * 2; // Reduced scale for better performance
+                    canvas.height = cropHeight * 2;
 
                     // Draw cropped and scaled portion
                     ctx.drawImage(
