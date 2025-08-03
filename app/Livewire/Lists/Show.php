@@ -132,6 +132,9 @@ class Show extends Component
             ->toArray();
 
         $this->dispatch('refreshFilters', commodities: $this->commodities, categories: $this->categories);
+        
+        // Force Livewire to re-render the component to update filter dropdowns
+        $this->dispatch('$refresh');
     }
 
     // Filter methods removed - using client-side filtering now
@@ -513,9 +516,12 @@ class Show extends Component
 
                 session()->flash('message', 'UPC item added successfully!');
 
-                // Update the relationships for subsequent renders
+                // Update the relationships and filter options INSIDE transaction like delete does
                 $this->userList->load(['listItems.pluCode', 'listItems.upcCode']);
                 $this->initializeFilterOptions();
+
+                // Update refresh token to force component refresh
+                $this->refreshToken = time();
 
                 // Notify any listening carousel components that items have changed
                 $this->dispatch('list-items-updated');
@@ -536,18 +542,24 @@ class Show extends Component
 
         if (! $exists) {
             $listItem = DB::transaction(function () use ($pluCodeId, $organic) {
-                return $this->userList->listItems()->create([
+                $listItem = $this->userList->listItems()->create([
                     'plu_code_id' => $pluCodeId,
                     'inventory_level' => 0.0,
                     'organic' => $organic,
                 ]);
+
+                // Load the PLU code data for the new item
+                $listItem->load('pluCode');
+                
+                // Update the relationships and filter options INSIDE transaction like delete does
+                $this->userList->load(['listItems.pluCode', 'listItems.upcCode']);
+                $this->initializeFilterOptions();
+
+                // Update refresh token to reset wire:key values and prevent snapshot errors
+                $this->refreshToken = time();
+                
+                return $listItem;
             });
-
-            // Load the PLU code data for the new item
-            $listItem->load('pluCode');
-
-            // Update refresh token to reset wire:key values and prevent snapshot errors
-            $this->refreshToken = time();
 
             // Dispatch browser event for Alpine.js components to catch
             $this->js("
@@ -574,10 +586,6 @@ class Show extends Component
         if ($result['success']) {
             session()->flash('message', 'Item added successfully!');
 
-            // Update the relationships for subsequent renders
-            $this->userList->load(['listItems.pluCode']);
-            $this->initializeFilterOptions();
-
             // Notify any listening carousel components that items have changed
             $this->dispatch('list-items-updated');
         }
@@ -597,7 +605,7 @@ class Show extends Component
 
             if ($listItem) {
                 $listItem->delete();
-                $this->userList->load(['listItems.pluCode']);
+                $this->userList->load(['listItems.pluCode', 'listItems.upcCode']);
                 $this->initializeFilterOptions();
 
                 // Update refresh token to force component refresh
@@ -619,7 +627,7 @@ class Show extends Component
 
             if ($listItem) {
                 $listItem->delete();
-                $this->userList->load(['listItems.pluCode']);
+                $this->userList->load(['listItems.pluCode', 'listItems.upcCode']);
                 $this->initializeFilterOptions();
                 session()->flash('message', 'PLU Code removed from your list.');
             } else {
@@ -702,7 +710,7 @@ class Show extends Component
             }
 
             // Refresh the list to show updated values
-            $this->userList->load(['listItems.pluCode']);
+            $this->userList->load(['listItems.pluCode', 'listItems.upcCode']);
         });
 
         // Dispatch JavaScript event to clear Alpine.js local state and refresh page
@@ -713,7 +721,7 @@ class Show extends Component
     {
         // Handle individual organic toggle updates
         $this->refreshToken = time();
-        $this->userList->load(['listItems.pluCode']);
+        $this->userList->load(['listItems.pluCode', 'listItems.upcCode']);
     }
 
     public function updateListName($newName)
@@ -732,7 +740,7 @@ class Show extends Component
         $this->refreshToken = time();
 
         // Reload list items with latest organic status from database
-        $this->userList->load(['listItems.pluCode']);
+        $this->userList->load(['listItems.pluCode', 'listItems.upcCode']);
 
         // Update filter options in case organic status affected categories/commodities
         $this->initializeFilterOptions();
@@ -747,7 +755,7 @@ class Show extends Component
         sleep(1);
 
         // Force a refresh of all list items to get latest values from database
-        $this->userList->load(['listItems.pluCode']);
+        $this->userList->load(['listItems.pluCode', 'listItems.upcCode']);
 
         // Dispatch event to open carousel with fresh data
         $this->dispatch('carousel-ready-to-open');
