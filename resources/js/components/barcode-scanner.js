@@ -175,30 +175,45 @@ export default function barcodeScanner() {
 
 
 
+                // iOS fix: Set up video container before playing
+                const setupVideoContainer = () => {
+                    if (!this.actualSettings) return;
+                    
+                    const streamWidth = this.actualSettings.width;
+                    const streamHeight = this.actualSettings.height;
+                    const aspectRatio = streamWidth / streamHeight;
+                    
+                    const videoContainer = video.parentElement;
+                    if (videoContainer && aspectRatio) {
+                        // For mobile portrait mode, we need to handle the rotated stream
+                        if (this.isMobile && streamWidth > streamHeight) {
+                            // Landscape stream on portrait display - use inverted aspect ratio
+                            videoContainer.style.aspectRatio = (1 / aspectRatio).toString();
+                        } else {
+                            // Normal aspect ratio
+                            videoContainer.style.aspectRatio = aspectRatio.toString();
+                        }
+                        videoContainer.style.height = 'auto';
+                        videoContainer.style.minHeight = 'unset';
+                        videoContainer.style.maxHeight = '70vh';
+                    }
+                };
+                
+                // Set container immediately if we have settings
+                setupVideoContainer();
+                
                 await video.play();
 
-                // Wait a moment for video to load metadata
+                // Also handle loadedmetadata for additional setup
                 video.addEventListener('loadedmetadata', () => {
                     // Store video resolution for debugging
                     this.videoResolution = {
                         width: video.videoWidth,
                         height: video.videoHeight
                     };
-
-                    // DYNAMIC ASPECT RATIO: Set container to match actual camera stream aspect ratio
-                    // Calculate and apply dynamic aspect ratio to eliminate black bars
-                    const streamWidth = this.actualSettings.width;
-                    const streamHeight = this.actualSettings.height;
-                    const aspectRatio = streamWidth / streamHeight;
-
-                    // Apply aspect ratio to video container
-                    const videoContainer = video.parentElement;
-                    if (videoContainer && aspectRatio) {
-                        videoContainer.style.aspectRatio = aspectRatio.toString();
-                        videoContainer.style.height = 'auto'; // Let aspect ratio determine height
-                        videoContainer.style.minHeight = 'unset'; // Remove fixed min height
-                        videoContainer.style.maxHeight = '70vh'; // Keep reasonable max height
-                    }
+                    
+                    // Reapply container setup in case settings weren't ready initially
+                    setupVideoContainer();
                 });
 
                 if (this.scannerType === 'native') {
