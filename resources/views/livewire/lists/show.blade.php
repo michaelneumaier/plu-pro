@@ -79,8 +79,10 @@
 " @carousel-ready-to-open.window="carouselOpen = true; $dispatch('carousel-open')" class="min-h-screen bg-gray-50">
         <!-- Mobile-first header -->
         <div class="bg-white border-b border-gray-200 sticky top-0 z-40">
-            <div class="px-4 py-3">
-                <div class="flex items-center justify-between">
+            <div class="px-2 md:px-4 py-3">
+                <!-- Header content -->
+                <div class="flex items-start justify-between">
+                    <!-- Title and count section -->
                     <div class="flex-1 min-w-0" x-data="{ 
                     editingName: false, 
                     listName: '{{ $userList->name }}',
@@ -100,7 +102,21 @@
                             </button>
                             <div class="flex-1 min-w-0">
                                 <h1 class="text-lg font-semibold text-gray-900 truncate">{{ $userList->name }}</h1>
-                                <p class="text-sm text-gray-500 mt-0.5">{{ $listItems->count() }} items</p>
+                                <div class="flex items-center gap-3 mt-0.5">
+                                    <p class="text-sm text-gray-500">{{ $listItems->count() }} items</p>
+                                    <button @click="showClearModal = true" :disabled="deleteMode"
+                                        class="inline-flex items-center justify-center h-5 px-2 rounded-full text-xs font-medium transition-all duration-150 shadow-sm"
+                                        :class="deleteMode ? 
+                                                            'bg-gray-50 text-gray-400 cursor-not-allowed' : 
+                                                            'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1'">
+                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                            </path>
+                                        </svg>
+                                        Clear Inventory
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -140,148 +156,95 @@
                                     </svg>
                                 </button>
                             </div>
-                            <p class="text-sm text-gray-500 mt-0.5">{{ $listItems->count() }} items</p>
+                            <div class="flex items-center gap-3 mt-0.5">
+                                <p class="text-sm text-gray-500">{{ $listItems->count() }} items</p>
+                                <button @click="showClearModal = true" :disabled="deleteMode"
+                                    class="inline-flex items-center justify-center h-5 px-2 rounded-full text-xs font-medium transition-all duration-150 shadow-sm"
+                                    :class="deleteMode ? 
+                                                        'bg-gray-50 text-gray-400 cursor-not-allowed' : 
+                                                        'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1'">
+                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                        </path>
+                                    </svg>
+                                    Clear Inventory
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Normal Mode: Regular Display -->
                         <div x-show="!deleteMode" class="flex-1 min-w-0">
                             <h1 class="text-lg font-semibold text-gray-900 truncate">{{ $userList->name }}</h1>
+                            <div class="flex items-center gap-3 mt-0.5">
+                                <p class="text-sm text-gray-500">{{ $listItems->count() }} items</p>
+                                <button @click="showClearModal = true" :disabled="deleteMode"
+                                    class="inline-flex items-center justify-center h-5 px-2 rounded-full text-xs font-medium transition-all duration-150 shadow-sm"
+                                    :class="deleteMode ? 
+                                                        'bg-gray-50 text-gray-400 cursor-not-allowed' : 
+                                                        'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1'">
+                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                        </path>
+                                    </svg>
+                                    Clear Inventory
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    <div class="flex items-center space-x-0.5 sm:space-x-1 ml-1 sm:ml-2 flex-shrink-0">
-                        <!-- Marketplace actions -->
-                        @if($userList->marketplace_enabled)
-                        <button @click="$wire.confirmUnpublish()" :disabled="deleteMode"
-                            class="inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-all duration-150 shadow-sm"
-                            :class="deleteMode ? 
+
+                    <!-- Action buttons section -->
+                    <div class="flex flex-col self-end items-end justify-end ml-3 flex-shrink-0">
+                        <!-- Top row: Share, Edit, Add -->
+                        <div class="flex items-center space-x-1">
+                            <!-- Share Button -->
+                            <button @click="$wire.toggleShareModal()" :disabled="deleteMode"
+                                class="inline-flex items-center justify-center w-10 h-10 sm:w-10 sm:h-10 rounded-full transition-all duration-150 shadow-sm"
+                                :class="deleteMode ? 
                                 'bg-gray-50 text-gray-400 cursor-not-allowed' : 
-                                'bg-red-500 text-white hover:bg-red-600 active:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1'"
-                            title="Unpublish from Marketplace">
-                            <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                        </button>
-                        @else
-                        <button @click="$wire.togglePublishModal()" :disabled="deleteMode"
-                            class="inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-all duration-150 shadow-sm"
-                            :class="deleteMode ? 
-                                'bg-gray-50 text-gray-400 cursor-not-allowed' : 
-                                'bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1'"
-                            title="Publish to Marketplace">
-                            <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
-                                </path>
-                            </svg>
-                        </button>
-                        @endif
-
-                        <!-- Share Button -->
-                        <button @click="$wire.toggleShareModal()" :disabled="deleteMode"
-                            class="inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-all duration-150 shadow-sm"
-                            :class="deleteMode ? 
-                            'bg-gray-50 text-gray-400 cursor-not-allowed' : 
-                            'bg-green-500 text-white hover:bg-green-600 active:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-1'">
-                            <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z">
-                                </path>
-                            </svg>
-                        </button>
-
-                        <!-- Clear Button -->
-                        <button @click="showClearModal = true" :disabled="deleteMode"
-                            class="inline-flex items-center justify-center h-8 px-2 sm:h-9 sm:px-4 rounded-full text-xs sm:text-sm font-medium transition-all duration-150 shadow-sm"
-                            :class="deleteMode ? 
-                            'bg-gray-50 text-gray-400 cursor-not-allowed' : 
-                            'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1'">
-                            <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                                </path>
-                            </svg>
-                            Clear
-                        </button>
-
-                        <!-- Add Button -->
-                        <button @click="showAddSection = !showAddSection" :disabled="deleteMode"
-                            class="inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-all duration-150 shadow-sm"
-                            :class="deleteMode ? 
-                            'bg-gray-50 text-gray-400 cursor-not-allowed' : 
-                            showAddSection ? 
-                                'bg-blue-600 text-white shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1' : 
-                                'bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1'">
-                            <svg class="w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-200" fill="none"
-                                stroke="currentColor" viewBox="0 0 24 24"
-                                :class="{ 'rotate-45': showAddSection && !deleteMode }">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 4v16m8-8H4">
-                                </path>
-                            </svg>
-                        </button>
-
-                        <!-- Edit Mode Button -->
-                        <button @click="
-                        deleteMode && $wire.call('refreshListAfterEdit');
-                        deleteMode = !deleteMode; 
-                        $dispatch('toggle-delete-buttons');
-                    " class="inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-all duration-150 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1"
-                            :class="deleteMode ? 
-                            'bg-orange-500 text-white hover:bg-orange-600 active:bg-orange-700 focus:ring-orange-400 shadow-inner' : 
-                            'bg-gray-50 text-gray-600 hover:bg-gray-100 active:bg-gray-200 focus:ring-gray-400'">
-                            <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
-                                </path>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Status badges and item count row - only show in normal mode -->
-                <div x-show="!deleteMode" class="mt-2 px-4">
-                    <div class="flex items-center justify-between">
-                        <p class="text-sm text-gray-500 flex-shrink-0">{{ $listItems->count() }} items</p>
-                        <div class="flex items-center space-x-2">
-                            @if($userList->is_public)
-                            <a href="{{ route('lists.shared', $userList->share_code) }}"
-                                class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 hover:bg-green-200 transition-colors duration-150"
-                                title="View Public Share" target="_blank">
-                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                'bg-green-500 text-white hover:bg-green-600 active:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-1'">
+                                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z">
                                     </path>
                                 </svg>
-                                Public
-                                <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            </button>
+
+                            <!-- Edit Mode Button -->
+                            <button @click="
+                            deleteMode && $wire.call('refreshListAfterEdit');
+                            deleteMode = !deleteMode; 
+                            $dispatch('toggle-delete-buttons');
+                        " class="inline-flex items-center justify-center w-10 h-10 sm:w-10 sm:h-10 rounded-full transition-all duration-150 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1"
+                                :class="deleteMode ? 
+                                'bg-orange-500 text-white hover:bg-orange-600 active:bg-orange-700 focus:ring-orange-400 shadow-inner' : 
+                                'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-200 focus:ring-gray-400'">
+                                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14">
+                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
                                     </path>
                                 </svg>
-                            </a>
-                            @endif
-                            @if($userList->marketplace_enabled)
-                            <a href="{{ route('marketplace.view', $userList->share_code) }}"
-                                class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors duration-150"
-                                title="View in Marketplace">
-                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            </button>
+
+                            <!-- Add Button -->
+                            <button @click="showAddSection = !showAddSection" :disabled="deleteMode"
+                                class="inline-flex items-center justify-center w-10 h-10 sm:w-10 sm:h-10 rounded-full transition-all duration-150 shadow-sm"
+                                :class="deleteMode ? 
+                                'bg-gray-50 text-gray-400 cursor-not-allowed' : 
+                                showAddSection ? 
+                                    'bg-blue-600 text-white shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1' : 
+                                    'bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1'">
+                                <svg class="w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-200" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24"
+                                    :class="{ 'rotate-45': showAddSection && !deleteMode }">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
+                                        d="M12 4v16m8-8H4">
                                     </path>
                                 </svg>
-                                Marketplace
-                                <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                                </svg>
-                            </a>
-                            @endif
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -379,7 +342,8 @@
                 </svg>
 
                 <!-- Text -->
-                <span wire:loading.remove wire:target="prepareAndOpenCarousel" class="text-xs font-semibold">Scan</span>
+                <span wire:loading.remove wire:target="prepareAndOpenCarousel" class="text-xs font-semibold">Scan
+                    List</span>
                 <span wire:loading wire:target="prepareAndOpenCarousel" class="text-xs font-semibold">Syncing...</span>
             </button>
         </div>
@@ -853,6 +817,48 @@
                                     <p class="text-xs text-gray-500 mt-2">Scan to open list</p>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Marketplace sharing section -->
+                        <div class="border-t border-gray-200 pt-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex-1">
+                                    <label class="text-sm font-medium text-gray-700">Marketplace Sharing</label>
+                                    <p class="text-xs text-gray-500 mt-1">Publish to the community marketplace for
+                                        others to discover</p>
+                                </div>
+                                <button
+                                    wire:click="{{ $userList->marketplace_enabled ? 'confirmUnpublish' : 'togglePublishModal' }}"
+                                    class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                    :class="{{ $userList->marketplace_enabled ? 'true' : 'false' }} ? 'bg-blue-600' : 'bg-gray-200'">
+                                    <span
+                                        class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                                        :class="{{ $userList->marketplace_enabled ? 'true' : 'false' }} ? 'translate-x-5' : 'translate-x-0'"></span>
+                                </button>
+                            </div>
+
+                            @if($userList->marketplace_enabled)
+                            <!-- Marketplace URL when enabled -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Marketplace URL</label>
+                                <div class="flex">
+                                    <input type="text" value="{{ route('marketplace.view', $userList->share_code) }}"
+                                        readonly
+                                        class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md bg-gray-50 text-sm"
+                                        x-ref="marketplaceUrl">
+                                    <button @click="
+                                            $refs.marketplaceUrl.select();
+                                            document.execCommand('copy');
+                                            $dispatch('notify', { message: 'Marketplace link copied!', type: 'success' });
+                                        "
+                                        class="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-r-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                        Copy
+                                    </button>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Published as: {{ $userList->marketplace_title ?:
+                                    $userList->name }}</p>
+                            </div>
+                            @endif
                         </div>
                     </div>
                 </div>

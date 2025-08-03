@@ -1,10 +1,11 @@
-const CACHE_NAME = 'plupro-v1';
-const STATIC_CACHE_NAME = 'plupro-static-v1';
-const DYNAMIC_CACHE_NAME = 'plupro-dynamic-v1';
+const CACHE_NAME = 'plupro-v2';
+const STATIC_CACHE_NAME = 'plupro-static-v2';
+const DYNAMIC_CACHE_NAME = 'plupro-dynamic-v2';
 
 // Files to cache immediately
 const STATIC_FILES = [
     '/',
+    '/pwa',
     '/offline.html',
     '/manifest.json'
 ];

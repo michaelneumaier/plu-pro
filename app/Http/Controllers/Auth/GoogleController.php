@@ -68,8 +68,8 @@ class GoogleController extends Controller
                 }
             }
 
-            // Log the user in
-            Auth::login($user);
+            // Log the user in with remember option for longer sessions
+            Auth::login($user, true);
 
             // Redirect to intended page or dashboard
             return redirect()->intended(route('dashboard'));

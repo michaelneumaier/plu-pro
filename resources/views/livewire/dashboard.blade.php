@@ -30,73 +30,31 @@
     </div>
 
     <!-- Quick Stats Cards -->
-    <div class="px-4 py-6">
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <!-- Total Lists -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                            </svg>
-                        </div>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm font-medium text-gray-500">Lists</p>
-                        <p class="text-2xl font-semibold text-gray-900">{{ $userStats['total_lists'] ?? 0 }}</p>
-                    </div>
+    <div class="px-4 py-4">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+            <div class="grid grid-cols-4 gap-2 text-center">
+                <!-- Total Lists -->
+                <div>
+                    <p class="text-lg font-semibold text-gray-900">{{ $userStats['total_lists'] ?? 0 }}</p>
+                    <p class="text-xs text-gray-500">Lists</p>
                 </div>
-            </div>
-
-            <!-- Total Items -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
-                            </svg>
-                        </div>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm font-medium text-gray-500">Items</p>
-                        <p class="text-2xl font-semibold text-gray-900">{{ $userStats['total_items'] ?? 0 }}</p>
-                    </div>
+                
+                <!-- Total Items -->
+                <div>
+                    <p class="text-lg font-semibold text-gray-900">{{ $userStats['total_items'] ?? 0 }}</p>
+                    <p class="text-xs text-gray-500">Items</p>
                 </div>
-            </div>
-
-            <!-- Published Lists -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                            <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                            </svg>
-                        </div>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm font-medium text-gray-500">Published</p>
-                        <p class="text-2xl font-semibold text-gray-900">{{ $userStats['published_lists'] ?? 0 }}</p>
-                    </div>
+                
+                <!-- Published Lists -->
+                <div>
+                    <p class="text-lg font-semibold text-gray-900">{{ $userStats['published_lists'] ?? 0 }}</p>
+                    <p class="text-xs text-gray-500">Published</p>
                 </div>
-            </div>
-
-            <!-- Total Inventory -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                            <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                            </svg>
-                        </div>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm font-medium text-gray-500">Inventory</p>
-                        <p class="text-2xl font-semibold text-gray-900">{{ number_format($userStats['total_inventory'] ?? 0) }}</p>
-                    </div>
+                
+                <!-- Total Inventory -->
+                <div>
+                    <p class="text-lg font-semibold text-gray-900">{{ number_format($userStats['total_inventory'] ?? 0) }}</p>
+                    <p class="text-xs text-gray-500">Inventory</p>
                 </div>
             </div>
         </div>
@@ -117,7 +75,7 @@
                     @if($recentLists && $recentLists->count() > 0)
                         <div class="space-y-3">
                             @foreach($recentLists as $list)
-                                <div class="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                <a href="{{ route('lists.show', $list) }}" class="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                                     <div class="flex items-center justify-between">
                                         <div class="flex items-center space-x-3 flex-1 min-w-0">
                                             <div class="flex-shrink-0">
@@ -134,24 +92,6 @@
                                                 <p class="text-xs text-gray-500">{{ $list->listItems->count() }} items</p>
                                             </div>
                                         </div>
-                                        <div class="hidden sm:flex items-center space-x-2">
-                                            @if($list->is_public)
-                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                    Public
-                                                </span>
-                                            @endif
-                                            @if($list->marketplace_enabled)
-                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                    Marketplace
-                                                </span>
-                                            @endif
-                                            <a href="{{ route('lists.show', $list) }}" 
-                                               class="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                                                Edit
-                                            </a>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center justify-between mt-2 sm:hidden">
                                         <div class="flex items-center space-x-2">
                                             @if($list->is_public)
                                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -164,12 +104,8 @@
                                                 </span>
                                             @endif
                                         </div>
-                                        <a href="{{ route('lists.show', $list) }}" 
-                                           class="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                                            Edit
-                                        </a>
                                     </div>
-                                </div>
+                                </a>
                             @endforeach
                         </div>
                     @else

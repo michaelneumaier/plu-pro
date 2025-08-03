@@ -14,6 +14,14 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', SearchPLUCode::class)->name('home');
 
+// PWA start route - redirects authenticated users to dashboard
+Route::get('/pwa', function () {
+    if (auth()->check() && auth()->user()->hasVerifiedEmail()) {
+        return redirect()->route('dashboard');
+    }
+    return redirect()->route('home');
+})->name('pwa.start');
+
 // About page
 Route::get('/about', \App\Livewire\About::class)->name('about');
 

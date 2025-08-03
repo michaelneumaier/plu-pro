@@ -2,7 +2,7 @@
     "name": "PLUPro - Produce Lookup",
     "short_name": "PLUPro",
     "description": "Professional PLU code management for the produce industry",
-    "start_url": "/?source=pwa",
+    "start_url": "/pwa?source=pwa",
     "scope": "/",
     "display": "standalone",
     "background_color": "#ffffff",
