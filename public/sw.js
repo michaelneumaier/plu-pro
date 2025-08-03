@@ -1,6 +1,6 @@
-const CACHE_NAME = 'plupro-v2';
-const STATIC_CACHE_NAME = 'plupro-static-v2';
-const DYNAMIC_CACHE_NAME = 'plupro-dynamic-v2';
+const CACHE_NAME = 'plupro-v3';
+const STATIC_CACHE_NAME = 'plupro-static-v3';
+const DYNAMIC_CACHE_NAME = 'plupro-dynamic-v3';
 
 // Files to cache immediately
 const STATIC_FILES = [

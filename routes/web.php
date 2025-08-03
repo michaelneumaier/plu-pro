@@ -14,13 +14,19 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', SearchPLUCode::class)->name('home');
 
-// PWA start route - redirects authenticated users to dashboard
+// PWA start route - smart client-side auth detection
 Route::get('/pwa', function () {
-    if (auth()->check() && auth()->user()->hasVerifiedEmail()) {
-        return redirect()->route('dashboard');
-    }
-    return redirect()->route('home');
+    return view('pwa-landing');
 })->name('pwa.start');
+
+// API endpoint for PWA auth check
+Route::get('/pwa/auth-check', function () {
+    return response()->json([
+        'authenticated' => auth()->check(),
+        'verified' => auth()->check() && auth()->user()->hasVerifiedEmail(),
+        'user_id' => auth()->id()
+    ]);
+})->name('pwa.auth-check');
 
 // About page
 Route::get('/about', \App\Livewire\About::class)->name('about');
@@ -63,7 +69,6 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware([
     'auth:sanctum',
     config('jetstream.auth_session'),
-    'verified',
 ])->group(function () {
     Route::get('/dashboard', Dashboard::class)->name('dashboard');
 });

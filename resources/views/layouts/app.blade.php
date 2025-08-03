@@ -226,6 +226,21 @@
     @livewire('plu-code-detail-modal')
     @livewire('upc-code-detail-modal')
     
+    <!-- PWA Auth State Management -->
+    <script>
+        // Update PWA auth cache when user is authenticated
+        @auth
+        localStorage.setItem('plupro_auth_state', JSON.stringify({
+            authenticated: true,
+            verified: {{ auth()->user()->hasVerifiedEmail() ? 'true' : 'false' }},
+            user_id: {{ auth()->id() }},
+            timestamp: Date.now()
+        }));
+        @else
+        localStorage.removeItem('plupro_auth_state');
+        @endauth
+    </script>
+    
     <script>
     document.addEventListener('livewire:initialized', () => {
         // Listen for PLU code selection events
