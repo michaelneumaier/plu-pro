@@ -1149,9 +1149,7 @@
                             const scannerElement = $refs.barcodeScanner;
                             const scannerData = scannerElement._x_dataStack[0];
                             
-                            console.log('Scanner element:', scannerElement);
-                            console.log('Scanner data:', scannerData);
-                            console.log('Available methods:', Object.keys(scannerData || {}));
+                            // Scanner element accessed successfully
                             
                             if (scannerData && scannerData.startScanning) {
                                 console.log('Calling startScanning on scanner data');

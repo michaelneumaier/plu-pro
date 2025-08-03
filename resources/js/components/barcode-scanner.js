@@ -299,8 +299,12 @@ export default function barcodeScanner() {
                     tryHarder: true
                 });
                 
+                // Use our configured camera stream instead of letting ZXing choose
+                const deviceId = this.videoTrack ? this.videoTrack.getSettings().deviceId : null;
+                console.log('📷 Using camera device ID for ZXing:', deviceId);
+                
                 const controls = await this.reader.decodeFromVideoDevice(
-                    null, // Use default camera
+                    deviceId, // Use OUR configured camera, not ZXing default
                     video,
                     (result, error, controls) => {
                         if (result) {
