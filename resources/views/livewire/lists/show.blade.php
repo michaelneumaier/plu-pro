@@ -640,7 +640,7 @@
                     <select wire:model="selectedUpcCommodity" id="upc_commodity"
                         class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                         <option value="">Choose commodity...</option>
-                        @foreach($commodities as $commodity)
+                        @foreach($allCommodities as $commodity)
                         <option value="{{ $commodity }}">{{ $commodity }}</option>
                         @endforeach
                     </select>

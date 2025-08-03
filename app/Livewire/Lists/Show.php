@@ -33,10 +33,12 @@ class Show extends Component
 
     public $selectedCommodity = '';
 
-    // Available filter options
+    // Available filter options (only from current list items)
     public $commodities = [];
-
     public $categories = [];
+    
+    // All available commodities for UPC modal
+    public $allCommodities = [];
 
     // Refresh token to prevent snapshot missing errors
     public $refreshToken;
@@ -95,23 +97,34 @@ class Show extends Component
 
     protected function initializeFilterOptions()
     {
-        // For the commodity modal, we need ALL PLU commodities, not just those in the current list
-        $this->commodities = PLUCode::select('commodity')->distinct()->orderBy('commodity')->pluck('commodity')->toArray();
+        // Load all commodities for the UPC modal
+        $this->allCommodities = PLUCode::select('commodity')->distinct()->orderBy('commodity')->pluck('commodity')->toArray();
         
-        // For filtering, get categories from list items (both PLU and UPC)
+        // Get list items with their related PLU and UPC codes
         $userList = $this->userList->listItems()->with(['pluCode', 'upcCode'])->get();
 
-        // Update categories from both PLU and UPC items in the list
+        // Get categories and commodities ONLY from items currently in the list (for filtering)
         $categories = collect();
+        $commodities = collect();
+        
         foreach ($userList as $item) {
             if ($item->item_type === 'plu' && $item->pluCode) {
                 $categories->push($item->pluCode->category);
+                $commodities->push($item->pluCode->commodity);
             } elseif ($item->item_type === 'upc' && $item->upcCode) {
                 $categories->push($item->upcCode->category);
+                $commodities->push($item->upcCode->commodity);
             }
         }
         
         $this->categories = $categories
+            ->filter() // Remove null/empty values
+            ->unique()
+            ->sort()
+            ->values()
+            ->toArray();
+            
+        $this->commodities = $commodities
             ->filter() // Remove null/empty values
             ->unique()
             ->sort()
@@ -971,6 +984,7 @@ class Show extends Component
             'upcLookupInProgress' => $this->upcLookupInProgress,
             'categories' => $this->categories,
             'commodities' => $this->commodities,
+            'allCommodities' => $this->allCommodities,
             'allItemsData' => $allItemsData,
             'dualVersionPluCodes' => $dualVersionPluCodes,
         ]);
