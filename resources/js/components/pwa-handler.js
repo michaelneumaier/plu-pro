@@ -60,6 +60,39 @@ window.addEventListener('beforeinstallprompt', (e) => {
     }
 });
 
+// Standalone mode detection
+function isStandaloneMode() {
+    // iOS Safari
+    if (window.navigator.standalone) {
+        return true;
+    }
+    
+    // Android Chrome and other browsers
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        return true;
+    }
+    
+    // PWA detection via URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('source') === 'pwa') {
+        return true;
+    }
+    
+    return false;
+}
+
+// Apply PWA-specific styles and behavior when in standalone mode
+if (isStandaloneMode()) {
+    document.documentElement.classList.add('pwa-standalone');
+    console.log('Running in standalone PWA mode');
+    
+    // Hide install button if already installed
+    const installButton = document.getElementById('pwa-install-button');
+    if (installButton) {
+        installButton.style.display = 'none';
+    }
+}
+
 // Network status indicator
 Alpine.data('networkStatus', () => ({
     online: navigator.onLine,

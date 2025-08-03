@@ -11,13 +11,61 @@
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#10b981">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="PLUPro">
+    <meta name="apple-touch-fullscreen" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <link rel="manifest" href="/manifest.json">
     
     <!-- Icons -->
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
-    <link rel="apple-touch-icon" href="/icon-192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-192.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/icon-192.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/icon-192.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/icon-192.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/icon-192.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/icon-192.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/icon-192.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/icon-192.png">
+    <link rel="apple-touch-icon" sizes="57x57" href="/icon-192.png">
+
+    <!-- iOS Splash Screens -->
+    <!-- iPhone X, XS, 11 Pro -->
+    <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" href="/splash-1125x2436.svg">
+    <!-- iPhone XR, 11 -->
+    <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" href="/splash-828x1792.svg">
+    <!-- iPhone XS Max, 11 Pro Max -->
+    <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" href="/splash-1242x2688.svg">
+    <!-- iPhone 12 Mini -->
+    <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" href="/splash-1080x2340.svg">
+    <!-- iPhone 12, 12 Pro -->
+    <link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="/splash-1170x2532.svg">
+    <!-- iPhone 12 Pro Max -->
+    <link rel="apple-touch-startup-image" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" href="/splash-1284x2778.svg">
+    <!-- iPhone 13 Mini -->
+    <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" href="/splash-1080x2340.svg">
+    <!-- iPhone 13, 13 Pro -->
+    <link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="/splash-1170x2532.svg">
+    <!-- iPhone 13 Pro Max -->
+    <link rel="apple-touch-startup-image" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" href="/splash-1284x2778.svg">
+    <!-- iPhone 14 -->
+    <link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="/splash-1170x2532.svg">
+    <!-- iPhone 14 Plus -->
+    <link rel="apple-touch-startup-image" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" href="/splash-1284x2778.svg">
+    <!-- iPhone 14 Pro -->
+    <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="/splash-1179x2556.svg">
+    <!-- iPhone 14 Pro Max -->
+    <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="/splash-1290x2796.svg">
+    <!-- iPhone 15, 15 Pro -->
+    <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="/splash-1179x2556.svg">
+    <!-- iPhone 15 Plus, 15 Pro Max -->
+    <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="/splash-1290x2796.svg">
+    <!-- iPad -->
+    <link rel="apple-touch-startup-image" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)" href="/splash-1536x2048.svg">
+    <!-- iPad Pro 11" -->
+    <link rel="apple-touch-startup-image" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)" href="/splash-1668x2388.svg">
+    <!-- iPad Pro 12.9" -->
+    <link rel="apple-touch-startup-image" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" href="/splash-2048x2732.svg">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -50,6 +98,36 @@
             -moz-user-select: none;
             -ms-user-select: none;
             user-select: none;
+        }
+        
+        /* PWA Standalone mode styles */
+        .pwa-standalone {
+            /* Enhance PWA experience when running standalone */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        .pwa-standalone body {
+            /* Prevent overscroll bounce on iOS */
+            overscroll-behavior: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Status bar safe area support for iOS */
+        @supports (padding-top: env(safe-area-inset-top)) {
+            .pwa-standalone header,
+            .pwa-standalone .fixed.top-0 {
+                padding-top: env(safe-area-inset-top);
+            }
+            
+            .pwa-standalone footer,
+            .pwa-standalone .fixed.bottom-0 {
+                padding-bottom: env(safe-area-inset-bottom);
+            }
         }
         
         /* Alpine cloak */

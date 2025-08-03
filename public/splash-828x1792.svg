@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="828" height="1792" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background -->
+    <rect width="828" height="1792" fill="#ffffff"/>
+    
+    <!-- App Icon Background Circle -->
+    <circle cx="414" cy="813.2" r="82.80000000000001" fill="#10b981" fill-opacity="0.1"/>
+    
+    <!-- App Icon -->
+    <rect x="364.32" y="763.5200000000001" width="99.36000000000001" height="99.36000000000001" rx="16.560000000000002" fill="#10b981"/>
+    
+    <!-- PLU text -->
+    <text x="414" y="956.0000000000001" text-anchor="middle" fill="#10b981" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="600">PLUPro</text>
+    
+    <!-- Tagline -->
+    <text x="414" y="996.0000000000001" text-anchor="middle" fill="#666666" font-family="system-ui, -apple-system, sans-serif" font-size="24">Produce Lookup</text>
+</svg>
