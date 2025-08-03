@@ -291,10 +291,7 @@ export default function barcodeScanner() {
                 this.zxingControls = controls;
 
                 // ENHANCED SCANNING for small PLU stickers - digital zoom + cropping
-                // Disable on mobile due to performance issues
-                if (!this.isMobile) {
-                    this.startEnhancedSmallBarcodeScanning(video);
-                }
+                this.startEnhancedSmallBarcodeScanning(video);
 
                 // Force update the status to show we're actively scanning
                 this.status = 'Scanning for barcodes...';
@@ -312,8 +309,8 @@ export default function barcodeScanner() {
             const ctx = canvas.getContext('2d');
 
             // Enhanced scanning parameters
-            const scanInterval = 1000; // Scan every 1 second (increased from 300ms)
-            const zoomFactors = [4]; // Reduced zoom for better performance
+            const scanInterval = this.isMobile ? 1500 : 1000; // Slower on mobile to prevent flicker
+            const zoomFactors = this.isMobile ? [3] : [4]; // Less zoom on mobile
             let currentZoomIndex = 0;
 
             const enhancedScan = () => {
@@ -338,8 +335,9 @@ export default function barcodeScanner() {
                     this.updateEnhancedScanOverlay(cropX, cropY, cropWidth, cropHeight, sourceWidth, sourceHeight);
 
                     // Set canvas size for zoomed image
-                    canvas.width = cropWidth * 2; // Reduced scale for better performance
-                    canvas.height = cropHeight * 2;
+                    const scaleFactor = this.isMobile ? 1.5 : 2; // Less scaling on mobile
+                    canvas.width = cropWidth * scaleFactor;
+                    canvas.height = cropHeight * scaleFactor;
 
                     // Draw cropped and scaled portion
                     ctx.drawImage(
@@ -348,10 +346,12 @@ export default function barcodeScanner() {
                         0, 0, canvas.width, canvas.height    // Destination full canvas
                     );
 
-                    // Apply image enhancement for better barcode detection
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    //this.enhanceImageForBarcode(imageData);
-                    ctx.putImageData(imageData, 0, 0);
+                    // Skip image enhancement on mobile to improve performance
+                    if (!this.isMobile) {
+                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        this.enhanceImageForBarcode(imageData);
+                        ctx.putImageData(imageData, 0, 0);
+                    }
 
                     // Try to decode from enhanced image
 
@@ -644,21 +644,45 @@ export default function barcodeScanner() {
             const displayWidth = videoRect.width;
             const displayHeight = videoRect.height;
 
-            // Calculate scale factor from actual video resolution to display size
-            const scaleX = displayWidth / videoWidth;
-            const scaleY = displayHeight / videoHeight;
-
-            // Calculate overlay position and size (scaled to display dimensions)
-            const overlayX = cropX * scaleX;
-            const overlayY = cropY * scaleY;
-            const overlayWidth = cropWidth * scaleX;
-            const overlayHeight = cropHeight * scaleY;
+            // Mobile devices often have portrait display but landscape camera stream
+            // We need to handle the coordinate transformation correctly
+            let scaleX, scaleY;
+            let transformedX, transformedY, transformedWidth, transformedHeight;
+            
+            // Check if we have a mismatch between video stream orientation and display orientation
+            const streamIsLandscape = videoWidth > videoHeight;
+            const displayIsPortrait = displayWidth < displayHeight;
+            
+            if (this.isMobile && streamIsLandscape && displayIsPortrait) {
+                // Mobile portrait mode with landscape video stream
+                // The video is rotated 90 degrees, so we need to transform coordinates
+                
+                // Scale factors when rotated
+                scaleX = displayWidth / videoHeight;
+                scaleY = displayHeight / videoWidth;
+                
+                // Transform the crop area coordinates for 90-degree rotation
+                // Original crop is in landscape coordinates, need to convert to portrait
+                transformedX = (videoHeight - cropY - cropHeight) * scaleX;
+                transformedY = cropX * scaleY;
+                transformedWidth = cropHeight * scaleX;
+                transformedHeight = cropWidth * scaleY;
+            } else {
+                // Normal scaling (desktop or matching orientations)
+                scaleX = displayWidth / videoWidth;
+                scaleY = displayHeight / videoHeight;
+                
+                transformedX = cropX * scaleX;
+                transformedY = cropY * scaleY;
+                transformedWidth = cropWidth * scaleX;
+                transformedHeight = cropHeight * scaleY;
+            }
 
             // Position and size the overlay
-            overlay.style.left = overlayX + 'px';
-            overlay.style.top = overlayY + 'px';
-            overlay.style.width = overlayWidth + 'px';
-            overlay.style.height = overlayHeight + 'px';
+            overlay.style.left = transformedX + 'px';
+            overlay.style.top = transformedY + 'px';
+            overlay.style.width = transformedWidth + 'px';
+            overlay.style.height = transformedHeight + 'px';
 
             // Show the overlay
             overlay.classList.remove('hidden');
