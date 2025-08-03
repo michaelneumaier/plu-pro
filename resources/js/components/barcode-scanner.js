@@ -301,15 +301,24 @@ export default function barcodeScanner() {
                 this.reader = new BrowserMultiFormatReader();
                 this.status = 'Scanning with ZXing...';
                 
+                // OPTIMIZED HINTS for small GS1 DataBar PLU stickers
                 const hints = new Map();
-                hints.set(2, 'UPC_A,UPC_E,EAN_13,RSS_14,RSS_EXPANDED'); // DecodeHintType.POSSIBLE_FORMATS - Added GS1 DataBar formats
+                hints.set(2, 'RSS_14,RSS_EXPANDED,UPC_A,UPC_E,EAN_13'); // Prioritize GS1 DataBar formats first
                 hints.set(3, true); // DecodeHintType.ASSUME_GS1 - Enable GS1 parsing
                 hints.set(1, true); // DecodeHintType.TRY_HARDER - More aggressive scanning
+                hints.set(4, true); // DecodeHintType.PURE_BARCODE - Assume image contains only barcode
+                hints.set(5, true); // DecodeHintType.CHARACTER_SET - UTF-8 for international support
+                hints.set(6, 0.5);  // DecodeHintType.ALLOWED_LENGTHS - Allow shorter codes
                 
-                console.log('ZXing configured with GS1 DataBar support:', {
-                    formats: 'UPC_A,UPC_E,EAN_13,RSS_14,RSS_EXPANDED',
+                // Apply hints to reader for small barcode optimization
+                this.reader.hints = hints;
+                
+                console.log('ZXing optimized for small GS1 DataBar PLU stickers:', {
+                    formats: 'RSS_14,RSS_EXPANDED (prioritized),UPC_A,UPC_E,EAN_13',
                     assumeGS1: true,
-                    tryHarder: true
+                    tryHarder: true,
+                    pureBarcode: true,
+                    optimizedForSmall: true
                 });
                 
                 // Use our pre-configured camera stream directly with ZXing
@@ -349,6 +358,9 @@ export default function barcodeScanner() {
                 // Store controls for cleanup
                 this.zxingControls = controls;
                 console.log('ZXing scanning started successfully');
+                
+                // ENHANCED SCANNING for small PLU stickers - digital zoom + cropping
+                this.startEnhancedSmallBarcodeScanning(video);
                 
                 // Force update the status to show we're actively scanning
                 this.status = 'Scanning for barcodes...';
@@ -391,6 +403,108 @@ export default function barcodeScanner() {
             } catch (error) {
                 console.error('ZXing scanning error:', error);
                 throw error;
+            }
+        },
+        
+        // ENHANCED SMALL BARCODE SCANNING - Digital zoom and cropping for tiny PLU stickers
+        startEnhancedSmallBarcodeScanning(video) {
+            console.log('🔍 Starting enhanced scanning for small PLU stickers');
+            
+            // Create canvas for image processing
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Enhanced scanning parameters
+            const scanInterval = 1000; // Scan every 1 second
+            const zoomFactors = [2, 3, 4]; // Different zoom levels to try
+            let currentZoomIndex = 0;
+            
+            const enhancedScan = () => {
+                if (!this.isScanning || !video.videoWidth || !video.videoHeight) {
+                    return;
+                }
+                
+                try {
+                    const zoomFactor = zoomFactors[currentZoomIndex];
+                    const sourceWidth = video.videoWidth;
+                    const sourceHeight = video.videoHeight;
+                    
+                    // Calculate crop area (center of image)
+                    const cropWidth = sourceWidth / zoomFactor;
+                    const cropHeight = sourceHeight / zoomFactor;
+                    const cropX = (sourceWidth - cropWidth) / 2;
+                    const cropY = (sourceHeight - cropHeight) / 2;
+                    
+                    // Set canvas size for zoomed image
+                    canvas.width = cropWidth * 2; // 2x scale up for better detection
+                    canvas.height = cropHeight * 2;
+                    
+                    // Draw cropped and scaled portion
+                    ctx.drawImage(
+                        video,
+                        cropX, cropY, cropWidth, cropHeight, // Source crop area
+                        0, 0, canvas.width, canvas.height    // Destination full canvas
+                    );
+                    
+                    // Apply image enhancement for better barcode detection
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    this.enhanceImageForBarcode(imageData);
+                    ctx.putImageData(imageData, 0, 0);
+                    
+                    // Try to decode from enhanced image
+                    canvas.toBlob(blob => {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            const img = new Image();
+                            img.onload = () => {
+                                if (this.reader) {
+                                    this.reader.decodeFromImageElement(img)
+                                        .then(result => {
+                                            console.log('🎯 Enhanced scan SUCCESS at zoom ' + zoomFactor + 'x:', result.getText());
+                                            this.handleScannedCode(result.getText());
+                                        })
+                                        .catch(err => {
+                                            // Silent fail - this is supplementary scanning
+                                        });
+                                }
+                            };
+                            img.src = reader.result;
+                        };
+                        reader.readAsDataURL(blob);
+                    }, 'image/png');
+                    
+                    // Cycle through zoom factors
+                    currentZoomIndex = (currentZoomIndex + 1) % zoomFactors.length;
+                    
+                } catch (error) {
+                    console.warn('Enhanced scanning error:', error);
+                }
+                
+                // Schedule next enhanced scan
+                if (this.isScanning) {
+                    this.enhancedScanTimeout = setTimeout(enhancedScan, scanInterval);
+                }
+            };
+            
+            // Start enhanced scanning
+            this.enhancedScanTimeout = setTimeout(enhancedScan, scanInterval);
+        },
+        
+        // IMAGE ENHANCEMENT for better barcode detection on small stickers
+        enhanceImageForBarcode(imageData) {
+            const data = imageData.data;
+            
+            // Convert to grayscale and increase contrast
+            for (let i = 0; i < data.length; i += 4) {
+                const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+                
+                // Increase contrast (make darks darker, lights lighter)
+                const enhanced = gray < 128 ? Math.max(0, gray - 40) : Math.min(255, gray + 40);
+                
+                data[i] = enhanced;     // Red
+                data[i + 1] = enhanced; // Green  
+                data[i + 2] = enhanced; // Blue
+                // Alpha channel (i + 3) stays the same
             }
         },
 
@@ -595,6 +709,12 @@ export default function barcodeScanner() {
             if (this.debugInterval) {
                 clearInterval(this.debugInterval);
                 this.debugInterval = null;
+            }
+            
+            // Clean up enhanced scanning timeout
+            if (this.enhancedScanTimeout) {
+                clearTimeout(this.enhancedScanTimeout);
+                this.enhancedScanTimeout = null;
             }
             
             // Clean up animation frame
