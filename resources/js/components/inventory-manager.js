@@ -32,6 +32,32 @@ document.addEventListener('livewire:init', () => {
                 this.pendingDelta = data.pendingDelta || 0;
             }
         });
+        
+        // Handle filter changes gracefully
+        this.$wire?.on('inventory-filter-changed', () => {
+            this.handleFilterChange();
+        });
+        
+        // Prevent data loss on page unload
+        window.addEventListener('beforeunload', (e) => {
+            if (this.pendingDelta !== 0) {
+                // Try to send beacon for pending changes
+                const data = {
+                    listItemId: this.listItemId,
+                    delta: this.pendingDelta,
+                    timestamp: Date.now()
+                };
+                
+                if ('sendBeacon' in navigator) {
+                    navigator.sendBeacon('/api/inventory-beacon', JSON.stringify(data));
+                }
+                
+                // Show browser warning
+                e.preventDefault();
+                e.returnValue = 'You have unsaved inventory changes. Are you sure you want to leave?';
+                return e.returnValue;
+            }
+        });
     },
     
     get storageKey() {
@@ -107,10 +133,10 @@ document.addEventListener('livewire:init', () => {
         // Clear any existing sync timeout
         clearTimeout(this.syncTimeout);
         
-        // Debounce sync (300ms)
+        // Debounce sync (200ms)
         this.syncTimeout = setTimeout(() => {
             this.sync();
-        }, 300);
+        }, 200);
     },
     
     async sync() {
@@ -186,6 +212,13 @@ document.addEventListener('livewire:init', () => {
     handleOffline() {
         // Store current state when going offline
         this.storeValue();
+    },
+    
+    async handleFilterChange() {
+        // Wait for pending sync to complete before allowing component refresh
+        if (this.pendingDelta !== 0) {
+            await this.sync();
+        }
     },
     
     provideFeedback() {

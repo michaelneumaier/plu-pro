@@ -62,18 +62,51 @@
         }
         // Update Alpine store
         this.$store.listManager.clearAllInventory();
-    }
-}" @inventory-cleared.window="clearInventoryStorage()" @force-inventory-sync.window="
-    // Force all inventory components to sync immediately
-    document.querySelectorAll('[x-data*=inventoryItem]').forEach(el => {
-        if (el.__x && el.__x.$data && el.__x.$data.pendingDelta !== 0) {
-            if (el.__x.$data.syncTimeout) {
-                clearTimeout(el.__x.$data.syncTimeout);
+    },
+
+    // Coordinate all pending syncs before opening carousel
+    prepareCarouselSync() {
+        const syncPromises = [];
+        
+        // Find all inventory components with pending changes
+        document.querySelectorAll('[x-data*=inventoryItem]').forEach(el => {
+            if (el.__x && el.__x.$data && el.__x.$data.pendingDelta !== 0) {
+                if (el.__x.$data.syncTimeout) {
+                    clearTimeout(el.__x.$data.syncTimeout);
+                }
+                syncPromises.push(el.__x.$data.sync());
             }
-            el.__x.$data.sync();
-        }
-    });
-" @barcode-scanned.window="
+        });
+        
+        // Also check inventory-level-working components
+        document.querySelectorAll('[x-data*=localValue]').forEach(el => {
+            if (el.__x && el.__x.$data && el.__x.$data.pendingChanges !== 0) {
+                if (el.__x.$data.syncTimeout) {
+                    clearTimeout(el.__x.$data.syncTimeout);
+                }
+                syncPromises.push(el.__x.$data.syncToServer());
+            }
+        });
+        
+        // Wait for all syncs to complete, then finalize carousel open
+        Promise.allSettled(syncPromises).then(() => {
+            // Small delay to ensure all syncs have fully committed to database
+            setTimeout(() => {
+                try {
+                    // Try to call finalizeCarouselOpen, but fallback if component is gone
+                    this.$wire.call('finalizeCarouselOpen').catch(() => {
+                        // Fallback: directly dispatch the event
+                        this.$dispatch('carousel-ready-to-open');
+                    });
+                } catch (error) {
+                    // Fallback: directly dispatch the event
+                    this.$dispatch('carousel-ready-to-open');
+                }
+            }, 100);
+        });
+    }
+}" @inventory-cleared.window="clearInventoryStorage()" @prepare-carousel-sync.window="prepareCarouselSync()"
+        @barcode-scanned.window="
     $wire.set('searchTerm', processScannedCode($event.detail));
     showBarcodeScanner = false;
 " @carousel-ready-to-open.window="carouselOpen = true; $dispatch('carousel-open')"
@@ -362,7 +395,24 @@
             x-transition:leave-start="opacity-100 transform translate-y-0"
             x-transition:leave-end="opacity-0 transform translate-y-full"
             class="fixed inset-0 z-50 bg-white flex flex-col" wire:key="search-section-{{ $userList->id }}"
-            @keydown.escape.window="showAddSection = false" x-init="$watch('showAddSection', value => {
+            x-data="{ 
+                localKrogerLoading: false,
+                startKrogerSearch() {
+                    if ($wire.enableKrogerSearch) {
+                        this.localKrogerLoading = true;
+                    }
+                }
+            }"
+            @keydown.escape.window="showAddSection = false"
+            x-init="
+                // Watch for krogerSearchInProgress to clear local loading
+                $watch('$wire.krogerSearchInProgress', (value) => {
+                    if (value === false && localKrogerLoading === true) {
+                        localKrogerLoading = false;
+                    }
+                });
+                
+                $watch('showAddSection', value => {
                 if (value) {
                     // Prevent body scrolling when panel is open
                     document.body.style.overflow = 'hidden';
@@ -396,8 +446,15 @@
                                         d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                 </svg>
                             </div>
-                            <input type="text" wire:model.live.debounce.500ms="searchTerm"
-                                placeholder="{{ $enableKrogerSearch ? 'Search Kroger products...' : 'Search PLU codes, UPC codes (12-13 digits), variety, commodity...' }}"
+                            <input type="text" @if($enableKrogerSearch) wire:model="searchTerm" @else
+                                wire:model.live.debounce.300ms="searchTerm" @endif
+                                @keydown.enter="
+                                    if ($wire.enableKrogerSearch) { 
+                                        localKrogerLoading = true; 
+                                    }
+                                    $wire.call('performSearch');
+                                "
+                                placeholder="{{ $enableKrogerSearch ? 'Search Kroger products... (Press Enter to search)' : 'Search PLU codes, UPC codes (12-13 digits), variety, commodity...' }}"
                                 class="block w-full pl-10 pr-24 py-3 border border-gray-300 rounded-lg text-base placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
 
                             <!-- Toggle Button -->
@@ -453,13 +510,29 @@
         <!-- Search Results -->
         <div class="flex-1 overflow-y-auto overscroll-contain" style="-webkit-overflow-scrolling: touch;">
             <!-- UPC Results Section -->
-            @if(count($upcResults) > 0 || $upcLookupInProgress || $upcError)
-            <div class="px-4 mb-6">
+            <div class="px-4 mb-6" x-show="$wire.upcResults.length > 0 || $wire.upcLookupInProgress || $wire.upcError || ($wire.enableKrogerSearch && ($wire.krogerSearchInProgress || $wire.krogerError)) || localKrogerLoading">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">
                     {{ $enableKrogerSearch ? 'Kroger Results' : 'UPC Results' }}
                 </h3>
 
-                @if($upcLookupInProgress)
+                <div x-show="localKrogerLoading || ($wire.enableKrogerSearch && $wire.krogerSearchInProgress)"
+                    class="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4" x-cloak>
+                    <div class="flex items-center">
+                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg"
+                            fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                            </circle>
+                            <path class="opacity-75" fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                            </path>
+                        </svg>
+                        <span class="text-blue-700">
+                            Searching Kroger products...
+                        </span>
+                    </div>
+                </div>
+
+                @if($upcLookupInProgress && !$enableKrogerSearch)
                 <div class="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
                     <div class="flex items-center">
                         <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg"
@@ -471,13 +544,25 @@
                             </path>
                         </svg>
                         <span class="text-blue-700">
-                            {{ $enableKrogerSearch ? 'Searching Kroger products...' : 'Looking up UPC code...' }}
+                            Looking up UPC code...
                         </span>
                     </div>
                 </div>
                 @endif
 
-                @if($upcError)
+                @if($enableKrogerSearch && $krogerError)
+                <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+                    <div class="flex items-center">
+                        <svg class="flex-shrink-0 h-5 w-5 text-red-400 mr-3" xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-red-700">{{ $krogerError }}</span>
+                    </div>
+                </div>
+                @elseif($upcError)
                 <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
                     <div class="flex items-center">
                         <svg class="flex-shrink-0 h-5 w-5 text-red-400 mr-3" xmlns="http://www.w3.org/2000/svg"
@@ -590,7 +675,6 @@
                 </div>
                 @endforeach
             </div>
-            @endif
 
             <div wire:key="search-results-{{ $userList->id }}" class="px-4 pb-24">
                 @if(count($upcResults) > 0 || $upcLookupInProgress || $upcError)

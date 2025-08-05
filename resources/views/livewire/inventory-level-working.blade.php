@@ -4,7 +4,7 @@
          pendingChanges: 0,
          isOnline: navigator.onLine,
          syncTimeout: null,
-         SYNC_DELAY: 2000,
+         SYNC_DELAY: 200,
          isEditing: false,
          editValue: '',
          
@@ -35,6 +35,32 @@
              this.$wire.on('value-updated', (value) => {
                  if (this.pendingChanges === 0) {
                      this.localValue = parseFloat(value) || 0;
+                 }
+             });
+             
+             // Handle filter changes gracefully - wait for pending sync before refreshing
+             this.$wire.on('inventory-filter-changed', () => {
+                 this.handleFilterChange();
+             });
+             
+             // Prevent data loss on page unload
+             window.addEventListener('beforeunload', (e) => {
+                 if (this.pendingChanges !== 0) {
+                     // Try to send beacon for pending changes
+                     const data = {
+                         listItemId: @js($listItem->id),
+                         delta: this.pendingChanges,
+                         timestamp: Date.now()
+                     };
+                     
+                     if ('sendBeacon' in navigator) {
+                         navigator.sendBeacon('/api/inventory-beacon', JSON.stringify(data));
+                     }
+                     
+                     // Show browser warning
+                     e.preventDefault();
+                     e.returnValue = 'You have unsaved inventory changes. Are you sure you want to leave?';
+                     return e.returnValue;
                  }
              });
          },
@@ -111,6 +137,16 @@
              if (this.pendingChanges !== 0) {
                  this.syncToServer();
              }
+         },
+         
+         // Handle filter changes gracefully - wait for pending sync to complete
+         async handleFilterChange() {
+             if (this.pendingChanges !== 0) {
+                 // Wait for pending sync to complete before allowing refresh
+                 await this.syncToServer();
+             }
+             // Now safe to refresh component
+             this.$wire.$refresh();
          },
          
          startEditing() {

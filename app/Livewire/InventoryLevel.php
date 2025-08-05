@@ -21,7 +21,7 @@ class InventoryLevel extends Component
     public $inventoryLevel;
 
     protected $listeners = [
-        'filter-changed' => '$refresh',
+        'filter-changed' => 'handleFilterChange',
     ];
 
     public function boot()
@@ -231,6 +231,16 @@ class InventoryLevel extends Component
                 'message' => 'Failed to update inventory. Please try again.',
             ]);
         }
+    }
+
+    /**
+     * Handle filter changes more gracefully by dispatching to frontend
+     * instead of immediately refreshing component
+     */
+    public function handleFilterChange()
+    {
+        // Dispatch event to Alpine.js components to handle gracefully
+        $this->dispatch('inventory-filter-changed');
     }
 
     public function render()

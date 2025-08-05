@@ -201,14 +201,12 @@
 
       window.markDirty  = () => {        // call when the page first becomes "dirty"
         if (unsaved) return;
-        console.log('Marking page as dirty, adding beforeunload listener');
         unsaved = true;
         window.addEventListener('beforeunload', warn, { capture: true });
       };
 
       window.markSynced = () => {        // call when *all* changes are flushed
         if (!unsaved) return;
-        console.log('Marking page as synced, removing beforeunload listener');
         unsaved = false;
         window.removeEventListener('beforeunload', warn, { capture: true });
       };
