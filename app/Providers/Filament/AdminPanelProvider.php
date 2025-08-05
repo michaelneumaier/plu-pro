@@ -29,7 +29,7 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->brandName('PLUPro Admin')
-            ->brandLogo(asset('images/logo.svg'))
+            ->brandLogo(asset('logo.png'))
             ->brandLogoHeight('3rem')
             ->favicon(asset('favicon.ico'))
             ->colors([
