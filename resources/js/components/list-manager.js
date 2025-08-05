@@ -301,6 +301,27 @@ document.addEventListener('alpine:init', () => {
             });
             
             return count;
+        },
+        
+        // Check if a commodity has any visible items
+        isCommodityVisible(commodityName) {
+            if (!this.localSearchTerm || !this.localSearchTerm.trim()) {
+                return true; // Show all commodity headers when no search term
+            }
+            
+            const searchTerm = this.localSearchTerm.trim().toLowerCase();
+            
+            // Find all list item rows in this commodity and check if any match the search
+            const commodityRows = document.querySelectorAll(`.list-item-row[data-commodity="${commodityName}"]`);
+            
+            for (let row of commodityRows) {
+                const searchContent = row.getAttribute('data-search-content');
+                if (searchContent && searchContent.toLowerCase().includes(searchTerm)) {
+                    return true; // Found at least one visible item in this commodity
+                }
+            }
+            
+            return false; // No visible items found in this commodity
         }
     });
 });

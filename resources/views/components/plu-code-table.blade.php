@@ -77,7 +77,15 @@ $colCount = $hasActions ? 5 : 4;
 
         @if($showCommodityGroups && ($commodityChanged || $loop->first))
         <!-- Commodity separator -->
-        <div class="border-t-2 border-b-2 border-gray-300 bg-gray-50">
+        <div class="border-t-2 border-b-2 border-gray-300 bg-gray-50 commodity-header"
+            data-commodity="{{ $commodity }}"
+            x-show="$store.listManager.isCommodityVisible('{{ $commodity }}')"
+            x-transition:enter="transition-opacity duration-150"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition-opacity duration-150"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0">
             <div class="px-4 py-1 text-xs font-medium text-gray-600 uppercase tracking-wide">
                 {{ ucwords(strtolower($commodity)) }}
             </div>
@@ -98,6 +106,7 @@ $colCount = $hasActions ? 5 : 4;
             }}"
             data-item-id="{{ $listItem->id }}"
             data-item-type="{{ $isUpcItem ? 'upc' : 'plu' }}"
+            data-commodity="{{ $commodity }}"
             @endif
             x-show="$store.listManager.isItemVisible({{ $listItem ? $listItem->id : 0 }})"
             x-transition:enter="transition-opacity duration-150"
