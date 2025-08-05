@@ -19,9 +19,7 @@
             </div>
             <div class="mt-8 md:mt-0 md:order-1">
                 <div class="flex justify-center md:justify-start items-center">
-                    <span class="text-2xl font-bold mr-3">
-                        <span class="text-green-600">PLU</span><span class="text-blue-500">Pro</span>
-                    </span>
+                    <img src="{{ asset('logo.png') }}" alt="PLUPro Logo" class="h-8 w-auto mr-3">
                     <p class="text-gray-400 text-sm">
                         &copy; {{ date('Y') }} PLUPro. Your trusted produce PLU companion.
                     </p>

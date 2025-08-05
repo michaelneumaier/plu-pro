@@ -18,6 +18,7 @@
     <link rel="manifest" href="/manifest.json">
     
     <!-- Icons -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icon-192.png">
     <link rel="apple-touch-icon" sizes="152x152" href="/icon-192.png">

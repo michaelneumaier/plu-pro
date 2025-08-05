@@ -4,10 +4,9 @@
         <div class="flex justify-between h-16">
             <div class="flex">
                 <!-- Logo -->
-                <div class="shrink-0 flex items-center font-bold text-2xl">
+                <div class="shrink-0 flex items-center">
                     <a href="{{ route('home') }}" class="flex items-center">
-                        <span class="text-green-600">PLU</span>
-                        <span class="text-blue-500">Pro</span>
+                        <img src="{{ asset('logo.png') }}" alt="PLUPro Logo" class="h-10 w-auto">
                     </a>
                 </div>
 

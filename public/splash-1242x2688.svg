@@ -1,17 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="1242" height="2688" xmlns="http://www.w3.org/2000/svg">
+<svg width="1242" height="2688" viewBox="0 0 1242 2688" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <!-- Background -->
-    <rect width="1242" height="2688" fill="#ffffff"/>
+    <rect width="1242" height="2688" fill="#10b981"/>
     
-    <!-- App Icon Background Circle -->
-    <circle cx="621" cy="1219.8" r="124.2" fill="#10b981" fill-opacity="0.1"/>
+    <!-- Logo placeholder - you'll need to embed your actual logo.png as base64 or reference it -->
+    <!-- For now, creating a simple PLUPro text logo -->
+    <g transform="translate(621, 1344)">
+        <!-- White background circle for logo -->
+        <circle cx="0" cy="0" r="80" fill="white" fill-opacity="0.15"/>
+        
+        <!-- PLUPro Text Logo -->
+        <text x="0" y="5" text-anchor="middle" dominant-baseline="middle" 
+              font-family="system-ui, -apple-system, sans-serif" 
+              font-size="24" font-weight="700" fill="white">
+            <tspan fill="#22c55e">PLU</tspan><tspan fill="#3b82f6">Pro</tspan>
+        </text>
+        
+        <!-- App name below logo -->
+        <text x="0" y="35" text-anchor="middle" dominant-baseline="middle" 
+              font-family="system-ui, -apple-system, sans-serif" 
+              font-size="12" fill="white" fill-opacity="0.8">
+            Manage Your PLU Codes
+        </text>
+    </g>
     
-    <!-- App Icon -->
-    <rect x="546.48" y="1145.28" width="149.04" height="149.04" rx="24.840000000000003" fill="#10b981"/>
-    
-    <!-- PLU text -->
-    <text x="621" y="1404" text-anchor="middle" fill="#10b981" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="600">PLUPro</text>
-    
-    <!-- Tagline -->
-    <text x="621" y="1444" text-anchor="middle" fill="#666666" font-family="system-ui, -apple-system, sans-serif" font-size="24">Produce Lookup</text>
+    <!-- Loading indicator at bottom -->
+    <g transform="translate(621, 2588)">
+        <circle cx="0" cy="0" r="3" fill="white" fill-opacity="0.6">
+            <animate attributeName="fill-opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="15" cy="0" r="3" fill="white" fill-opacity="0.4">
+            <animate attributeName="fill-opacity" values="0.3;1;0.3" dur="1.5s" begin="0.3s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="30" cy="0" r="3" fill="white" fill-opacity="0.4">
+            <animate attributeName="fill-opacity" values="0.3;1;0.3" dur="1.5s" begin="0.6s" repeatCount="indefinite"/>
+        </circle>
+    </g>
 </svg>
