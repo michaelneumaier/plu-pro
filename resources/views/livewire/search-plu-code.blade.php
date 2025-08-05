@@ -1,4 +1,4 @@
-<div class="md:p-2 max-w-4xl mx-auto">
+<div class="md:p-2 max-w-6xl mx-auto">
     <!-- Search and Filters Button -->
     <div class="flex flex-col md:flex-row md:items-end md:justify-between p-2 space-y-4 md:space-y-0">
         <!-- Search Input -->
