@@ -336,6 +336,7 @@
                     <input type="text" 
                         x-model="$store.listManager.localSearchTerm" 
                         @input="$store.listManager.setLocalSearch($event.target.value)"
+                        @keydown.enter="$event.target.blur()"
                         placeholder="Search your list items (PLU codes, UPC codes, varieties, etc.)"
                         class="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     
