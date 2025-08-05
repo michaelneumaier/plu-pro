@@ -1,4 +1,4 @@
-<div class="md:p-2">
+<div class="md:p-2 max-w-4xl mx-auto">
     <div x-data="{ 
     deleteMode: false,
     carouselOpen: false,
@@ -76,9 +76,10 @@
 " @barcode-scanned.window="
     $wire.set('searchTerm', processScannedCode($event.detail));
     showBarcodeScanner = false;
-" @carousel-ready-to-open.window="carouselOpen = true; $dispatch('carousel-open')" class="min-h-screen bg-gray-50">
+" @carousel-ready-to-open.window="carouselOpen = true; $dispatch('carousel-open')"
+        class="min-h-screen md:p-2 md:rounded-lg bg-gray-50">
         <!-- Mobile-first header -->
-        <div class="bg-white border-b border-gray-200 sticky top-0 z-40">
+        <div class="bg-white rounded-lg sticky top-0 z-40">
             <div class="px-2 md:px-4 py-3">
                 <!-- Header content -->
                 <div class="flex items-start justify-between">
@@ -251,7 +252,7 @@
             </div>
 
             <!-- Filter section - collapsible on mobile -->
-            <div class="border-t border-gray-200">
+            <div class="rounded-lg">
                 <div
                     class="flex flex-col md:flex-row mb-1 space-y-2 md:space-y-0 bg-black bg-opacity-10 rounded-md p-1">
                     <div class="flex flex-row w-full space-x-1 md:space-x-2 flex-grow">
@@ -541,7 +542,7 @@
                             <div class="flex-1">
                                 <h4 class="text-base font-medium text-gray-900">{{ $upcCode->name }}</h4>
                                 <p class="text-sm text-gray-600">
-                                    UPC: {{ $upcCode->upc }}
+                                    UPC: <span class="font-mono">{{ $upcCode->upc }}</span>
                                     @if($upcCode->brand) • {{ $upcCode->brand }} @endif
                                 </p>
                                 @if($upcCode->description)
@@ -612,7 +613,7 @@
                 <!-- Product Info -->
                 <div class="mb-4 p-3 bg-gray-50 rounded-md">
                     <h4 class="font-medium text-gray-900">{{ $pendingUpcItem->name }}</h4>
-                    <p class="text-sm text-gray-600">UPC: {{ $pendingUpcItem->upc }}</p>
+                    <p class="text-sm text-gray-600">UPC: <span class="font-mono">{{ $pendingUpcItem->upc }}</span></p>
                     @if($pendingUpcItem->description)
                     <p class="text-sm text-gray-500 mt-1">{{ Str::limit($pendingUpcItem->description, 80) }}</p>
                     @endif

@@ -1,4 +1,4 @@
-<div class="md:p-2">
+<div class="md:p-2 max-w-4xl mx-auto">
     <!-- Search and Filters Button -->
     <div class="flex flex-col md:flex-row md:items-end md:justify-between p-2 space-y-4 md:space-y-0">
         <!-- Search Input -->
@@ -108,7 +108,7 @@
                     <div class="flex-1">
                         <h4 class="text-lg font-medium text-gray-900">{{ $upcCode->name }}</h4>
                         <p class="text-sm text-gray-600">
-                            UPC: {{ $upcCode->upc }}
+                            UPC: <span class="font-mono">{{ $upcCode->upc }}</span>
                             @if($upcCode->brand) • {{ $upcCode->brand }} @endif
                         </p>
                         @if($upcCode->description)

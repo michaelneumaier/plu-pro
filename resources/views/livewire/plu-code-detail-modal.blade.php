@@ -29,15 +29,87 @@
             @endif
 
             <!-- Emphasized PLU Code -->
-            <div class="text-center mb-4">
+            <div class="text-center mb-4" x-data="{ copied: false }">
                 <div class="flex flex-col items-center space-y-2">
                     @if($isOrganic)
                         <!-- Show both regular and organic PLU for organic items -->
                         <div class="text-sm text-gray-600">Regular PLU: {{ $pluCode->plu }}</div>
-                        <span class="text-4xl font-extrabold {{ $isOrganic ? 'text-green-600' : 'text-green-800' }}">{{ $this->displayPlu }}</span>
+                        <div class="flex items-center gap-3">
+                            <span class="text-4xl font-extrabold font-mono {{ $isOrganic ? 'text-green-600' : 'text-green-800' }}">{{ $this->displayPlu }}</span>
+                            <button @click="
+                                const text = '{{ $this->displayPlu }}';
+                                if (navigator.clipboard && window.isSecureContext) {
+                                    navigator.clipboard.writeText(text).then(() => {
+                                        copied = true;
+                                        setTimeout(() => copied = false, 2000);
+                                    });
+                                } else {
+                                    // Fallback for non-secure contexts
+                                    const textArea = document.createElement('textarea');
+                                    textArea.value = text;
+                                    textArea.style.position = 'fixed';
+                                    textArea.style.left = '-999999px';
+                                    document.body.appendChild(textArea);
+                                    textArea.select();
+                                    try {
+                                        document.execCommand('copy');
+                                        copied = true;
+                                        setTimeout(() => copied = false, 2000);
+                                    } catch (err) {
+                                        console.error('Failed to copy:', err);
+                                    }
+                                    document.body.removeChild(textArea);
+                                }
+                            " 
+                            class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Copy PLU code">
+                                <svg x-show="!copied" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                                <svg x-show="copied" x-cloak class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </button>
+                        </div>
                         <div class="text-sm text-gray-600">Organic PLU Code</div>
                     @else
-                        <span class="text-4xl font-extrabold text-green-800">{{ $this->displayPlu }}</span>
+                        <div class="flex items-center gap-3">
+                            <span class="text-4xl font-extrabold font-mono text-green-800">{{ $this->displayPlu }}</span>
+                            <button @click="
+                                const text = '{{ $this->displayPlu }}';
+                                if (navigator.clipboard && window.isSecureContext) {
+                                    navigator.clipboard.writeText(text).then(() => {
+                                        copied = true;
+                                        setTimeout(() => copied = false, 2000);
+                                    });
+                                } else {
+                                    // Fallback for non-secure contexts
+                                    const textArea = document.createElement('textarea');
+                                    textArea.value = text;
+                                    textArea.style.position = 'fixed';
+                                    textArea.style.left = '-999999px';
+                                    document.body.appendChild(textArea);
+                                    textArea.select();
+                                    try {
+                                        document.execCommand('copy');
+                                        copied = true;
+                                        setTimeout(() => copied = false, 2000);
+                                    } catch (err) {
+                                        console.error('Failed to copy:', err);
+                                    }
+                                    document.body.removeChild(textArea);
+                                }
+                            " 
+                            class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Copy PLU code">
+                                <svg x-show="!copied" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                                <svg x-show="copied" x-cloak class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </button>
+                        </div>
                     @endif
                 </div>
             </div>

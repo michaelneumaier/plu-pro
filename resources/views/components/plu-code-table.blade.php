@@ -173,7 +173,7 @@ $colCount = $hasActions ? 5 : 4;
                         </span>
                         <span class="text-gray-500">
                             @if($isUpcItem)
-                            {{ $upcCode->upc ?? '' }}
+                            <span class="font-mono">{{ $upcCode->upc ?? '' }}</span>
                             @else
                             {{ $pluCode->size ?? '' }}
                             @endif
