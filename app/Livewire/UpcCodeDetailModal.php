@@ -3,8 +3,8 @@
 namespace App\Livewire;
 
 use App\Models\UPCCode;
-use Livewire\Component;
 use Livewire\Attributes\On;
+use Livewire\Component;
 
 class UpcCodeDetailModal extends Component
 {

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('list_items', function (Blueprint $table) {
             $table->enum('item_type', ['plu', 'upc'])->default('plu')->after('user_list_id')->index();
             $table->foreignId('upc_code_id')->nullable()->after('plu_code_id')->constrained('upc_codes')->onDelete('cascade');
-            
+
             // Add index for efficient queries
             $table->index(['user_list_id', 'item_type']);
         });
@@ -29,7 +29,7 @@ return new class extends Migration
             $table->dropForeign(['upc_code_id']);
             $table->dropIndex(['user_list_id', 'item_type']);
         });
-        
+
         Schema::table('list_items', function (Blueprint $table) {
             $table->dropColumn(['item_type', 'upc_code_id']);
         });

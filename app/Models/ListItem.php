@@ -7,12 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 class ListItem extends Model
 {
     protected $fillable = [
-        'user_list_id', 
-        'item_type', 
-        'plu_code_id', 
-        'upc_code_id', 
-        'inventory_level', 
-        'organic'
+        'user_list_id',
+        'item_type',
+        'plu_code_id',
+        'upc_code_id',
+        'inventory_level',
+        'organic',
     ];
 
     protected $casts = [
@@ -60,6 +60,7 @@ class ListItem extends Model
         if ($this->item_type === 'plu') {
             return $this->pluCode?->variety ?? $this->pluCode?->commodity ?? '[Deleted PLU Item]';
         }
+
         return $this->upcCode?->name ?? '[Deleted UPC Item]';
     }
 
@@ -69,9 +70,13 @@ class ListItem extends Model
     public function getDisplayCodeAttribute()
     {
         if ($this->item_type === 'plu') {
-            if (!$this->pluCode) return '[Deleted]';
-            return $this->organic ? '9' . $this->pluCode->plu : $this->pluCode->plu;
+            if (! $this->pluCode) {
+                return '[Deleted]';
+            }
+
+            return $this->organic ? '9'.$this->pluCode->plu : $this->pluCode->plu;
         }
+
         return $this->upcCode?->upc ?? '[Deleted]';
     }
 
@@ -80,7 +85,7 @@ class ListItem extends Model
      */
     public function getCommodityAttribute()
     {
-        return $this->item_type === 'plu' 
+        return $this->item_type === 'plu'
             ? $this->pluCode?->commodity ?? '[Deleted]'
             : $this->upcCode?->commodity ?? '[Deleted]';
     }
@@ -90,7 +95,7 @@ class ListItem extends Model
      */
     public function getCategoryAttribute()
     {
-        return $this->item_type === 'plu' 
+        return $this->item_type === 'plu'
             ? $this->pluCode?->category ?? '[Deleted]'
             : $this->upcCode?->category ?? '[Deleted]';
     }

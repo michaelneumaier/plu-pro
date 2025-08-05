@@ -7,8 +7,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Str;
+use Laravel\Socialite\Facades\Socialite;
 
 class GoogleController extends Controller
 {
@@ -76,7 +76,7 @@ class GoogleController extends Controller
 
         } catch (\Exception $e) {
             // Log the error
-            \Log::error('Google OAuth Error: ' . $e->getMessage());
+            \Log::error('Google OAuth Error: '.$e->getMessage());
 
             return redirect()->route('login')->with('error', 'Failed to authenticate with Google. Please try again.');
         }
@@ -90,7 +90,7 @@ class GoogleController extends Controller
         $user = $request->user();
 
         // Check if user has a password set (can still login without Google)
-        if (!$user->password) {
+        if (! $user->password) {
             return back()->with('error', 'You must set a password before unlinking your Google account.');
         }
 

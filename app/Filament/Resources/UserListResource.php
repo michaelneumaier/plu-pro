@@ -6,19 +6,17 @@ use App\Filament\Resources\UserListResource\Pages;
 use App\Filament\Resources\UserListResource\RelationManagers;
 use App\Models\UserList;
 use Filament\Forms;
-use Filament\Forms\Form;
-use Filament\Resources\Resource;
-use Filament\Tables;
-use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Form;
+use Filament\Notifications\Notification;
+use Filament\Resources\Resource;
+use Filament\Support\Enums\IconPosition;
+use Filament\Tables;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
-use Filament\Support\Enums\IconPosition;
-use Filament\Notifications\Notification;
-use Illuminate\Support\Str;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class UserListResource extends Resource
 {
@@ -241,10 +239,10 @@ class UserListResource extends Resource
                     ->color(fn (UserList $record) => $record->marketplace_enabled ? 'danger' : 'success')
                     ->action(function (UserList $record) {
                         $record->update([
-                            'marketplace_enabled' => !$record->marketplace_enabled,
-                            'published_at' => !$record->marketplace_enabled ? now() : null,
+                            'marketplace_enabled' => ! $record->marketplace_enabled,
+                            'published_at' => ! $record->marketplace_enabled ? now() : null,
                         ]);
-                        
+
                         Notification::make()
                             ->title($record->marketplace_enabled ? 'Added to marketplace' : 'Removed from marketplace')
                             ->success()
@@ -284,7 +282,7 @@ class UserListResource extends Resource
                                     'published_at' => null,
                                 ]);
                             }
-                            
+
                             Notification::make()
                                 ->title('Lists removed from marketplace')
                                 ->success()
@@ -334,7 +332,7 @@ class UserListResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->when(!auth()->user()->can('view_all_lists'), function (Builder $query) {
+            ->when(! auth()->user()->can('view_all_lists'), function (Builder $query) {
                 $query->where('user_id', auth()->id());
             });
     }

@@ -151,6 +151,16 @@
                             </x-dropdown-link>
                             @endif
 
+                            <button onclick="Livewire.dispatch('openFeedbackModal', {url: window.location.href})" 
+                                    class="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">
+                                <span class="flex items-center">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                                    </svg>
+                                    {{ __('Send Feedback') }}
+                                </span>
+                            </button>
+
                             <div class="border-t border-gray-200"></div>
 
                             <!-- Authentication -->

@@ -6,18 +6,17 @@ use App\Filament\Resources\PLUCodeResource\Pages;
 use App\Filament\Resources\PLUCodeResource\RelationManagers;
 use App\Models\PLUCode;
 use Filament\Forms;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Section;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Support\Enums\IconPosition;
 use Filament\Tables;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Grid;
-use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Filters\TernaryFilter;
-use Filament\Support\Enums\IconPosition;
-use Illuminate\Support\HtmlString;
 
 class PLUCodeResource extends Resource
 {
@@ -276,7 +275,7 @@ class PLUCodeResource extends Resource
                         // Dispatch job to download image
                         dispatch(new \App\Jobs\DownloadPLUImage($record));
                     })
-                    ->visible(fn (PLUCode $record) => !$record->has_image)
+                    ->visible(fn (PLUCode $record) => ! $record->has_image)
                     ->requiresConfirmation()
                     ->color('info'),
             ])
@@ -289,7 +288,7 @@ class PLUCodeResource extends Resource
                         ->icon('heroicon-o-photo')
                         ->action(function ($records) {
                             foreach ($records as $record) {
-                                if (!$record->has_image) {
+                                if (! $record->has_image) {
                                     dispatch(new \App\Jobs\DownloadPLUImage($record));
                                 }
                             }

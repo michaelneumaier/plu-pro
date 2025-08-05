@@ -60,10 +60,10 @@ class UPCCode extends Model
     public function scopeSearch($query, $term)
     {
         return $query->where(function ($q) use ($term) {
-            $q->where('upc', 'like', '%' . $term . '%')
-              ->orWhere('name', 'like', '%' . $term . '%')
-              ->orWhere('description', 'like', '%' . $term . '%')
-              ->orWhere('brand', 'like', '%' . $term . '%');
+            $q->where('upc', 'like', '%'.$term.'%')
+                ->orWhere('name', 'like', '%'.$term.'%')
+                ->orWhere('description', 'like', '%'.$term.'%')
+                ->orWhere('brand', 'like', '%'.$term.'%');
         });
     }
 
@@ -75,6 +75,7 @@ class UPCCode extends Model
         if ($category) {
             return $query->where('category', $category);
         }
+
         return $query;
     }
 
@@ -86,6 +87,7 @@ class UPCCode extends Model
         if ($commodity) {
             return $query->where('commodity', $commodity);
         }
+
         return $query;
     }
 }

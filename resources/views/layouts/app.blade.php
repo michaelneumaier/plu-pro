@@ -224,6 +224,7 @@
     <!-- Modal Components -->
     @livewire('plu-code-detail-modal')
     @livewire('upc-code-detail-modal')
+    @livewire('feedback-modal')
     
     <!-- PWA Auth State Management -->
     <script>

@@ -3,8 +3,8 @@
 namespace App\Livewire;
 
 use App\Models\PLUCode;
-use Livewire\Component;
 use Livewire\Attributes\On;
+use Livewire\Component;
 
 class PluCodeDetailModal extends Component
 {

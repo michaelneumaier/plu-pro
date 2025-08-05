@@ -107,7 +107,7 @@ class DashboardAnalytics
                 ->map(function ($items) {
                     return (object) [
                         'commodity' => $items->first()->commodity,
-                        'count' => $items->sum('count')
+                        'count' => $items->sum('count'),
                     ];
                 })
                 ->sortByDesc('count')

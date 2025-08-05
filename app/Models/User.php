@@ -3,6 +3,8 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -10,18 +12,16 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Jetstream\HasProfilePhoto;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
-use Filament\Models\Contracts\FilamentUser;
-use Filament\Panel;
 
 class User extends Authenticatable implements FilamentUser
 {
     use HasApiTokens;
-    use HasRoles;
-
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory;
 
     use HasProfilePhoto;
+
+    use HasRoles;
     use Notifiable;
     use TwoFactorAuthenticatable;
 
@@ -83,6 +83,16 @@ class User extends Authenticatable implements FilamentUser
     public function activities()
     {
         return $this->hasMany(UserActivity::class);
+    }
+
+    public function feedback()
+    {
+        return $this->hasMany(Feedback::class);
+    }
+
+    public function assignedFeedback()
+    {
+        return $this->hasMany(Feedback::class, 'assigned_admin_id');
     }
 
     public function canAccessPanel(Panel $panel): bool

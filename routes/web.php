@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\GoogleController;
 use App\Livewire\Dashboard;
 use App\Livewire\Lists\Create as ListsCreate;
 use App\Livewire\Lists\Edit as ListsEdit;
@@ -9,7 +10,6 @@ use App\Livewire\Lists\Show as ListsShow;
 use App\Livewire\Marketplace\Browse as MarketplaceBrowse;
 use App\Livewire\Marketplace\ViewList as MarketplaceViewList;
 use App\Livewire\SearchPLUCode;
-use App\Http\Controllers\Auth\GoogleController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', SearchPLUCode::class)->name('home');
@@ -24,7 +24,7 @@ Route::get('/pwa/auth-check', function () {
     return response()->json([
         'authenticated' => auth()->check(),
         'verified' => auth()->check() && auth()->user()->hasVerifiedEmail(),
-        'user_id' => auth()->id()
+        'user_id' => auth()->id(),
     ]);
 })->name('pwa.auth-check');
 

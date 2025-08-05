@@ -79,6 +79,7 @@ class Barcode extends Component
                     // Invalid check digit, recalculate
                     $cleanCode = substr($cleanCode, 0, 11).$this->calculateCheckDigit(substr($cleanCode, 0, 11));
                 }
+
                 return $cleanCode;
             } else {
                 // Non-standard 13-digit code, return null

@@ -49,17 +49,17 @@ class SharedView extends Component
             } else {
                 return 'ZZZ|9|ZZZ'; // Put items without codes at the end
             }
-            
+
             // Priority: Regular PLU (0), Organic PLU (1), UPC (2)
-            if ($item->item_type === 'plu' && !$item->organic) {
+            if ($item->item_type === 'plu' && ! $item->organic) {
                 $priority = '0'; // Regular PLU first
             } elseif ($item->item_type === 'plu' && $item->organic) {
                 $priority = '1'; // Organic PLU second
             } else {
                 $priority = '2'; // UPC last
             }
-            
-            return $commodity . '|' . $priority . '|' . $code;
+
+            return $commodity.'|'.$priority.'|'.$code;
         });
 
         // For display, only show items with inventory > 0

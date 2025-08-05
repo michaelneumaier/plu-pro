@@ -46,7 +46,7 @@ class GenerateSitemap extends Command
 
         // Add homepage
         $this->addUrl($xml, $urlset, $baseUrl, $lastmod, 'daily', '1.0');
-        
+
         // Add static pages
         $this->addUrl($xml, $urlset, "$baseUrl/about", $lastmod, 'monthly', '0.7');
         $this->addUrl($xml, $urlset, "$baseUrl/plu-directory", $lastmod, 'weekly', '0.9');
@@ -120,20 +120,20 @@ class GenerateSitemap extends Command
         // Add structured data for better SEO
         if ($pluCode->has_image) {
             $imageElement = $xml->createElement('image:image');
-            $imageUrl = config('app.url') . '/storage/plu-images/' . $pluCode->plu . '.jpg';
+            $imageUrl = config('app.url').'/storage/plu-images/'.$pluCode->plu.'.jpg';
             $imageLoc = $xml->createElement('image:loc', htmlspecialchars($imageUrl));
             $imageElement->appendChild($imageLoc);
-            
+
             $imageTitle = $xml->createElement('image:title', htmlspecialchars(
-                ($isOrganic ? 'Organic ' : '') . $pluCode->variety . ' - PLU ' . ($isOrganic ? '9' : '') . $pluCode->plu
+                ($isOrganic ? 'Organic ' : '').$pluCode->variety.' - PLU '.($isOrganic ? '9' : '').$pluCode->plu
             ));
             $imageElement->appendChild($imageTitle);
-            
+
             $imageCaption = $xml->createElement('image:caption', htmlspecialchars(
-                ucwords(strtolower($pluCode->commodity)) . ($pluCode->size ? ' - ' . $pluCode->size : '')
+                ucwords(strtolower($pluCode->commodity)).($pluCode->size ? ' - '.$pluCode->size : '')
             ));
             $imageElement->appendChild($imageCaption);
-            
+
             $urlElement->appendChild($imageElement);
         }
 

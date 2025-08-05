@@ -47,10 +47,10 @@ class GeneratePluDirectory extends Command
         file_put_contents(public_path('plu-directory.html'), $html);
 
         $commodityCount = $pluCodes->count();
-        $this->info("PLU directory generated successfully!");
+        $this->info('PLU directory generated successfully!');
         $this->info("- {$commodityCount} commodity groups");
         $this->info("- {$totalItems} PLU codes (each with regular and organic links)");
-        $this->info("- Saved to: " . public_path('plu-directory.html'));
+        $this->info('- Saved to: '.public_path('plu-directory.html'));
 
         return Command::SUCCESS;
     }
@@ -58,7 +58,7 @@ class GeneratePluDirectory extends Command
     private function generateHtml($pluCodesByCommidity, $totalItems, $lastUpdated)
     {
         $baseUrl = config('app.url');
-        
+
         $html = <<<EOF
 <!DOCTYPE html>
 <html lang="en">
@@ -114,16 +114,16 @@ EOF;
 
         foreach ($pluCodesByCommidity as $commodity => $items) {
             $commodityName = ucwords(strtolower($commodity));
-            $html .= "\n        <div class=\"commodity-group\" data-commodity=\"" . strtolower($commodity) . "\">\n";
+            $html .= "\n        <div class=\"commodity-group\" data-commodity=\"".strtolower($commodity)."\">\n";
             $html .= "            <h2 class=\"commodity-title\">{$commodityName}</h2>\n";
             $html .= "            <div class=\"plu-grid\">\n";
 
             foreach ($items as $pluCode) {
                 $variety = htmlspecialchars($pluCode->variety);
-                $size = $pluCode->size ? ' - ' . htmlspecialchars($pluCode->size) : '';
-                $aka = $pluCode->aka ? ' (' . htmlspecialchars($pluCode->aka) . ')' : '';
-                
-                $html .= "                <div class=\"plu-item\" data-variety=\"" . strtolower($variety) . "\" data-plu=\"{$pluCode->plu}\">\n";
+                $size = $pluCode->size ? ' - '.htmlspecialchars($pluCode->size) : '';
+                $aka = $pluCode->aka ? ' ('.htmlspecialchars($pluCode->aka).')' : '';
+
+                $html .= '                <div class="plu-item" data-variety="'.strtolower($variety)."\" data-plu=\"{$pluCode->plu}\">\n";
                 $html .= "                    <div class=\"variety\">{$variety}{$aka}</div>\n";
                 $html .= "                    <div class=\"details\">{$commodityName}{$size}</div>\n";
                 $html .= "                    <div class=\"plu-links\">\n";

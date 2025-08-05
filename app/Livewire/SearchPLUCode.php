@@ -2,13 +2,10 @@
 
 namespace App\Livewire; // Corrected namespace from App\Livewire to App\Http\Livewire
 
-use App\Events\UPCLookupCompleted;
-use App\Events\UPCLookupFailed;
 use App\Jobs\LookupUPCProduct;
 use App\Models\PLUCode;
 use App\Models\UPCCode;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -36,9 +33,13 @@ class SearchPLUCode extends Component
 
     // UPC-related properties
     public $upcResults = [];
+
     public $upcLookupInProgress = false;
+
     public $upcError = null;
+
     public $showUpcModal = false;
+
     public $selectedUpcCode = null;
 
     // Define query string parameters for persistence (optional)
@@ -61,9 +62,9 @@ class SearchPLUCode extends Component
     public function mount()
     {
         $this->initializeFilterOptions();
-        
+
         // Check if initial search term is a UPC and trigger lookup
-        if (!empty(trim($this->searchTerm)) && $this->isUPCFormat($this->searchTerm)) {
+        if (! empty(trim($this->searchTerm)) && $this->isUPCFormat($this->searchTerm)) {
             $this->searchUPC();
         }
     }
@@ -75,17 +76,17 @@ class SearchPLUCode extends Component
     public function updatedSearchTerm()
     {
         $this->resetPage();
-        
+
         // Clear previous UPC results
         $this->upcResults = [];
         $this->upcLookupInProgress = false;
         $this->upcError = null;
-        
+
         // If search term is empty, don't do anything
         if (empty(trim($this->searchTerm))) {
             return;
         }
-        
+
         // Detect UPC format (12-13 digits)
         if ($this->isUPCFormat($this->searchTerm)) {
             $this->searchUPC();
@@ -98,6 +99,7 @@ class SearchPLUCode extends Component
     private function isUPCFormat(string $term): bool
     {
         $trimmed = trim($term);
+
         // Match 12-13 digit codes, or 13-digit codes starting with 0 (our formatted UPCs)
         return preg_match('/^\d{12,13}$/', $trimmed) || preg_match('/^0\d{12}$/', $trimmed);
     }
@@ -105,6 +107,7 @@ class SearchPLUCode extends Component
     private function isPLUFormat(string $term): bool
     {
         $trimmed = trim($term);
+
         // Match 4-5 digit PLU codes
         return preg_match('/^\d{4,5}$/', $trimmed);
     }
@@ -116,7 +119,7 @@ class SearchPLUCode extends Component
     {
         // First check if UPC already exists in our database
         $cachedUPC = UPCCode::where('upc', $this->searchTerm)->first();
-        
+
         if ($cachedUPC) {
             $this->upcResults = [$cachedUPC];
             $this->upcLookupInProgress = false;
@@ -124,7 +127,7 @@ class SearchPLUCode extends Component
             // Trigger API lookup for new UPC
             $this->upcLookupInProgress = true;
             LookupUPCProduct::dispatch($this->searchTerm, auth()->id());
-            
+
             // Start polling to check if UPC was found
             $this->dispatch('start-upc-polling');
         }
@@ -138,20 +141,21 @@ class SearchPLUCode extends Component
         if ($this->upcLookupInProgress && $this->isUPCFormat($this->searchTerm)) {
             // First check if the lookup failed
             $failureInfo = Cache::get("upc_lookup_failed_{$this->searchTerm}");
-            
+
             if ($failureInfo) {
                 $this->upcLookupInProgress = false;
                 $this->upcError = $failureInfo['message'] ?? 'Product not found';
                 $this->dispatch('stop-upc-polling');
-                
+
                 // Clear the cache entry
                 Cache::forget("upc_lookup_failed_{$this->searchTerm}");
+
                 return;
             }
-            
+
             // Check if UPC was found
             $foundUPC = UPCCode::where('upc', $this->searchTerm)->first();
-            
+
             if ($foundUPC) {
                 $this->upcResults = [$foundUPC];
                 $this->upcLookupInProgress = false;
@@ -215,7 +219,6 @@ class SearchPLUCode extends Component
         $this->sortOption = $option;
         $this->resetPage();
     }
-
 
     /**
      * View UPC details - open modal with product information

@@ -45,7 +45,7 @@ class ItemCarousel extends Component
                 ->map(function ($item) {
                     // Add computed display properties for unified handling
                     if ($item->item_type === 'plu' && $item->pluCode) {
-                        $item->display_code = $item->organic ? '9' . $item->pluCode->plu : $item->pluCode->plu;
+                        $item->display_code = $item->organic ? '9'.$item->pluCode->plu : $item->pluCode->plu;
                         $item->display_name = $item->pluCode->variety;
                         $item->display_commodity = $item->pluCode->commodity;
                         $item->display_category = $item->pluCode->category;
@@ -61,13 +61,14 @@ class ItemCarousel extends Component
                         $item->display_commodity = 'UNKNOWN';
                         $item->display_category = 'Unknown';
                     }
+
                     return $item;
                 })
                 ->sortBy([
                     ['display_commodity', 'asc'],     // Group by commodity first
                     ['item_type', 'asc'],             // PLU first, then UPC
                     ['organic', 'asc'],               // Regular before organic for PLU
-                    ['display_code', 'asc']           // Then by code/name
+                    ['display_code', 'asc'],           // Then by code/name
                 ])
                 ->values(); // Re-index the collection
         } else {
