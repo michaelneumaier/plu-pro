@@ -8,6 +8,7 @@ document.addEventListener('alpine:init', () => {
         categories: [],
         commodities: [],
         isLoading: false,
+        localSearchTerm: '',
         
         init(initialItems = []) {
             this.items = initialItems;
@@ -26,6 +27,7 @@ document.addEventListener('alpine:init', () => {
             this.filteredItems = this.items.filter(item => {
                 let matchesCategory = true;
                 let matchesCommodity = true;
+                let matchesSearch = true;
                 
                 if (this.selectedCategory) {
                     matchesCategory = item.category === this.selectedCategory;
@@ -35,7 +37,11 @@ document.addEventListener('alpine:init', () => {
                     matchesCommodity = item.commodity === this.selectedCommodity;
                 }
                 
-                return matchesCategory && matchesCommodity;
+                if (this.localSearchTerm && this.localSearchTerm.trim()) {
+                    matchesSearch = this.matchesSearchTerm(item, this.localSearchTerm.trim().toLowerCase());
+                }
+                
+                return matchesCategory && matchesCommodity && matchesSearch;
             });
         },
         
@@ -179,6 +185,122 @@ document.addEventListener('alpine:init', () => {
             this.selectedCategory = '';
             this.selectedCommodity = '';
             this.applyFilters();
+        },
+        
+        matchesSearchTerm(item, searchTerm) {
+            // Handle PLU items
+            if (item.item_type === 'plu') {
+                // Search in regular PLU code
+                if (item.plu && item.plu.toString().includes(searchTerm)) {
+                    return true;
+                }
+                
+                // Search in organic PLU code (9 + regular PLU)
+                if (item.organic && ('9' + item.plu).includes(searchTerm)) {
+                    return true;
+                }
+                
+                // Search in variety
+                if (item.variety && item.variety.toLowerCase().includes(searchTerm)) {
+                    return true;
+                }
+                
+                // Search in commodity
+                if (item.commodity && item.commodity.toLowerCase().includes(searchTerm)) {
+                    return true;
+                }
+                
+                // Search in category
+                if (item.category && item.category.toLowerCase().includes(searchTerm)) {
+                    return true;
+                }
+                
+                // Search in size
+                if (item.size && item.size.toLowerCase().includes(searchTerm)) {
+                    return true;
+                }
+            }
+            
+            // Handle UPC items
+            if (item.item_type === 'upc') {
+                // Search in UPC code
+                if (item.upc && item.upc.toString().includes(searchTerm)) {
+                    return true;
+                }
+                
+                // Search in product name
+                if (item.name && item.name.toLowerCase().includes(searchTerm)) {
+                    return true;
+                }
+                
+                // Search in brand
+                if (item.brand && item.brand.toLowerCase().includes(searchTerm)) {
+                    return true;
+                }
+                
+                // Search in commodity
+                if (item.commodity && item.commodity.toLowerCase().includes(searchTerm)) {
+                    return true;
+                }
+                
+                // Search in category
+                if (item.category && item.category.toLowerCase().includes(searchTerm)) {
+                    return true;
+                }
+            }
+            
+            return false;
+        },
+        
+        setLocalSearch(searchTerm) {
+            this.localSearchTerm = searchTerm;
+            this.applyFilters();
+        },
+        
+        clearLocalSearch() {
+            this.localSearchTerm = '';
+            this.applyFilters();
+        },
+        
+        // Check if a specific item should be visible based on current search
+        isItemVisible(itemId) {
+            if (!this.localSearchTerm || !this.localSearchTerm.trim()) {
+                return true; // Show all items when no search term
+            }
+            
+            // Find the corresponding DOM element
+            const rowElement = document.querySelector(`[data-item-id="${itemId}"]`);
+            if (!rowElement) {
+                return true; // If we can't find the element, show it to be safe
+            }
+            
+            const searchContent = rowElement.getAttribute('data-search-content');
+            if (!searchContent) {
+                return true; // If no search content, show it to be safe
+            }
+            
+            // Perform the same search logic as the JavaScript version
+            const searchTerm = this.localSearchTerm.trim().toLowerCase();
+            return searchContent.toLowerCase().includes(searchTerm);
+        },
+        
+        // Get count of visible items for search results
+        getVisibleItemCount() {
+            if (!this.localSearchTerm || !this.localSearchTerm.trim()) {
+                return document.querySelectorAll('.list-item-row[data-item-id]').length;
+            }
+            
+            const searchTerm = this.localSearchTerm.trim().toLowerCase();
+            let count = 0;
+            
+            document.querySelectorAll('.list-item-row[data-item-id]').forEach(row => {
+                const searchContent = row.getAttribute('data-search-content');
+                if (searchContent && searchContent.toLowerCase().includes(searchTerm)) {
+                    count++;
+                }
+            });
+            
+            return count;
         }
     });
 });

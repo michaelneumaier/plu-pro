@@ -323,6 +323,41 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Local Search for List Items -->
+            <div class="mb-3">
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+                    <input type="text" 
+                        x-model="$store.listManager.localSearchTerm" 
+                        @input="$store.listManager.setLocalSearch($event.target.value)"
+                        placeholder="Search your list items (PLU codes, UPC codes, varieties, etc.)"
+                        class="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    
+                    <!-- Clear search button -->
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        x-show="$store.listManager.localSearchTerm.length > 0">
+                        <button @click="$store.listManager.clearLocalSearch()" 
+                            class="text-gray-400 hover:text-gray-600 focus:outline-none"
+                            title="Clear search">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Search results count -->
+                <div x-show="$store.listManager.localSearchTerm.length > 0" 
+                    class="mt-1 text-xs text-gray-500 px-1">
+                    <span x-text="$store.listManager.getVisibleItemCount()"></span> items found
+                </div>
+            </div>
         </div>
 
         <!-- Main content -->
