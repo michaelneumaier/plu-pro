@@ -77,25 +77,19 @@ $colCount = $hasActions ? 5 : 4;
 
         @if($showCommodityGroups && ($commodityChanged || $loop->first))
         <!-- Commodity separator -->
-        <div class="border-t-2 border-b-2 border-gray-300 bg-gray-50 commodity-header"
-            data-commodity="{{ $commodity }}"
+        <div class="border-t-2 border-b-2 border-gray-300 bg-gray-50 commodity-header" data-commodity="{{ $commodity }}"
             x-show="$store.listManager.isCommodityVisible('{{ $commodity }}')"
-            x-transition:enter="transition-opacity duration-150"
-            x-transition:enter-start="opacity-0"
-            x-transition:enter-end="opacity-100"
-            x-transition:leave="transition-opacity duration-150"
-            x-transition:leave-start="opacity-100"
-            x-transition:leave-end="opacity-0">
+            x-transition:enter="transition-opacity duration-150" x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100" x-transition:leave="transition-opacity duration-150"
+            x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
             <div class="px-4 py-1 text-xs font-medium text-gray-600 uppercase tracking-wide">
                 {{ ucwords(strtolower($commodity)) }}
             </div>
         </div>
         @endif
 
-        <div
-            class="py-1 {{ $listItem && $listItem->organic ? 'bg-green-50 hover:bg-green-100' : ($loop->even ? 'bg-gray-50 hover:bg-gray-100' : 'bg-white hover:bg-gray-50') }} cursor-pointer border-b border-gray-200 last:border-b-0 {{ $showCommodityGroups && $commodityChanged ? 'border-t-0' : '' }} list-item-row"
-            @if($listItem)
-            data-search-content="{{ 
+        <div class="py-1 {{ $listItem && $listItem->organic ? 'bg-green-50 hover:bg-green-100' : ($loop->even ? 'bg-gray-50 hover:bg-gray-100' : 'bg-white hover:bg-gray-50') }} cursor-pointer border-b border-gray-200 last:border-b-0 {{ $showCommodityGroups && $commodityChanged ? 'border-t-0' : '' }} list-item-row"
+            @if($listItem) data-search-content="{{ 
                 ($isUpcItem ? $upcCode->upc : $pluCode->plu) . ' ' . 
                 ($isUpcItem ? $upcCode->name : $pluCode->variety) . ' ' . 
                 ($isUpcItem ? $upcCode->commodity : $pluCode->commodity) . ' ' . 
@@ -103,19 +97,13 @@ $colCount = $hasActions ? 5 : 4;
                 ($isUpcItem && $upcCode->brand ? $upcCode->brand : '') . ' ' .
                 ($listItem && $listItem->organic && !$isUpcItem ? '9' . $pluCode->plu : '') . ' ' .
                 ($isUpcItem ? '' : $pluCode->size ?? '')
-            }}"
-            data-item-id="{{ $listItem->id }}"
-            data-item-type="{{ $isUpcItem ? 'upc' : 'plu' }}"
-            data-commodity="{{ $commodity }}"
-            @endif
+            }}" data-item-id="{{ $listItem->id }}" data-item-type="{{ $isUpcItem ? 'upc' : 'plu' }}"
+            data-commodity="{{ $commodity }}" @endif
             x-show="$store.listManager.isItemVisible({{ $listItem ? $listItem->id : 0 }})"
-            x-transition:enter="transition-opacity duration-150"
-            x-transition:enter-start="opacity-0"
-            x-transition:enter-end="opacity-100"
-            x-transition:leave="transition-opacity duration-150"
-            x-transition:leave-start="opacity-100"
-            x-transition:leave-end="opacity-0">
-            <div class="grid {{ $showInventory && $hasActions ? 'grid-cols-[3.5rem,3rem,1fr,auto,auto]' : ($showInventory ? 'grid-cols-[3.5rem,3rem,1fr,auto]' : ($hasActions ? 'grid-cols-[3.5rem,3rem,1fr,auto]' : 'grid-cols-[3.5rem,3rem,1fr]')) }} min-h-16 "
+            x-transition:enter="transition-opacity duration-150" x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100" x-transition:leave="transition-opacity duration-150"
+            x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+            <div class="grid {{ $showInventory && $hasActions ? 'grid-cols-[3.5rem,3rem,1fr,auto,auto]' : ($showInventory ? 'grid-cols-[3.5rem,3rem,1fr,auto]' : ($hasActions ? 'grid-cols-[3.5rem,3rem,1fr,auto]' : 'grid-cols-[3.5rem,3rem,1fr]')) }} min-h-16"
                 @click="$dispatch('{{ $isUpcItem ? 'upcCodeSelected' : 'pluCodeSelected' }}', {{ $isUpcItem ? '[' . $upcCode->id . ']' : '[' . $pluCode->id . ', ' . (($listItem && $listItem->organic) ? 'true' : 'false') . ']' }})"
                 wire:key="{{ $isUpcItem ? 'upc' : 'plu' }}-row-{{ $listItem ? $listItem->id : ($isUpcItem ? $upcCode->id : $pluCode->id) }}-{{ $userListId }}-{{ $refreshToken ?? time() }}"
                 data-{{ $isUpcItem ? 'upc' : 'plu' }}-id="{{ $isUpcItem ? $upcCode->id : $pluCode->id }}">
@@ -205,6 +193,9 @@ $colCount = $hasActions ? 5 : 4;
                             <span class="font-mono">{{ $upcCode->upc ?? '' }}</span>
                             @else
                             {{ $pluCode->size ?? '' }}
+                            @endif
+                            @if(!$showInventory)
+                            <span class="pr-2"></span>
                             @endif
                         </span>
                     </div>

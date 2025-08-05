@@ -151,6 +151,30 @@
         You're offline - Changes will sync when reconnected
     </div>
     
+    <!-- Floating Feedback Button -->
+    <button onclick="Livewire.dispatch('openFeedbackModal', {url: window.location.href})" 
+            class="fixed bottom-4 left-4 bg-blue-500 text-white w-12 h-12 rounded-full shadow-lg z-40 
+                   hover:bg-blue-600 focus:bg-blue-600 active:bg-blue-700 
+                   focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2
+                   transition-all duration-200 flex items-center justify-center group
+                   hover:scale-105 active:scale-95 touch-manipulation
+                   sm:bottom-6 sm:left-6 sm:w-14 sm:h-14
+                   safe-area-inset-bottom safe-area-inset-left"
+            title="Send Feedback"
+            aria-label="Send Feedback"
+            style="padding-bottom: env(safe-area-inset-bottom, 1rem); padding-left: env(safe-area-inset-left, 1rem);">
+        <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+        </svg>
+        <!-- Tooltip - only show on hover on larger screens -->
+        <div class="absolute left-full ml-3 px-2 py-1 bg-gray-800 text-white text-xs rounded 
+                    opacity-0 group-hover:opacity-100 transition-opacity duration-200 
+                    pointer-events-none whitespace-nowrap hidden sm:block">
+            Send Feedback
+        </div>
+    </button>
+
     <!-- PWA Install Button -->
     <button id="pwa-install-button" 
             style="display: none;"
