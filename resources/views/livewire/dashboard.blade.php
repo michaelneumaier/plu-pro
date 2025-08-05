@@ -1,4 +1,4 @@
-<div class="min-h-screen max-w-4xl mx-auto bg-green-50">
+<div class="min-h-screen max-w-4xl mx-auto bg-teal-50">
     <!-- Flash Messages -->
     @if (session()->has('message'))
     <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
