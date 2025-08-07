@@ -146,6 +146,10 @@ export default function barcodeScannerWasm() {
             this.checkTorchSupport();
             this.status = 'Scanning (WASM)...';
 
+            // Set container aspect ratio for proper sizing (especially desktop)
+            this.setupVideoContainer(video);
+            video.addEventListener('loadedmetadata', () => this.setupVideoContainer(video), { once: true });
+
             // Start decode loop
             this.startDecodeLoop(video);
         },
@@ -286,6 +290,25 @@ export default function barcodeScannerWasm() {
             overlay.classList.remove('hidden');
         },
 
+        setupVideoContainer(video) {
+            const container = video.parentElement;
+            const vw = video.videoWidth;
+            const vh = video.videoHeight;
+            if (!container || !vw || !vh) return;
+            const aspectRatio = vw / vh;
+            // Handle mobile portrait where camera stream is landscape
+            const isPortraitDisplay = window.innerWidth < window.innerHeight;
+            const streamIsLandscape = vw > vh;
+            if (this.isMobile && isPortraitDisplay && streamIsLandscape) {
+                container.style.aspectRatio = (1 / aspectRatio).toString();
+            } else {
+                container.style.aspectRatio = aspectRatio.toString();
+            }
+            container.style.height = 'auto';
+            container.style.minHeight = 'unset';
+            container.style.maxHeight = '70vh';
+        },
+
         async handleFileInput(file) {
             if (!file) return;
             this.status = 'Processing image...';
@@ -306,6 +329,7 @@ export default function barcodeScannerWasm() {
                 this.stream = null;
             }
             if (this.$refs.video) {
+                try { this.$refs.video.pause(); } catch { }
                 this.$refs.video.srcObject = null;
             }
         },
