@@ -74,7 +74,7 @@ export default function barcodeScannerWasm() {
                         // wasm initialized
                     } else if (msg.type === 'result') {
                         if (msg.ok && msg.text) {
-                            this.handleScannedCode(msg.text);
+                            this.handleScannedCode(msg.text, msg.format);
                         }
                     } else if (msg.type === 'error') {
                         this.status = `WASM error: ${msg.error}`;
@@ -182,7 +182,7 @@ export default function barcodeScannerWasm() {
                                 formats: ['EAN-13', 'UPC-A', 'UPC-E', 'DataBar', 'DataBarExpanded', 'DataBarLimited'],
                             });
                             if (results && results.length > 0) {
-                                this.handleScannedCode(results[0].text);
+                                this.handleScannedCode(results[0].text, results[0].format);
                             }
                         } catch (_) {
                             // ignore decode errors per tick
@@ -219,13 +219,13 @@ export default function barcodeScannerWasm() {
             return { sx, sy, sw, sh };
         },
 
-        handleScannedCode(text) {
+        handleScannedCode(text, format) {
             const now = Date.now();
             if (this.lastScannedCode === text && (now - this.lastScannedTime) < this.debounceDelay) return;
             this.lastScannedCode = text;
             this.lastScannedTime = now;
 
-            const processed = this.processBarcodeData(text);
+            const processed = this.processBarcodeData(text, format);
             this.status = `Scanned: ${processed.displayCode} (${processed.type})`;
             this.stopScanning();
             setTimeout(() => {
@@ -238,11 +238,14 @@ export default function barcodeScannerWasm() {
             if (navigator.vibrate) navigator.vibrate(100);
         },
 
-        processBarcodeData(code) {
-            if (/^\d{14}$/.test(code)) {
-                const extractedPLU = code.substring(9, 13);
-                const cleanedPLU = extractedPLU.replace(/^0+/, '') || extractedPLU;
-                return { type: 'PLU', searchCode: cleanedPLU, displayCode: cleanedPLU, originalCode: code };
+        processBarcodeData(code, format) {
+            const fmt = (format || '').toLowerCase();
+            const isDataBar = fmt.includes('databar');
+            if (isDataBar) {
+                const plu = this.extractPLUFromDataBar(code);
+                if (plu) {
+                    return { type: 'PLU', searchCode: plu, displayCode: plu, originalCode: code };
+                }
             }
             if (/^\d{12,13}$/.test(code)) {
                 return { type: 'UPC', searchCode: code, displayCode: code, originalCode: code };
@@ -251,6 +254,38 @@ export default function barcodeScannerWasm() {
                 return { type: 'PLU', searchCode: code, displayCode: code, originalCode: code };
             }
             return { type: 'UNKNOWN', searchCode: code, displayCode: code, originalCode: code };
+        },
+
+        extractPLUFromDataBar(code) {
+            // Remove GS1 AI (01) if present
+            let working = code;
+            if (working.startsWith('01') && working.length >= 16) {
+                working = working.substring(2);
+            }
+            // Strategy 1: GTIN-14 -> positions 10-13 (zero-indexed 9-12)
+            if (/^\d{14}$/.test(working)) {
+                const extracted = working.substring(9, 13).replace(/^0+/, '') || working.substring(9, 13);
+                if (/^\d{4,5}$/.test(extracted)) return extracted;
+            }
+            // Strategy 2: fallback older positions 8-11 (zero-indexed 7-10)
+            if (/^\d{14}$/.test(working)) {
+                const extracted = working.substring(7, 11).replace(/^0+/, '') || working.substring(7, 11);
+                if (/^\d{4,5}$/.test(extracted)) return extracted;
+            }
+            // Strategy 3: last 4-5 digits heuristic
+            if (working.length >= 4) {
+                const tail5 = working.slice(-5).replace(/^0+/, '') || working.slice(-5);
+                if (/^\d{4,5}$/.test(tail5)) return tail5;
+                const tail4 = working.slice(-4);
+                if (/^\d{4}$/.test(tail4)) return tail4;
+            }
+            // Strategy 4: any 4-5 digit chunk in 3000-99999 range
+            const matches = working.match(/\d{4,5}/g) || [];
+            for (const m of matches) {
+                const n = parseInt(m, 10);
+                if (n >= 3000 && n <= 99999) return m.replace(/^0+/, '') || m;
+            }
+            return null;
         },
 
         checkTorchSupport() {
@@ -312,8 +347,24 @@ export default function barcodeScannerWasm() {
         async handleFileInput(file) {
             if (!file) return;
             this.status = 'Processing image...';
-            // Post blob to worker directly
-            this.worker?.postMessage({ type: 'decodeBlob', blob: file });
+            // Ensure decoder ready and decode
+            if (this.worker && !this.useMainThreadWasm) {
+                this.worker?.postMessage({ type: 'decodeBlob', blob: file });
+            } else {
+                if (!this.wasmReady) {
+                    try { await prepareZXingModule({ fireImmediately: true }); this.wasmReady = true; } catch { this.status = 'Decoder init failed'; return; }
+                }
+                const img = await createImageBitmap(file);
+                const data = this.bitmapToImageData(img);
+                try {
+                    const results = await readBarcodes(data, { tryHarder: true, maxNumberOfSymbols: 1, formats: ['EAN-13', 'UPC-A', 'UPC-E', 'DataBar', 'DataBarExpanded', 'DataBarLimited'] });
+                    if (results && results.length > 0) {
+                        this.handleScannedCode(results[0].text, results[0].format);
+                    } else {
+                        this.status = 'No barcode found in image';
+                    }
+                } catch { this.status = 'No barcode found in image'; }
+            }
         },
 
         stopScanning() {

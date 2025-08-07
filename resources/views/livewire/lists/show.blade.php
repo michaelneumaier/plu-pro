@@ -109,7 +109,8 @@
         @barcode-scanned.window="
     $wire.set('searchTerm', processScannedCode($event.detail));
     showBarcodeScanner = false;
-" @carousel-ready-to-open.window="carouselOpen = true; $dispatch('carousel-open')"
+    $refs.barcodeScanner?.stopScanning?.();
+ " @carousel-ready-to-open.window="carouselOpen = true; $dispatch('carousel-open')"
         class="min-h-screen md:p-2 md:rounded-lg bg-gray-50">
         <!-- Mobile-first header -->
         <div class="bg-white rounded-lg sticky top-0 z-40">
