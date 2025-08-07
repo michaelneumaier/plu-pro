@@ -1,13 +1,15 @@
-const CACHE_NAME = 'plupro-v3';
-const STATIC_CACHE_NAME = 'plupro-static-v3';
-const DYNAMIC_CACHE_NAME = 'plupro-dynamic-v3';
+const CACHE_NAME = 'plupro-v7';
+const STATIC_CACHE_NAME = 'plupro-static-v7';
+const DYNAMIC_CACHE_NAME = 'plupro-dynamic-v7';
 
 // Files to cache immediately
 const STATIC_FILES = [
     '/',
     '/pwa',
     '/offline.html',
-    '/manifest.json'
+    '/manifest.json',
+    '/icon-192.png?v=2025.08.07.16.42',
+    '/icon-512.png?v=2025.08.07.16.42'
 ];
 
 // Install event - cache static assets

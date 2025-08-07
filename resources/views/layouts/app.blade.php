@@ -15,20 +15,20 @@
     <meta name="apple-mobile-web-app-title" content="PLUPro">
     <meta name="apple-touch-fullscreen" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="/manifest.json?v=2025.08.07.16.42">
     
     <!-- Icons -->
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/icon-192.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="/icon-192.png">
-    <link rel="apple-touch-icon" sizes="144x144" href="/icon-192.png">
-    <link rel="apple-touch-icon" sizes="120x120" href="/icon-192.png">
-    <link rel="apple-touch-icon" sizes="114x114" href="/icon-192.png">
-    <link rel="apple-touch-icon" sizes="76x76" href="/icon-192.png">
-    <link rel="apple-touch-icon" sizes="72x72" href="/icon-192.png">
-    <link rel="apple-touch-icon" sizes="60x60" href="/icon-192.png">
-    <link rel="apple-touch-icon" sizes="57x57" href="/icon-192.png">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2025.08.07.16.42">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=2025.08.07.16.42">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-192.png?v=2025.08.07.16.42">
+    <link rel="apple-touch-icon" sizes="152x152" href="/icon-192.png?v=2025.08.07.16.42">
+    <link rel="apple-touch-icon" sizes="144x144" href="/icon-192.png?v=2025.08.07.16.42">
+    <link rel="apple-touch-icon" sizes="120x120" href="/icon-192.png?v=2025.08.07.16.42">
+    <link rel="apple-touch-icon" sizes="114x114" href="/icon-192.png?v=2025.08.07.16.42">
+    <link rel="apple-touch-icon" sizes="76x76" href="/icon-192.png?v=2025.08.07.16.42">
+    <link rel="apple-touch-icon" sizes="72x72" href="/icon-192.png?v=2025.08.07.16.42">
+    <link rel="apple-touch-icon" sizes="60x60" href="/icon-192.png?v=2025.08.07.16.42">
+    <link rel="apple-touch-icon" sizes="57x57" href="/icon-192.png?v=2025.08.07.16.42">
 
     <!-- iOS Splash Screens -->
     <!-- iPhone X, XS, 11 Pro -->
