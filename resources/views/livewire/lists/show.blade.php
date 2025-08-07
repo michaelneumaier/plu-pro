@@ -292,7 +292,7 @@
                     <div class="flex flex-row w-full space-x-1 md:space-x-2 flex-grow">
                         <!-- Category Filter -->
                         <div class="flex-1 md:p-1">
-                            <label for="category" class="block text-sm font-medium text-gray-700">Category</label>
+                            <label for="category" class="block text-sm font-medium text-gray-700 hidden">Category</label>
                             <select wire:model.live="selectedCategory" id="category"
                                 class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                                 <option value="">All Categories</option>
@@ -304,7 +304,7 @@
 
                         <!-- Commodity Filter -->
                         <div class="flex-1 md:p-1">
-                            <label for="commodity" class="block text-sm font-medium text-gray-700">Commodity</label>
+                            <label for="commodity" class="block text-sm font-medium text-gray-700 hidden">Commodity</label>
                             <select wire:model.live="selectedCommodity" id="commodity"
                                 class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                                 <option value="">All Commodities</option>
