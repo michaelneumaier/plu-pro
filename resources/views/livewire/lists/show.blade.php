@@ -517,7 +517,7 @@
 
                             <!-- Barcode Scanner Button -->
                             <div class="absolute inset-y-0 right-0 pr-2 flex items-center">
-                                <button type="button" @click="showBarcodeScanner = true"
+                                <button type="button" @click="showBarcodeScanner = true; $nextTick(() => window.dispatchEvent(new CustomEvent('scanner-open')))"
                                     class="inline-flex items-center justify-center w-10 h-10 text-gray-400 hover:text-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
                                     title="Scan barcode">
                                     <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -1226,6 +1226,7 @@
 
         <!-- Modal content -->
         <div class="relative w-full max-w-md bg-white rounded-lg shadow-xl transform transition-all"
+            x-data="{ scannerEngine: 'wasm' }"
             x-transition:enter="transition ease-out duration-300"
             x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
@@ -1239,6 +1240,23 @@
                     <h3 class="text-lg font-medium text-gray-900">
                         Scan Barcode
                     </h3>
+                    <div class="flex items-center space-x-2 mr-2">
+                        <span class="text-xs text-gray-500">Engine</span>
+                        <div class="inline-flex rounded-md shadow-sm" role="group">
+                            <button type="button"
+                                @click="if ($refs.barcodeScanner?.stopScanning) { $refs.barcodeScanner.stopScanning(); } scannerEngine = 'legacy'"
+                                :class="scannerEngine === 'legacy' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'"
+                                class="px-2 py-1 text-xs font-medium border border-gray-300 rounded-l-md hover:bg-gray-50">
+                                Legacy
+                            </button>
+                            <button type="button"
+                                @click="if ($refs.barcodeScanner?.stopScanning) { $refs.barcodeScanner.stopScanning(); } scannerEngine = 'wasm'"
+                                :class="scannerEngine === 'wasm' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'"
+                                class="px-2 py-1 text-xs font-medium border border-gray-300 rounded-r-md hover:bg-gray-50">
+                                WASM
+                            </button>
+                        </div>
+                    </div>
                     <button @click="showBarcodeScanner = false; $refs.barcodeScanner?.stopScanning?.()"
                         class="text-gray-400 hover:text-gray-600 transition-colors">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1249,144 +1267,131 @@
                     </button>
                 </div>
 
-                <!-- Scanner Component -->
-                <div x-data="window.barcodeScanner ? window.barcodeScanner() : { 
-                init() { console.log('Fallback init called'); }, 
-                startScanning() { console.log('Fallback startScanning called'); }, 
-                stopScanning() { console.log('Fallback stopScanning called'); }, 
-                toggleTorch() { console.log('Fallback toggleTorch called'); }, 
-                isSupported: false, 
-                isScanning: false, 
-                status: 'Scanner not available', 
-                torchSupported: false, 
-                torchEnabled: false, 
-                actualSettings: null, 
-                actualCapabilities: null, 
-                videoResolution: null,
-                scannerType: 'fallback'
-            }" x-ref="barcodeScanner" x-init="init()" x-effect="
-                    console.log('x-effect triggered:', { 
-                        showBarcodeScanner: showBarcodeScanner, 
-                        isSupported: isSupported, 
-                        isScanning: isScanning 
-                    });
-                    if (showBarcodeScanner && isSupported && !isScanning) { 
-                        console.log('Starting scanning via x-effect');
-                        $nextTick(() => {
-                            // Access Alpine.js component data from the DOM element
-                            const scannerElement = $refs.barcodeScanner;
-                            const scannerData = scannerElement._x_dataStack[0];
-                            
-                            // Scanner element accessed successfully
-                            
-                            if (scannerData && scannerData.startScanning) {
-                                console.log('Calling startScanning on scanner data');
-                                scannerData.startScanning();
-                            } else {
-                                console.log('Fallback to local startScanning');
-                                startScanning();
+                <!-- Scanner Component (conditionally render for A/B) -->
+                <template x-if="scannerEngine === 'wasm'">
+                    <div x-data="window.barcodeScannerWasm ? window.barcodeScannerWasm() : { 
+                    init() {}, startScanning() {}, stopScanning() {}, toggleTorch() {},
+                    isSupported: false, isScanning: false, status: 'Scanner not available',
+                    torchSupported: false, torchEnabled: false, scannerType: 'fallback' }"
+                        x-ref="barcodeScanner" x-init="init()" x-effect="
+                            if (showBarcodeScanner && isSupported && !isScanning) { 
+                                $nextTick(() => {
+                                    const el = $refs.barcodeScanner; const data = el._x_dataStack[0];
+                                    if (data && data.startScanning) { data.startScanning(); } else { startScanning(); }
+                                });
+                            } else if (!showBarcodeScanner && isScanning) {
+                                $nextTick(() => { const el = $refs.barcodeScanner; const data = el._x_dataStack[0]; if (data && data.stopScanning) { data.stopScanning(); } else { stopScanning(); } });
                             }
-                        }); 
-                    } else if (!showBarcodeScanner && isScanning) { 
-                        console.log('Stopping scanning via x-effect');
-                        $nextTick(() => {
-                            const scannerElement = $refs.barcodeScanner;
-                            const scannerData = scannerElement._x_dataStack[0];
-                            
-                            if (scannerData && scannerData.stopScanning) {
-                                scannerData.stopScanning();
-                            } else {
-                                stopScanning();
-                            }
-                        });
-                    }
-                " class="space-y-4">
-
-                    <!-- Camera Preview -->
-                    <div class="relative bg-black rounded-lg overflow-hidden"
-                        style="min-height: 300px; max-height: 70vh;">
-                        <video x-ref="video" class="w-full h-auto object-contain" playsinline muted>
-                        </video>
-
-                        <!-- Overlay for scanning guidance -->
-                        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <div class="border-2 border-white rounded-lg w-64 h-32 relative">
-                                <div
-                                    class="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-blue-500 rounded-tl-lg">
-                                </div>
-                                <div
-                                    class="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-blue-500 rounded-tr-lg">
-                                </div>
-                                <div
-                                    class="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-blue-500 rounded-bl-lg">
-                                </div>
-                                <div
-                                    class="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-blue-500 rounded-br-lg">
+                        " class="space-y-4">
+                        <!-- Camera Preview -->
+                        <div class="relative bg-black rounded-lg overflow-hidden" style="min-height: 300px; max-height: 70vh;">
+                            <video x-ref="video" class="w-full h-auto object-contain" playsinline muted></video>
+                            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <div class="border-2 border-white rounded-lg w-64 h-32 relative">
+                                    <div class="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div>
+                                    <div class="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-blue-500 rounded-tr-lg"></div>
+                                    <div class="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-blue-500 rounded-bl-lg"></div>
+                                    <div class="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-blue-500 rounded-br-lg"></div>
                                 </div>
                             </div>
+                            <div x-ref="enhancedScanOverlay" class="absolute border-2 border-red-500 bg-red-500/20 pointer-events-none hidden" style="border-radius: 4px;"></div>
                         </div>
-
-                        <!-- Enhanced Scanning Crop Area Overlay -->
-                        <div x-ref="enhancedScanOverlay"
-                            class="absolute border-2 border-red-500 bg-red-500/20 pointer-events-none hidden"
-                            style="border-radius: 4px;">
+                        <div class="text-center">
+                            <p x-text="status" class="text-sm text-gray-600"></p>
+                            <div x-show="!isSupported" class="text-red-600 text-sm mt-2">Camera scanning not supported on this device</div>
+                        </div>
+                        <div class="flex justify-center space-x-3">
+                            <button x-show="isScanning" @click="stopScanning()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">Stop Scanning</button>
+                            <button x-show="isSupported && !isScanning" @click="startScanning()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Restart Scanning</button>
+                        </div>
+                        <div x-show="isScanning" x-transition class="flex justify-center">
+                            <button @click="$refs.barcodeScanner.toggleTorch?.()" x-show="$refs.barcodeScanner.torchSupported" class="flex items-center px-4 py-2 text-sm font-medium rounded-md border transition-colors" :class="$refs.barcodeScanner.torchEnabled ? 'bg-yellow-500 text-white border-yellow-500 hover:bg-yellow-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'" title="Toggle flashlight">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="$refs.barcodeScanner.torchEnabled ? 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z' : 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z'"></path>
+                                </svg>
+                                <span x-text="$refs.barcodeScanner.torchEnabled ? 'Flash ON' : 'Flash'"></span>
+                            </button>
+                        </div>
+                        <div class="border-t pt-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Or upload an image:</label>
+                            <input type="file" accept="image/*" capture="environment" @change="if ($event.target.files[0]) handleFileInput($event.target.files[0])" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                         </div>
                     </div>
+                </template>
 
-                    <!-- Status Display -->
-                    <div class="text-center">
-                        <p x-text="status" class="text-sm text-gray-600"></p>
-                        <div x-show="!isSupported" class="text-red-600 text-sm mt-2">
-                            Camera scanning not supported on this device
+                <template x-if="scannerEngine === 'legacy'">
+                    <div x-data="window.barcodeScanner ? window.barcodeScanner() : { 
+                    init() { console.log('Fallback init called'); }, 
+                    startScanning() { console.log('Fallback startScanning called'); }, 
+                    stopScanning() { console.log('Fallback stopScanning called'); }, 
+                    toggleTorch() { console.log('Fallback toggleTorch called'); }, 
+                    isSupported: false, 
+                    isScanning: false, 
+                    status: 'Scanner not available', 
+                    torchSupported: false, 
+                    torchEnabled: false, 
+                    actualSettings: null, 
+                    actualCapabilities: null, 
+                    videoResolution: null,
+                    scannerType: 'fallback'
+                }" x-ref="barcodeScanner" x-init="init()" x-effect="
+                        if (showBarcodeScanner && isSupported && !isScanning) { 
+                            $nextTick(() => {
+                                const scannerElement = $refs.barcodeScanner;
+                                const scannerData = scannerElement._x_dataStack[0];
+                                if (scannerData && scannerData.startScanning) {
+                                    scannerData.startScanning();
+                                } else {
+                                    startScanning();
+                                }
+                            }); 
+                        } else if (!showBarcodeScanner && isScanning) { 
+                            $nextTick(() => {
+                                const scannerElement = $refs.barcodeScanner;
+                                const scannerData = scannerElement._x_dataStack[0];
+                                if (scannerData && scannerData.stopScanning) {
+                                    scannerData.stopScanning();
+                                } else {
+                                    stopScanning();
+                                }
+                            });
+                        }
+                    " class="space-y-4">
+                        <!-- Camera Preview -->
+                        <div class="relative bg-black rounded-lg overflow-hidden" style="min-height: 300px; max-height: 70vh;">
+                            <video x-ref="video" class="w-full h-auto object-contain" playsinline muted></video>
+                            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <div class="border-2 border-white rounded-lg w-64 h-32 relative">
+                                    <div class="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-blue-500 rounded-tl-lg"></div>
+                                    <div class="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-blue-500 rounded-tr-lg"></div>
+                                    <div class="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-blue-500 rounded-bl-lg"></div>
+                                    <div class="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-blue-500 rounded-br-lg"></div>
+                                </div>
+                            </div>
+                            <div x-ref="enhancedScanOverlay" class="absolute border-2 border-red-500 bg-red-500/20 pointer-events-none hidden" style="border-radius: 4px;"></div>
+                        </div>
+                        <div class="text-center">
+                            <p x-text="status" class="text-sm text-gray-600"></p>
+                            <div x-show="!isSupported" class="text-red-600 text-sm mt-2">Camera scanning not supported on this device</div>
+                        </div>
+                        <div class="flex justify-center space-x-3">
+                            <button x-show="isScanning" @click="stopScanning()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">Stop Scanning</button>
+                            <button x-show="isSupported && !isScanning" @click="startScanning()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Restart Scanning</button>
+                        </div>
+                        <div x-show="isScanning" x-transition class="flex justify-center">
+                            <button @click="$refs.barcodeScanner.toggleTorch?.()" x-show="$refs.barcodeScanner.torchSupported" class="flex items-center px-4 py-2 text-sm font-medium rounded-md border transition-colors" :class="$refs.barcodeScanner.torchEnabled ? 'bg-yellow-500 text-white border-yellow-500 hover:bg-yellow-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'" title="Toggle flashlight">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="$refs.barcodeScanner.torchEnabled ? 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z' : 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z'"></path>
+                                </svg>
+                                <span x-text="$refs.barcodeScanner.torchEnabled ? 'Flash ON' : 'Flash'"></span>
+                            </button>
+                        </div>
+                        <div class="border-t pt-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Or upload an image:</label>
+                            <input type="file" accept="image/*" capture="environment" @change="if ($event.target.files[0]) handleFileInput($event.target.files[0])" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                         </div>
                     </div>
-
-                    <!-- Control Buttons -->
-                    <div class="flex justify-center space-x-3">
-                        <button x-show="isScanning" @click="stopScanning()"
-                            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-                            Stop Scanning
-                        </button>
-
-                        <button x-show="isSupported && !isScanning" @click="startScanning()"
-                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                            Restart Scanning
-                        </button>
-
-                        <!-- Debug button to manually start scanning -->
-                        <button x-show="!isScanning" @click="console.log('Manual start clicked'); startScanning();"
-                            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                            🔧 Force Start
-                        </button>
-                    </div>
-
-                    <!-- Camera Controls (only shown when scanning) -->
-                    <div x-show="isScanning" x-transition class="flex justify-center">
-                        <!-- Flashlight Toggle -->
-                        <button @click="$refs.barcodeScanner.toggleTorch?.()"
-                            x-show="$refs.barcodeScanner.torchSupported"
-                            class="flex items-center px-4 py-2 text-sm font-medium rounded-md border transition-colors"
-                            :class="$refs.barcodeScanner.torchEnabled ? 'bg-yellow-500 text-white border-yellow-500 hover:bg-yellow-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
-                            title="Toggle flashlight">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    :d="$refs.barcodeScanner.torchEnabled ? 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z' : 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z'">
-                                </path>
-                            </svg>
-                            <span x-text="$refs.barcodeScanner.torchEnabled ? 'Flash ON' : 'Flash'"></span>
-                        </button>
-                    </div>
-
-                    <!-- File Upload Fallback -->
-                    <div class="border-t pt-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Or upload an image:
-                        </label>
-                        <input type="file" accept="image/*" capture="environment"
-                            @change="if ($event.target.files[0]) handleFileInput($event.target.files[0])"
-                            class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                    </div>
-                </div>
+                </template>
 
                 <!-- Modal Footer -->
                 <div class="mt-6 flex justify-end">
