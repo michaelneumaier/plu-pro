@@ -18,6 +18,11 @@ document.addEventListener('alpine:init', () => {
         showComponentId: null,
         userListId: null,
 
+        // Delete queue state
+        _deleteQueue: [],
+        _deleteProcessing: false,
+        _deletedItemIds: [],
+
         init(initialItems = [], userListId = null, componentId = null) {
             if (this.items.length > 0 && initialItems.length > 0) {
                 // Merge-aware re-init: keep dirty inventory values
@@ -53,13 +58,21 @@ document.addEventListener('alpine:init', () => {
                     if (this._organicQueue.length > 0) {
                         this._processOrganicQueue();
                     }
+                    if (this._deleteQueue.length > 0) {
+                        this._processDeleteQueue();
+                    }
                 });
 
                 window.addEventListener('beforeunload', (e) => {
-                    if (this.dirtyItems.size > 0) {
-                        this.sendBeacon();
+                    const hasUnsaved = this.dirtyItems.size > 0
+                        || this._organicQueue.length > 0
+                        || this._deleteQueue.length > 0;
+                    if (hasUnsaved) {
+                        if (this.dirtyItems.size > 0) {
+                            this.sendBeacon();
+                        }
                         e.preventDefault();
-                        e.returnValue = 'You have unsaved inventory changes.';
+                        e.returnValue = 'You have unsaved changes.';
                         return e.returnValue;
                     }
                 });
@@ -225,19 +238,21 @@ document.addEventListener('alpine:init', () => {
                 pendingOrganic[entry.itemId] = entry.organic;
             });
 
-            // Build new items list from server
-            this.items = serverItems.map(serverItem => {
-                const merged = { ...serverItem };
-                // Preserve dirty inventory values
-                if (dirtyValues.hasOwnProperty(serverItem.id)) {
-                    merged.inventory_level = dirtyValues[serverItem.id];
-                }
-                // Preserve pending organic state
-                if (pendingOrganic.hasOwnProperty(serverItem.id)) {
-                    merged.organic = pendingOrganic[serverItem.id];
-                }
-                return merged;
-            });
+            // Build new items list from server, filtering out items pending deletion
+            this.items = serverItems
+                .filter(si => !this._deletedItemIds.includes(si.id))
+                .map(serverItem => {
+                    const merged = { ...serverItem };
+                    // Preserve dirty inventory values
+                    if (dirtyValues.hasOwnProperty(serverItem.id)) {
+                        merged.inventory_level = dirtyValues[serverItem.id];
+                    }
+                    // Preserve pending organic state
+                    if (pendingOrganic.hasOwnProperty(serverItem.id)) {
+                        merged.organic = pendingOrganic[serverItem.id];
+                    }
+                    return merged;
+                });
         },
 
         // === Filter Logic ===
@@ -364,6 +379,18 @@ document.addEventListener('alpine:init', () => {
             const item = this.items.find(i => i.id === itemId);
             if (!item) return;
 
+            // Dual-version guard: prevent creating a duplicate
+            if (item.item_type === 'plu') {
+                const duplicate = this.items.find(i =>
+                    i.plu_code_id === item.plu_code_id && i.id !== itemId &&
+                    i.item_type === 'plu' && i.organic === !item.organic
+                );
+                if (duplicate) {
+                    this.showNotification('Both organic and regular versions already exist', 'info');
+                    return;
+                }
+            }
+
             // Optimistic toggle
             item.organic = !item.organic;
             this.applyFilters();
@@ -427,6 +454,65 @@ document.addEventListener('alpine:init', () => {
 
                 this.showNotification('Item removed', 'success');
             }
+        },
+
+        deleteItem(listItemId) {
+            const index = this.items.findIndex(i => i.id === listItemId);
+            if (index === -1) return;
+
+            // Track as deleted for visibility filtering (array for Alpine reactivity)
+            this._deletedItemIds.push(listItemId);
+
+            // Remove from items array
+            this.items.splice(index, 1);
+
+            // Clean up any pending queues/dirty state for this item
+            this.dirtyItems.delete(listItemId);
+            this._organicQueue = this._organicQueue.filter(e => e.itemId !== listItemId);
+
+            // Update filters
+            this.extractFilterOptions();
+            this.applyFilters();
+
+            // Queue server deletion
+            this._deleteQueue.push({ listItemId });
+            this._processDeleteQueue();
+
+            this.showNotification('Item removed', 'success');
+        },
+
+        async _processDeleteQueue() {
+            if (this._deleteProcessing || this._deleteQueue.length === 0) return;
+            if (!navigator.onLine) return;
+
+            this._deleteProcessing = true;
+
+            while (this._deleteQueue.length > 0) {
+                if (!navigator.onLine) {
+                    this.showNotification('Offline — deletions will sync when reconnected', 'info');
+                    break;
+                }
+
+                const entry = this._deleteQueue.shift();
+                try {
+                    if (!this.showComponentId) {
+                        console.error('No Show component ID available');
+                        continue;
+                    }
+                    await window.Livewire.find(this.showComponentId)
+                        .call('removeListItemSilent', entry.listItemId);
+
+                    // Successfully deleted on server — safe to clear from tracking array
+                    this._deletedItemIds = this._deletedItemIds.filter(id => id !== entry.listItemId);
+                } catch (error) {
+                    console.error('Error deleting item:', error);
+                    this._deleteQueue.unshift(entry);
+                    this.showNotification('Offline — deletions will sync when reconnected', 'info');
+                    break;
+                }
+            }
+
+            this._deleteProcessing = false;
         },
 
         removeItemById(id) {
@@ -540,6 +626,8 @@ document.addEventListener('alpine:init', () => {
 
         // Check if a specific item should be visible based on current filters + search
         isItemVisible(itemId) {
+            if (this._deletedItemIds.includes(itemId)) return false;
+
             const item = this.items.find(i => i.id === itemId);
             if (!item) return true;
 
@@ -569,6 +657,16 @@ document.addEventListener('alpine:init', () => {
             return this.items.some(item =>
                 item.commodity === commodityName && this.isItemVisible(item.id)
             );
+        },
+
+        isItemOrganic(itemId) {
+            const item = this.items.find(i => i.id === itemId);
+            return item ? item.organic : false;
+        },
+
+        hasDualVersion(pluCodeId) {
+            const items = this.items.filter(i => i.plu_code_id === pluCodeId && i.item_type === 'plu');
+            return items.some(i => i.organic) && items.some(i => !i.organic);
         }
     });
 });

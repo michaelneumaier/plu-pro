@@ -58,6 +58,7 @@ class AddToListModal extends Component
 
         $this->userLists = Auth::user()->userLists()->select('id', 'name')->get()->toArray();
         $this->showCreateForm = empty($this->userLists);
+        $this->selectedListId = ! empty($this->userLists) ? $this->userLists[0]['id'] : null;
         $this->newListName = '';
         $this->showModal = true;
     }
@@ -98,9 +99,9 @@ class AddToListModal extends Component
 
         $this->js("localStorage.setItem('plupro_last_list_id', '{$this->selectedListId}')");
 
-        $this->setStatus("Added to \"{$list->name}\"!", 'success');
+        $this->dispatch('item-added-to-list-from-modal', pluCodeId: $this->pendingPluCodeId, organic: $this->pendingOrganic);
 
-        $this->closeModalAfterDelay();
+        $this->closeModal();
     }
 
     public function createListAndAdd()
@@ -127,13 +128,9 @@ class AddToListModal extends Component
         $this->selectedListId = $list->id;
         $this->js("localStorage.setItem('plupro_last_list_id', '{$list->id}')");
 
-        $this->userLists = Auth::user()->userLists()->select('id', 'name')->get()->toArray();
-        $this->showCreateForm = false;
-        $this->newListName = '';
+        $this->dispatch('item-added-to-list-from-modal', pluCodeId: $this->pendingPluCodeId, organic: $this->pendingOrganic);
 
-        $this->setStatus("Created \"{$list->name}\" and added item!", 'success');
-
-        $this->closeModalAfterDelay();
+        $this->closeModal();
     }
 
     public function closeModal()
@@ -152,11 +149,6 @@ class AddToListModal extends Component
     {
         $this->statusMessage = null;
         $this->statusType = null;
-    }
-
-    protected function closeModalAfterDelay()
-    {
-        $this->js('setTimeout(() => { $wire.closeModal() }, 1200)');
     }
 
     public function render()

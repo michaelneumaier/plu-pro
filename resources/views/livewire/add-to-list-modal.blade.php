@@ -3,7 +3,7 @@
         show: @entangle('showModal'),
         initSelectedList() {
             const lastList = localStorage.getItem('plupro_last_list_id');
-            if (lastList && !$wire.selectedListId) {
+            if (lastList) {
                 const listId = parseInt(lastList);
                 const lists = $wire.userLists;
                 if (lists && lists.some(l => l.id === listId)) {

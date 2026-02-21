@@ -679,6 +679,16 @@ class Show extends Component
         });
     }
 
+    public function removeListItemSilent($listItemId)
+    {
+        $listItem = $this->userList->listItems()->where('id', $listItemId)->first();
+        if ($listItem) {
+            $listItem->delete();
+            $this->userList->load(['listItems.pluCode', 'listItems.upcCode']);
+        }
+        $this->skipRender();
+    }
+
     public function removePLUCode($pluCodeId)
     {
         DB::transaction(function () use ($pluCodeId) {

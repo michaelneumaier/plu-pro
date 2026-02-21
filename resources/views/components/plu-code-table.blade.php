@@ -89,24 +89,28 @@ $colCount = $hasActions ? 5 : 4;
         </div>
         @endif
 
-        <div class="py-1 {{ $listItem && $listItem->organic ? 'bg-green-50 hover:bg-green-100' : ($loop->even ? 'bg-gray-50 hover:bg-gray-100' : 'bg-white hover:bg-gray-50') }} cursor-pointer border-b border-gray-200 last:border-b-0 {{ $showCommodityGroups && $commodityChanged ? 'border-t-0' : '' }} list-item-row"
-            @if($listItem) data-search-content="{{ 
-                ($isUpcItem ? $upcCode->upc : $pluCode->plu) . ' ' . 
-                ($isUpcItem ? $upcCode->name : $pluCode->variety) . ' ' . 
-                ($isUpcItem ? $upcCode->commodity : $pluCode->commodity) . ' ' . 
-                ($isUpcItem ? $upcCode->category : $pluCode->category) . ' ' . 
+        @php $nonOrganicBg = $loop->even ? 'bg-gray-50 hover:bg-gray-100' : 'bg-white hover:bg-gray-50'; @endphp
+        <div class="py-1 {{ ($listItem && !$isUpcItem) ? '' : ($listItem && $listItem->organic ? 'bg-green-50 hover:bg-green-100' : $nonOrganicBg) }} cursor-pointer border-b border-gray-200 last:border-b-0 {{ $showCommodityGroups && $commodityChanged ? 'border-t-0' : '' }} list-item-row"
+            @if($listItem && !$isUpcItem)
+            :class="$store.listManager.isItemOrganic({{ $listItem->id }}) ? 'bg-green-50 hover:bg-green-100' : '{{ $nonOrganicBg }}'"
+            @endif
+            @if($listItem) data-search-content="{{
+                ($isUpcItem ? $upcCode->upc : $pluCode->plu) . ' ' .
+                ($isUpcItem ? $upcCode->name : $pluCode->variety) . ' ' .
+                ($isUpcItem ? $upcCode->commodity : $pluCode->commodity) . ' ' .
+                ($isUpcItem ? $upcCode->category : $pluCode->category) . ' ' .
                 ($isUpcItem && $upcCode->brand ? $upcCode->brand : '') . ' ' .
                 ($listItem && $listItem->organic && !$isUpcItem ? '9' . $pluCode->plu : '') . ' ' .
                 ($isUpcItem ? '' : $pluCode->size ?? '')
             }}" data-item-id="{{ $listItem->id }}" data-item-type="{{ $isUpcItem ? 'upc' : 'plu' }}"
             data-commodity="{{ $commodity }}" @endif
+            wire:key="{{ $isUpcItem ? 'upc' : 'plu' }}-row-{{ $listItem ? $listItem->id : ($isUpcItem ? $upcCode->id : $pluCode->id) }}-{{ $userListId }}"
             x-show="$store.listManager.isItemVisible({{ $listItem ? $listItem->id : 0 }})"
             x-transition:enter="transition-opacity duration-150" x-transition:enter-start="opacity-0"
             x-transition:enter-end="opacity-100" x-transition:leave="transition-opacity duration-150"
             x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
             <div class="grid {{ $showInventory && $hasActions ? 'grid-cols-[3.5rem,3rem,1fr,auto,auto]' : ($showInventory ? 'grid-cols-[3.5rem,3rem,1fr,auto]' : ($hasActions ? 'grid-cols-[3.5rem,3rem,1fr,auto]' : 'grid-cols-[3.5rem,3rem,1fr]')) }} min-h-16"
-                @click="$dispatch('{{ $isUpcItem ? 'upcCodeSelected' : 'pluCodeSelected' }}', {{ $isUpcItem ? '[' . $upcCode->id . ']' : '[' . $pluCode->id . ', ' . (($listItem && $listItem->organic) ? 'true' : 'false') . ']' }})"
-                wire:key="{{ $isUpcItem ? 'upc' : 'plu' }}-row-{{ $listItem ? $listItem->id : ($isUpcItem ? $upcCode->id : $pluCode->id) }}-{{ $userListId }}"
+                @click="$dispatch('{{ $isUpcItem ? 'upcCodeSelected' : 'pluCodeSelected' }}', {{ $isUpcItem ? '[' . $upcCode->id . ']' : ($listItem && !$isUpcItem ? '[' . $pluCode->id . ', $store.listManager.isItemOrganic(' . $listItem->id . ')]' : '[' . $pluCode->id . ', false]') }})"
                 data-{{ $isUpcItem ? 'upc' : 'plu' }}-id="{{ $isUpcItem ? $upcCode->id : $pluCode->id }}">
                 <div class="flex flex-col items-center justify-evenly">
                     @if($isUpcItem)
@@ -121,7 +125,7 @@ $colCount = $hasActions ? 5 : 4;
                     </div>
                     @if(!$readOnly && $hasActions && $onDelete && $listItem && isset($listItem->id) && $listItem->id)
                     <div x-show="showDeleteButtons" x-cloak>
-                        <button @click.stop="if(confirm('Remove this UPC item from your list?')) { $wire.call('removeListItem', {{ $listItem->id }}) }"
+                        <button @click.stop="if(confirm('Remove this UPC item from your list?')) { $store.listManager.deleteItem({{ $listItem->id }}) }"
                             class="w-7 h-7 flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
                             wire:key="delete-btn-{{ $listItem->id }}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -132,21 +136,28 @@ $colCount = $hasActions ? 5 : 4;
                     @endif
                     @else
                     <!-- PLU Badge -->
-                    <a href="{{ route('plu.show', $listItem && $listItem->organic ? '9' . $pluCode->plu : $pluCode->plu) }}"
+                    @if($listItem && !$isUpcItem)
+                    <a :href="$store.listManager.isItemOrganic({{ $listItem->id }}) ? '{{ route('plu.show', '9' . $pluCode->plu) }}' : '{{ route('plu.show', $pluCode->plu) }}'"
+                        @click.stop
+                        class="flex items-center justify-center w-12 h-7 sm:w-12 sm:h-8 bg-green-100 text-sm text-green-800 border border-green-200 rounded overflow-hidden hover:bg-green-200 transition-colors">
+                        <span class="font-mono font-semibold"
+                            x-text="$store.listManager.isItemOrganic({{ $listItem->id }}) ? '9{{ $pluCode->plu }}' : '{{ $pluCode->plu }}'">
+                            {{ $listItem->organic ? '9' . $pluCode->plu : $pluCode->plu }}
+                        </span>
+                    </a>
+                    @else
+                    <a href="{{ route('plu.show', $pluCode->plu) }}"
                         @click.stop
                         class="flex items-center justify-center w-12 h-7 sm:w-12 sm:h-8 bg-green-100 text-sm text-green-800 border border-green-200 rounded overflow-hidden hover:bg-green-200 transition-colors">
                         <span class="font-mono font-semibold">
-                            @if($listItem && $listItem->organic)
-                            9{{ $pluCode->plu }}
-                            @else
                             {{ $pluCode->plu }}
-                            @endif
                         </span>
                     </a>
+                    @endif
                     <div x-show="!showDeleteButtons"><x-consumer-usage-indicator :tier="$pluCode->consumer_usage_tier" /></div>
                     @if(!$readOnly && $hasActions && $onDelete && $listItem && isset($listItem->id) && $listItem->id)
                     <div x-show="showDeleteButtons" x-cloak>
-                        <button @click.stop="if(confirm('Remove this {{ $listItem->organic ? 'organic' : 'regular' }} item from your list?')) { $wire.call('removeListItem', {{ $listItem->id }}) }"
+                        <button @click.stop="if(confirm('Remove this ' + ($store.listManager.isItemOrganic({{ $listItem->id }}) ? 'organic' : 'regular') + ' item from your list?')) { $store.listManager.deleteItem({{ $listItem->id }}) }"
                             class="w-7 h-7 flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
                             wire:key="delete-btn-{{ $listItem->id }}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -192,18 +203,18 @@ $colCount = $hasActions ? 5 : 4;
                         @if(!empty($pluCode->aka))
                         <span class="text-gray-500"> - {{ $pluCode->aka }}</span>
                         @endif
+                        @if($listItem && !$isUpcItem)
+                        <span x-show="$store.listManager.isItemOrganic({{ $listItem->id }})" x-cloak
+                            class="inline-flex items-center ml-1 px-1.5 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                            Organic
+                        </span>
+                        @else
                         @if($listItem && $listItem->organic)
                         <span
                             class="inline-flex items-center ml-1 px-1.5 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800">
                             Organic
                         </span>
                         @endif
-                        @if($dualVersionPluCodes->contains($pluCode->id))
-                        <span
-                            class="inline-flex items-center ml-1 px-1.5 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-800"
-                            title="Both regular and organic versions in list">
-                            Both
-                        </span>
                         @endif
                         @endif
                     </span>
@@ -315,26 +326,25 @@ $colCount = $hasActions ? 5 : 4;
                 @if(!$readOnly)
                 <div class="flex items-center justify-center p-1" x-show="showDeleteButtons" x-cloak>
                     @if($listItem && !$onAdd && isset($listItem->id) && $listItem->id && !$isUpcItem)
-                    <div x-data="{ get isOrganic() { const item = $store.listManager.items.find(i => i.id === {{ $listItem->id }}); return item ? item.organic : {{ $listItem->organic ? 'true' : 'false' }}; } }">
                         <button @click.stop="$store.listManager.toggleOrganic({{ $listItem->id }})"
-                            class="px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200 ease-in-out inline-flex items-center space-x-1"
-                            :class="isOrganic
+                            class="px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200 ease-in-out inline-flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                            :class="$store.listManager.isItemOrganic({{ $listItem->id }})
                                 ? 'bg-green-500 hover:bg-green-600 text-white'
                                 : 'bg-gray-200 hover:bg-gray-300 text-gray-500'"
-                            :title="isOrganic ? 'Click to make conventional' : 'Click to make organic'">
-                            <template x-if="isOrganic">
+                            :disabled="$store.listManager.hasDualVersion({{ $pluCode->id }})"
+                            :title="$store.listManager.hasDualVersion({{ $pluCode->id }}) ? 'Both versions already exist — delete one first' : ($store.listManager.isItemOrganic({{ $listItem->id }}) ? 'Click to make conventional' : 'Click to make organic')">
+                            <template x-if="$store.listManager.isItemOrganic({{ $listItem->id }})">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                                 </svg>
                             </template>
-                            <template x-if="!isOrganic">
+                            <template x-if="!$store.listManager.isItemOrganic({{ $listItem->id }})">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </template>
                             <span>Organic</span>
                         </button>
-                    </div>
                     @endif
                 </div>
                 @endif
@@ -344,14 +354,40 @@ $colCount = $hasActions ? 5 : 4;
                 <div class="flex items-center">
 
                     @if($dispatchAdd && !$isUpcItem)
-                    <div class="flex flex-col space-y-1 py-1">
+                    <div class="flex flex-col space-y-1 py-1"
+                        x-data="{ addedRegular: false, addedOrganic: false }"
+                        @item-added-to-list-from-modal.window="
+                            if ($event.detail.pluCodeId == {{ $pluCode->id }}) {
+                                if ($event.detail.organic) {
+                                    addedOrganic = true;
+                                    setTimeout(() => addedOrganic = false, 3000);
+                                } else {
+                                    addedRegular = true;
+                                    setTimeout(() => addedRegular = false, 3000);
+                                }
+                            }
+                        ">
                         <button @click.stop="$dispatch('open-add-to-list-modal', { pluCodeId: {{ $pluCode->id }}, organic: false })"
-                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs transition-colors">
-                            Add
+                            class="font-bold py-1 px-2 rounded text-xs transition-colors text-white"
+                            :class="addedRegular ? 'bg-green-500' : 'bg-blue-500 hover:bg-blue-700'">
+                            <span x-show="!addedRegular">Add</span>
+                            <span x-show="addedRegular" x-cloak class="inline-flex items-center">
+                                <svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                                Added
+                            </span>
                         </button>
                         <button @click.stop="$dispatch('open-add-to-list-modal', { pluCodeId: {{ $pluCode->id }}, organic: true })"
-                            class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-xs transition-colors">
-                            Organic
+                            class="font-bold py-1 px-2 rounded text-xs transition-colors text-white"
+                            :class="addedOrganic ? 'bg-green-500' : 'bg-green-600 hover:bg-green-700'">
+                            <span x-show="!addedOrganic">Organic</span>
+                            <span x-show="addedOrganic" x-cloak class="inline-flex items-center">
+                                <svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                                Added
+                            </span>
                         </button>
                     </div>
                     @elseif($onAdd)
