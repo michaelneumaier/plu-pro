@@ -69,7 +69,7 @@ document.addEventListener('alpine:init', () => {
                 window._inventoryEditState.currentEditor.cancelEdit();
             }
 
-            this.editValue = this.value.toFixed(1);
+            this.editValue = this.value % 1 === 0 ? this.value.toString() : this.value.toFixed(1);
             this.isEditing = true;
             window._inventoryEditState.currentEditor = this;
         },

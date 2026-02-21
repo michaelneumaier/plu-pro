@@ -28,6 +28,9 @@ class SearchPLUCode extends Component
     // Toggle for filters visibility
     public $showFilters = false;
 
+    // Organic search detection
+    public $isOrganicSearch = false;
+
     // Sorting properties
     public $sortOption = 'plu_asc'; // Default sort option
 
@@ -270,6 +273,39 @@ class SearchPLUCode extends Component
     }
 
     /**
+     * Detect if the search term indicates an organic PLU search.
+     * Returns the cleaned search term (with organic indicators removed).
+     */
+    protected function detectOrganicSearch(string $term): string
+    {
+        $trimmed = trim($term);
+        $this->isOrganicSearch = false;
+
+        if ($trimmed === '') {
+            return $trimmed;
+        }
+
+        // Numeric: starts with "9" (all digits) → strip leading 9, treat as organic
+        if (preg_match('/^9(\d*)$/', $trimmed, $matches)) {
+            $this->isOrganicSearch = true;
+
+            return $matches[1];
+        }
+
+        // Keyword: contains "organic" or standalone "org"
+        if (preg_match('/\b(organic|org)\b/i', $trimmed)) {
+            $this->isOrganicSearch = true;
+            // Remove the keyword and clean up extra whitespace
+            $cleaned = preg_replace('/\b(organic|org)\b/i', '', $trimmed);
+            $cleaned = trim(preg_replace('/\s+/', ' ', $cleaned));
+
+            return $cleaned;
+        }
+
+        return $trimmed;
+    }
+
+    /**
      * Render the search input, filters, and PLU codes table.
      *
      * @return \Illuminate\View\View
@@ -278,14 +314,22 @@ class SearchPLUCode extends Component
     {
         $query = PLUCode::query();
 
+        // Detect organic search intent and get cleaned search term
+        $effectiveSearchTerm = $this->searchTerm
+            ? $this->detectOrganicSearch($this->searchTerm)
+            : '';
+
         // Apply search term if provided
-        if ($this->searchTerm) {
-            $query->where(function ($q) {
-                $q->where('plu', 'like', '%'.$this->searchTerm.'%')
-                    ->orWhere('variety', 'like', '%'.$this->searchTerm.'%')
-                    ->orWhere('commodity', 'like', '%'.$this->searchTerm.'%')
-                    ->orWhere('aka', 'like', '%'.$this->searchTerm.'%');
+        if ($effectiveSearchTerm) {
+            $query->where(function ($q) use ($effectiveSearchTerm) {
+                $q->where('plu', 'like', '%'.$effectiveSearchTerm.'%')
+                    ->orWhere('variety', 'like', '%'.$effectiveSearchTerm.'%')
+                    ->orWhere('commodity', 'like', '%'.$effectiveSearchTerm.'%')
+                    ->orWhere('aka', 'like', '%'.$effectiveSearchTerm.'%');
             });
+        } elseif (! $this->searchTerm) {
+            // Reset organic flag when search is empty
+            $this->isOrganicSearch = false;
         }
 
         // Apply commodity filter if selected
@@ -325,6 +369,7 @@ class SearchPLUCode extends Component
             'pluCodes' => $pluCodes,
             'upcResults' => $this->upcResults,
             'upcLookupInProgress' => $this->upcLookupInProgress,
+            'isOrganicSearch' => $this->isOrganicSearch,
         ])->layout('layouts.app')
             ->title('PLU Code Lookup - Search Produce PLU Codes | PLU Pro')
             ->layoutData([

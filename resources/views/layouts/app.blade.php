@@ -189,7 +189,7 @@
     </style>
 </head>
 
-<body class="font-sans antialiased">
+<body class="font-sans antialiased overflow-x-hidden">
     <x-banner />
     
     <!-- Network Status Indicator -->

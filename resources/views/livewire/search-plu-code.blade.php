@@ -165,6 +165,16 @@
     @endif
 
 
+    <!-- Organic Search Banner -->
+    @if($isOrganicSearch)
+    <div class="mx-2 mb-2 px-4 py-2 bg-green-50 border border-green-200 rounded-md flex items-center">
+        <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+        </svg>
+        <span class="text-sm font-medium text-green-800">Showing organic results</span>
+    </div>
+    @endif
+
     <!-- PLU Codes Table -->
     <div>
         @if($pluCodes->count())
@@ -173,7 +183,7 @@
             <h3 class="text-lg font-semibold text-gray-900 mb-4">PLU Results</h3>
             @endif
             <x-plu-code-table :collection="$pluCodes" :showCommodityGroups="false" :showInventory="false"
-                :showPagination="false" :dispatchAdd="auth()->check()" />
+                :showPagination="false" :dispatchAdd="auth()->check()" :isOrganicSearch="$isOrganicSearch" />
         </div>
         @if($pluCodes instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator)
         <div class="mt-4">

@@ -5,6 +5,7 @@ namespace App\Livewire\Lists;
 use App\Models\UserList;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 
 class SharedView extends Component
@@ -136,12 +137,69 @@ class SharedView extends Component
             })
             ->keys();
 
+        // Build allItemsData for Alpine store (same structure as Show.php)
+        $allItemsData = $this->allListItems->map(function ($item) {
+            if ($item->item_type === 'plu' && $item->pluCode) {
+                $displayCode = $item->organic ? '9'.$item->pluCode->plu : $item->pluCode->plu;
+                $imageUrl = null;
+                $hasImage = false;
+                foreach (['jpg', 'png'] as $ext) {
+                    $path = "product_images/{$item->pluCode->plu}.{$ext}";
+                    if (Storage::disk('public')->exists($path)) {
+                        $imageUrl = Storage::disk('public')->url($path);
+                        $hasImage = true;
+                        break;
+                    }
+                }
+
+                return [
+                    'id' => $item->id,
+                    'item_type' => 'plu',
+                    'plu_code_id' => $item->plu_code_id,
+                    'plu' => $item->pluCode->plu,
+                    'variety' => $item->pluCode->variety,
+                    'commodity' => $item->pluCode->commodity,
+                    'category' => $item->pluCode->category,
+                    'organic' => $item->organic,
+                    'inventory_level' => $item->inventory_level,
+                    'size' => $item->pluCode->size,
+                    'display_code' => $displayCode,
+                    'image_url' => $imageUrl,
+                    'has_image' => $hasImage,
+                ];
+            } else {
+                $upcCode = $item->upcCode;
+                if (! $upcCode) {
+                    return null;
+                }
+                $hasImage = $upcCode->has_image ?? false;
+                $imageUrl = $hasImage ? asset('storage/upc_images/'.$upcCode->upc.'.jpg') : null;
+
+                return [
+                    'id' => $item->id,
+                    'item_type' => 'upc',
+                    'upc_code_id' => $item->upc_code_id,
+                    'upc' => $upcCode->upc,
+                    'name' => $upcCode->name,
+                    'commodity' => $upcCode->commodity,
+                    'category' => $upcCode->category,
+                    'organic' => false,
+                    'inventory_level' => $item->inventory_level,
+                    'brand' => $upcCode->brand,
+                    'display_code' => $upcCode->upc,
+                    'image_url' => $imageUrl,
+                    'has_image' => $hasImage,
+                ];
+            }
+        })->filter()->values();
+
         $title = $this->userList->name;
         $itemCount = $this->listItems->count();
 
         return view('livewire.lists.shared-view', [
             'listItems' => $this->listItems,
             'dualVersionPluCodes' => $dualVersionPluCodes,
+            'allItemsData' => $allItemsData,
         ])->layout('layouts.app')
             ->title("{$title} - Shared PLU List | PLU Pro")
             ->layoutData([

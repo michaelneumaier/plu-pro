@@ -466,7 +466,7 @@
 
                                             <!-- Inventory Count Overlay -->
                                             <div class="absolute top-4 right-4 bg-black bg-opacity-80 text-white px-4 py-2 rounded-full backdrop-blur-sm">
-                                                <span class="text-2xl font-bold" x-text="$store.listManager.getInventory(item.id).toFixed(1)"></span>
+                                                <span class="text-2xl font-bold" x-text="$store.listManager.formatInventory($store.listManager.getInventory(item.id))"></span>
                                                 <span class="text-sm ml-1">in stock</span>
                                             </div>
                                         </div>

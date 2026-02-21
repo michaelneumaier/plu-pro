@@ -134,6 +134,11 @@ document.addEventListener('alpine:init', () => {
             return item ? parseFloat(item.inventory_level) || 0 : 0;
         },
 
+        formatInventory(val) {
+            const num = parseFloat(val) || 0;
+            return num % 1 === 0 ? num.toString() : num.toFixed(1);
+        },
+
         scheduleSync() {
             if (this.syncTimeout) {
                 clearTimeout(this.syncTimeout);

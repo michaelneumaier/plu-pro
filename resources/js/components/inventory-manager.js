@@ -65,7 +65,8 @@ document.addEventListener('livewire:init', () => {
     },
     
     get displayValue() {
-        return Number(this.localValue).toFixed(1);
+        const num = Number(this.localValue);
+        return num % 1 === 0 ? num.toString() : num.toFixed(1);
     },
     
     get hasPendingChanges() {
