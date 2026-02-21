@@ -140,10 +140,11 @@
     <x-banner />
     
     <!-- Network Status Indicator -->
-    <div x-data="networkStatus" 
-         x-show="showOfflineMessage" 
+    <div x-data
+         x-show="$store.offlineMode.isOffline"
          x-transition
-         class="fixed top-0 left-0 right-0 bg-orange-500 text-white text-center py-2 z-50">
+         class="fixed top-0 left-0 right-0 text-white text-center py-2 z-50"
+         :class="$store.offlineMode.isPWA ? 'bg-yellow-600' : 'bg-orange-500'">
         <svg class="inline-block w-5 h-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
             <path d="M12 20h.01" />
             <path d="M8.5 16.429a5 5 0 0 1 7 0" />
@@ -153,7 +154,12 @@
             <path d="M22 8.82a15 15 0 0 0-11.288-3.764" />
             <path d="m2 2 20 20" />
         </svg>
-        You're offline - Changes will sync when reconnected
+        <template x-if="$store.offlineMode.isPWA">
+            <span>Offline Mode &mdash; inventory changes saved locally</span>
+        </template>
+        <template x-if="!$store.offlineMode.isPWA">
+            <span>You're offline - Changes will sync when reconnected</span>
+        </template>
     </div>
     
     <!-- Floating Feedback Button -->

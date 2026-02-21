@@ -23,7 +23,16 @@ document.addEventListener('alpine:init', () => {
         _deleteProcessing: false,
         _deletedItemIds: [],
 
+        // PWA offline state
+        _isPWA: false,
+
+        get canUseLivewire() {
+            return navigator.onLine && this.showComponentId && window.Livewire;
+        },
+
         init(initialItems = [], userListId = null, componentId = null) {
+            this._isPWA = document.documentElement.classList.contains('pwa-standalone');
+
             if (this.items.length > 0 && initialItems.length > 0) {
                 // Merge-aware re-init: keep dirty inventory values
                 this.mergeServerItems(initialItems);
@@ -43,6 +52,11 @@ document.addEventListener('alpine:init', () => {
             this.filteredItems = [...this.items];
             this.extractFilterOptions();
             this.applyFilters();
+
+            // Rehydrate from IndexedDB — local inventory is source of truth
+            if (this._isPWA && userListId) {
+                this._rehydrateFromIndexedDB(userListId);
+            }
 
             // Set up online/offline handlers (only once)
             if (!this._handlersInitialized) {
@@ -76,6 +90,15 @@ document.addEventListener('alpine:init', () => {
                         return e.returnValue;
                     }
                 });
+
+                // Listen for service worker sync messages
+                if (navigator.serviceWorker) {
+                    navigator.serviceWorker.addEventListener('message', (event) => {
+                        if (event.data?.type === 'SYNC_INVENTORY') {
+                            this.flushSync();
+                        }
+                    });
+                }
             }
         },
 
@@ -89,6 +112,12 @@ document.addEventListener('alpine:init', () => {
             item.inventory_level = clamped;
             this.dirtyItems.add(itemId);
             this.scheduleSync();
+
+            // Persist to IndexedDB immediately (PWA safety net)
+            if (this._isPWA && window.OfflineDB) {
+                window.OfflineDB.updateListItemInventory(this.userListId, itemId, clamped)
+                    .catch(e => console.error('IndexedDB inventory save failed:', e));
+            }
         },
 
         adjustInventory(itemId, delta) {
@@ -138,30 +167,74 @@ document.addEventListener('alpine:init', () => {
                 return;
             }
 
+            let synced = false;
+
             try {
-                if (this.showComponentId) {
+                // Try Livewire first (primary path)
+                if (this.canUseLivewire) {
                     const result = await window.Livewire.find(this.showComponentId)
                         .call('batchUpdateInventory', changes);
 
                     if (result && result.success) {
-                        // Clear synced items from dirty set
-                        itemsToSync.forEach(id => this.dirtyItems.delete(id));
+                        synced = true;
                     }
                 }
             } catch (error) {
-                console.error('Inventory sync failed:', error);
-                // Items remain in dirty set for retry
-                if (navigator.onLine) {
-                    this.scheduleSync();
-                }
-            } finally {
-                this.isSyncing = false;
+                console.warn('Livewire sync failed, trying API fallback:', error.message);
+            }
 
-                // If more items became dirty during sync, schedule another
-                if (this.dirtyItems.size > 0) {
-                    this.scheduleSync();
+            // Fallback: direct API call (works even with stale Livewire snapshot)
+            if (!synced && navigator.onLine) {
+                try {
+                    synced = await this._syncViaAPI(changes);
+                } catch (error) {
+                    console.error('API sync fallback also failed:', error);
                 }
             }
+
+            if (synced) {
+                // Clear synced items from dirty set
+                itemsToSync.forEach(id => this.dirtyItems.delete(id));
+
+                // Mark as synced in IndexedDB
+                if (this._isPWA && window.OfflineDB) {
+                    window.OfflineDB.markItemsSynced(itemsToSync)
+                        .catch(e => console.error('IndexedDB markSynced failed:', e));
+                }
+            } else if (navigator.onLine) {
+                // Both paths failed but we're online — retry later
+                this.scheduleSync();
+            }
+
+            this.isSyncing = false;
+
+            // If more items became dirty during sync, schedule another
+            if (this.dirtyItems.size > 0) {
+                this.scheduleSync();
+            }
+        },
+
+        // Fallback sync via fetch to /inventory/beacon (bypasses Livewire)
+        async _syncViaAPI(changes) {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            if (!csrfToken || !this.userListId) return false;
+
+            const response = await fetch('/inventory/beacon', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    _token: csrfToken,
+                    userListId: this.userListId,
+                    changes: changes,
+                }),
+            });
+
+            return response.ok;
         },
 
         async flushSync() {
@@ -564,12 +637,22 @@ document.addEventListener('alpine:init', () => {
         clearAllInventory() {
             this.items.forEach(item => {
                 item.inventory_level = 0;
+                this.dirtyItems.add(item.id);
             });
-            this.dirtyItems.clear();
-            if (this.syncTimeout) {
-                clearTimeout(this.syncTimeout);
-                this.syncTimeout = null;
+
+            // Persist zeroed values to IndexedDB
+            if (this._isPWA && window.OfflineDB && this.userListId) {
+                const itemsToSave = this.items.map(item => ({
+                    ...item,
+                    userListId: this.userListId,
+                    lastModified: Date.now(),
+                }));
+                window.OfflineDB.saveListItems(this.userListId, itemsToSave)
+                    .catch(e => console.error('IndexedDB clear save failed:', e));
             }
+
+            // Schedule sync to push zeros to server
+            this.scheduleSync();
         },
 
         showNotification(message, type = 'info') {
@@ -667,6 +750,72 @@ document.addEventListener('alpine:init', () => {
         hasDualVersion(pluCodeId) {
             const items = this.items.filter(i => i.plu_code_id === pluCodeId && i.item_type === 'plu');
             return items.some(i => i.organic) && items.some(i => !i.organic);
-        }
+        },
+
+        // === IndexedDB Persistence (PWA offline support) ===
+
+        async _rehydrateFromIndexedDB(listId) {
+            if (!window.OfflineDB) return;
+
+            try {
+                const dbItems = await window.OfflineDB.getListItems(listId);
+                if (!dbItems || dbItems.length === 0) {
+                    // No IndexedDB data yet — save current server data as baseline
+                    this._saveToIndexedDB(listId);
+                    return;
+                }
+
+                // Build a lookup of IndexedDB items by ID
+                const dbMap = {};
+                for (const dbItem of dbItems) {
+                    dbMap[dbItem.id] = dbItem;
+                }
+
+                // For each item, check if IndexedDB has a locally-modified value
+                let rehydratedCount = 0;
+                for (const item of this.items) {
+                    const dbItem = dbMap[item.id];
+                    if (dbItem && dbItem.lastModified) {
+                        // IndexedDB has an unsynced local value — use it
+                        const dbLevel = parseFloat(dbItem.inventory_level) || 0;
+                        const serverLevel = parseFloat(item.inventory_level) || 0;
+                        if (dbLevel !== serverLevel) {
+                            item.inventory_level = dbLevel;
+                            this.dirtyItems.add(item.id);
+                            rehydratedCount++;
+                        }
+                    }
+                }
+
+                if (rehydratedCount > 0) {
+                    this.applyFilters();
+                    // Schedule sync to push rehydrated values to server
+                    if (navigator.onLine) {
+                        this.scheduleSync();
+                    }
+                }
+
+                // If online and no rehydrated items, save fresh server data to IndexedDB
+                if (rehydratedCount === 0 && navigator.onLine) {
+                    this._saveToIndexedDB(listId);
+                }
+            } catch (e) {
+                console.error('IndexedDB rehydration failed:', e);
+            }
+        },
+
+        async _saveToIndexedDB(listId) {
+            if (!window.OfflineDB || !listId) return;
+
+            try {
+                const itemsToSave = this.items.map(item => ({
+                    ...item,
+                    userListId: listId,
+                }));
+                await window.OfflineDB.saveListItems(listId, itemsToSave);
+            } catch (e) {
+                console.error('IndexedDB save failed:', e);
+            }
+        },
     });
 });

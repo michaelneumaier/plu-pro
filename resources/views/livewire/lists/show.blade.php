@@ -231,13 +231,37 @@
 
                     <!-- Action buttons section -->
                     <div class="flex flex-col self-end items-end justify-end ml-3 flex-shrink-0">
-                        <!-- Top row: Share, Edit, Add -->
+                        <!-- Top row: PWA Home, Share, Edit, Add -->
                         <div class="flex items-center space-x-1">
+                            <!-- Set as PWA Home Button (only visible in PWA standalone mode) -->
+                            <template x-if="$store.offlineMode.isPWA">
+                                <button x-data="{ isDefault: window.getDefaultListId() == '{{ $userList->id }}' }"
+                                    @click="
+                                        if (isDefault) {
+                                            window.clearDefaultList();
+                                            isDefault = false;
+                                        } else {
+                                            window.setAsDefaultList({{ $userList->id }});
+                                            isDefault = true;
+                                        }
+                                    "
+                                    @default-list-changed.window="isDefault = ($event.detail.listId == '{{ $userList->id }}')"
+                                    class="inline-flex items-center justify-center w-10 h-10 sm:w-10 sm:h-10 rounded-full transition-all duration-150 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1"
+                                    :class="isDefault ?
+                                        'bg-yellow-500 text-white hover:bg-yellow-600 focus:ring-yellow-400' :
+                                        'bg-gray-100 text-gray-500 hover:bg-gray-200 focus:ring-gray-400'"
+                                    :title="isDefault ? 'Remove as PWA home' : 'Set as PWA home'">
+                                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                                    </svg>
+                                </button>
+                            </template>
+
                             <!-- Share Button -->
-                            <button @click="$wire.toggleShareModal()" :disabled="deleteMode"
+                            <button @click="$wire.toggleShareModal()" :disabled="deleteMode || $store.offlineMode.isOffline"
                                 class="inline-flex items-center justify-center w-10 h-10 sm:w-10 sm:h-10 rounded-full transition-all duration-150 shadow-sm"
-                                :class="deleteMode ? 
-                                'bg-gray-50 text-gray-400 cursor-not-allowed' : 
+                                :class="(deleteMode || $store.offlineMode.isOffline) ?
+                                'bg-gray-50 text-gray-400 cursor-not-allowed' :
                                 'bg-green-500 text-white hover:bg-green-600 active:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-1'">
                                 <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor"
                                     viewBox="0 0 24 24">
@@ -250,11 +274,14 @@
                             <!-- Edit Mode Button -->
                             <button @click="
                             deleteMode && $wire.call('refreshListAfterEdit');
-                            deleteMode = !deleteMode; 
+                            deleteMode = !deleteMode;
                             $dispatch('toggle-delete-buttons');
-                        " class="inline-flex items-center justify-center w-10 h-10 sm:w-10 sm:h-10 rounded-full transition-all duration-150 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1"
-                                :class="deleteMode ? 
-                                'bg-orange-500 text-white hover:bg-orange-600 active:bg-orange-700 focus:ring-orange-400 shadow-inner' : 
+                        " :disabled="$store.offlineMode.isOffline"
+                                class="inline-flex items-center justify-center w-10 h-10 sm:w-10 sm:h-10 rounded-full transition-all duration-150 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1"
+                                :class="$store.offlineMode.isOffline ?
+                                'bg-gray-50 text-gray-400 cursor-not-allowed' :
+                                deleteMode ?
+                                'bg-orange-500 text-white hover:bg-orange-600 active:bg-orange-700 focus:ring-orange-400 shadow-inner' :
                                 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-200 focus:ring-gray-400'">
                                 <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor"
                                     viewBox="0 0 24 24">
@@ -265,16 +292,16 @@
                             </button>
 
                             <!-- Add Button -->
-                            <button @click="showAddSection = !showAddSection" :disabled="deleteMode"
+                            <button @click="showAddSection = !showAddSection" :disabled="deleteMode || $store.offlineMode.isOffline"
                                 class="inline-flex items-center justify-center w-10 h-10 sm:w-10 sm:h-10 rounded-full transition-all duration-150 shadow-sm"
-                                :class="deleteMode ? 
-                                'bg-gray-50 text-gray-400 cursor-not-allowed' : 
-                                showAddSection ? 
-                                    'bg-blue-600 text-white shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1' : 
+                                :class="(deleteMode || $store.offlineMode.isOffline) ?
+                                'bg-gray-50 text-gray-400 cursor-not-allowed' :
+                                showAddSection ?
+                                    'bg-blue-600 text-white shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1' :
                                     'bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1'">
                                 <svg class="w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-200" fill="none"
                                     stroke="currentColor" viewBox="0 0 24 24"
-                                    :class="{ 'rotate-45': showAddSection && !deleteMode }">
+                                    :class="{ 'rotate-45': showAddSection && !deleteMode && !$store.offlineMode.isOffline }">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M12 4v16m8-8H4">
                                     </path>

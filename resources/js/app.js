@@ -1,4 +1,6 @@
 import './bootstrap';
+import './components/offline-db';
+import './components/offline-mode';
 import './components/list-manager';
 import './components/inventory-control';
 import './components/barcode-renderer';

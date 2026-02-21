@@ -1,6 +1,6 @@
-const CACHE_NAME = 'plupro-v7';
-const STATIC_CACHE_NAME = 'plupro-static-v7';
-const DYNAMIC_CACHE_NAME = 'plupro-dynamic-v7';
+const STATIC_CACHE_NAME = 'plupro-static-v8';
+const DYNAMIC_CACHE_NAME = 'plupro-dynamic-v8';
+const PAGE_CACHE_NAME = 'plupro-pages-v1';
 
 // Files to cache immediately
 const STATIC_FILES = [
@@ -11,6 +11,17 @@ const STATIC_FILES = [
     '/icon-192.png?v=2025.08.07.16.42',
     '/icon-512.png?v=2025.08.07.16.42'
 ];
+
+// PWA mode flag — set by client via postMessage
+let isPWAMode = false;
+
+// Paths eligible for stale-while-revalidate in PWA mode
+function isOfflineCachablePage(pathname) {
+    return pathname === '/dashboard' ||
+        pathname === '/lists' ||
+        pathname === '/pwa' ||
+        /^\/lists\/\d+$/.test(pathname);
+}
 
 // Install event - cache static assets
 self.addEventListener('install', event => {
@@ -26,19 +37,84 @@ self.addEventListener('install', event => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', event => {
+    const validCaches = [STATIC_CACHE_NAME, DYNAMIC_CACHE_NAME, PAGE_CACHE_NAME];
     event.waitUntil(
         caches.keys().then(cacheNames => {
             return Promise.all(
                 cacheNames
-                    .filter(cacheName => {
-                        return cacheName !== STATIC_CACHE_NAME &&
-                            cacheName !== DYNAMIC_CACHE_NAME;
-                    })
+                    .filter(cacheName => !validCaches.includes(cacheName))
                     .map(cacheName => caches.delete(cacheName))
             );
         }).then(() => self.clients.claim())
     );
 });
+
+// Message handler for PWA mode flag and eager caching
+self.addEventListener('message', event => {
+    if (!event.data) return;
+
+    if (event.data.type === 'SET_PWA_MODE') {
+        isPWAMode = true;
+    }
+
+    if (event.data.type === 'CACHE_PAGES' && Array.isArray(event.data.urls)) {
+        event.waitUntil(eagerCachePages(event.data.urls));
+    }
+});
+
+// Eagerly cache pages in the background (for PWA pre-caching)
+async function eagerCachePages(urls) {
+    const cache = await caches.open(PAGE_CACHE_NAME);
+    for (const url of urls) {
+        try {
+            const existing = await cache.match(url);
+            if (!existing) {
+                const response = await fetch(url, { credentials: 'include' });
+                if (response.ok) {
+                    await cache.put(url, response);
+                }
+            }
+        } catch (e) {
+            // Silently skip — not critical
+        }
+    }
+}
+
+// Stale-while-revalidate: serve cache immediately, update in background
+async function staleWhileRevalidate(request) {
+    const cache = await caches.open(PAGE_CACHE_NAME);
+    const cachedResponse = await cache.match(request);
+
+    // Fire off network fetch in the background to update cache
+    const fetchPromise = fetch(request)
+        .then(response => {
+            if (response.ok && request.method === 'GET') {
+                cache.put(request, response.clone());
+            }
+            return response;
+        })
+        .catch(() => null);
+
+    if (cachedResponse) {
+        // Serve from cache immediately — background fetch updates for next time
+        fetchPromise; // fire-and-forget
+        return cachedResponse;
+    }
+
+    // Also check the dynamic cache (pages cached before this upgrade)
+    const dynamicCached = await caches.match(request);
+    if (dynamicCached) {
+        fetchPromise;
+        return dynamicCached;
+    }
+
+    // No cache at all — wait for network
+    const networkResponse = await fetchPromise;
+    if (networkResponse) return networkResponse;
+
+    // Everything failed — fall back to offline page
+    return caches.match('/offline.html');
+}
 
 // Fetch event - serve from cache when offline
 self.addEventListener('fetch', event => {
@@ -55,19 +131,14 @@ self.addEventListener('fetch', event => {
         event.respondWith(
             fetch(request)
                 .then(response => {
-                    // Clone the response
                     const responseToCache = response.clone();
-
-                    // Cache successful API responses
                     if (response.status === 200 && request.method === 'GET') {
                         caches.open(DYNAMIC_CACHE_NAME)
                             .then(cache => cache.put(request, responseToCache));
                     }
-
                     return response;
                 })
                 .catch(() => {
-                    // Try to serve from cache if offline
                     return caches.match(request);
                 })
         );
@@ -86,7 +157,6 @@ self.addEventListener('fetch', event => {
                     if (response) {
                         return response;
                     }
-
                     return fetch(request).then(response => {
                         if (response.status === 200) {
                             const responseToCache = response.clone();
@@ -100,28 +170,31 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // Network first with fallback for navigation requests
+    // Navigation requests
     if (request.mode === 'navigate') {
+        // PWA mode: stale-while-revalidate for cacheable pages
+        if (isPWAMode && isOfflineCachablePage(url.pathname)) {
+            event.respondWith(staleWhileRevalidate(request));
+            return;
+        }
+
+        // Default: network first with cache fallback
         event.respondWith(
             fetch(request)
                 .then(response => {
-                    // Cache the page
                     const responseToCache = response.clone();
                     if (request.method === 'GET') {
-                        caches.open(DYNAMIC_CACHE_NAME)
+                        caches.open(PAGE_CACHE_NAME)
                             .then(cache => cache.put(request, responseToCache));
                     }
-
                     return response;
                 })
                 .catch(() => {
-                    // Try cache
                     return caches.match(request)
                         .then(response => {
                             if (response) {
                                 return response;
                             }
-                            // Fall back to offline page
                             return caches.match('/offline.html');
                         });
                 })
@@ -152,7 +225,9 @@ self.addEventListener('sync', event => {
 });
 
 async function syncInventoryUpdates() {
-    // This would sync pending inventory updates
-    // Implementation depends on your specific needs
-    console.log('Syncing inventory updates...');
+    // Notify all clients to flush their dirty inventory
+    const clients = await self.clients.matchAll();
+    clients.forEach(client => {
+        client.postMessage({ type: 'SYNC_INVENTORY' });
+    });
 }

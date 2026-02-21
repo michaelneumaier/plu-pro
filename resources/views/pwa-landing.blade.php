@@ -63,6 +63,13 @@
                 transform: rotate(360deg);
             }
         }
+
+        .offline-message {
+            display: none;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
     </style>
 </head>
 
@@ -73,6 +80,9 @@
         </div>
         <div id="status">Loading your workspace...</div>
         <div class="spinner" id="spinner"></div>
+        <div class="offline-message" id="offline-message">
+            Loading from saved data...
+        </div>
     </div>
 
     <script>
@@ -80,32 +90,67 @@
             document.getElementById('status').textContent = message;
         }
 
-        function updateDebug(message) {
-            // Debug removed for production
+        function isStandaloneMode() {
+            if (window.navigator.standalone) return true;
+            if (window.matchMedia('(display-mode: standalone)').matches) return true;
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('source') === 'pwa') return true;
+            return false;
+        }
+
+        function getAuthCacheTTL() {
+            // 30 days for PWA standalone mode, 5 minutes for browser
+            return isStandaloneMode() ? 30 * 24 * 60 * 60 * 1000 : 5 * 60 * 1000;
+        }
+
+        function getRedirectUrl(authData) {
+            if (!authData || !authData.authenticated) {
+                return '/';
+            }
+
+            // Check for a default list preference
+            const defaultListId = localStorage.getItem('plupro_default_list');
+            if (defaultListId) {
+                return '/lists/' + defaultListId;
+            }
+
+            return '/dashboard';
         }
 
         async function checkAuthAndRedirect() {
             try {
-                // First check localStorage for cached auth state
                 const cachedAuth = localStorage.getItem('plupro_auth_state');
+                const cacheTTL = getAuthCacheTTL();
+
                 if (cachedAuth) {
                     const authData = JSON.parse(cachedAuth);
                     const cacheTime = authData.timestamp || 0;
                     const now = Date.now();
 
-                    // If cache is less than 5 minutes old, use it
-                    if (now - cacheTime < 5 * 60 * 1000) {
-                        if (authData.authenticated) {
-                            window.location.href = '/dashboard';
-                            return;
-                        } else {
-                            window.location.href = '/';
-                            return;
-                        }
+                    // If cache is within TTL, use it
+                    if (now - cacheTime < cacheTTL) {
+                        window.location.href = getRedirectUrl(authData);
+                        return;
                     }
                 }
 
-                // Check authentication status via dedicated endpoint
+                // If offline, use cached auth regardless of age (better than nothing)
+                if (!navigator.onLine) {
+                    if (cachedAuth) {
+                        const authData = JSON.parse(cachedAuth);
+                        document.getElementById('offline-message').style.display = 'block';
+                        updateStatus('Opening offline...');
+                        window.location.href = getRedirectUrl(authData);
+                        return;
+                    }
+
+                    // No cached auth at all while offline — can't authenticate
+                    updateStatus('Please connect to the internet to sign in.');
+                    document.getElementById('spinner').style.display = 'none';
+                    return;
+                }
+
+                // Online: check authentication status via dedicated endpoint
                 const response = await fetch('/pwa/auth-check', {
                     method: 'GET',
                     credentials: 'include',
@@ -125,26 +170,22 @@
                         timestamp: Date.now()
                     }));
 
-                    if (authData.authenticated) {
-                        window.location.href = '/dashboard';
-                        return;
-                    } else {
-                        window.location.href = '/';
-                        return;
-                    }
+                    window.location.href = getRedirectUrl(authData);
+                    return;
                 }
             } catch (error) {
-                // On error, redirect to home
+                // On error, try cached auth as fallback
+                const cachedAuth = localStorage.getItem('plupro_auth_state');
+                if (cachedAuth) {
+                    const authData = JSON.parse(cachedAuth);
+                    window.location.href = getRedirectUrl(authData);
+                    return;
+                }
             }
 
-            // If we get here, something went wrong, redirect to home
+            // Last resort fallback
             window.location.href = '/';
         }
-
-        // Clear any stale auth cache on load
-        window.addEventListener('focus', () => {
-            localStorage.removeItem('plupro_auth_state');
-        });
 
         // Start the check after a small delay to ensure everything is loaded
         setTimeout(checkAuthAndRedirect, 200);
