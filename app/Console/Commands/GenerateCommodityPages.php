@@ -23,7 +23,7 @@ class GenerateCommodityPages extends Command
             ->groupBy('commodity');
 
         $baseUrl = config('app.url');
-        $outputDir = public_path('commodity');
+        $outputDir = storage_path('app/commodity');
 
         if (! is_dir($outputDir)) {
             mkdir($outputDir, 0755, true);
@@ -52,7 +52,7 @@ class GenerateCommodityPages extends Command
         $progressBar->finish();
         $this->newLine();
 
-        $this->info("Generated {$pluCodes->count()} commodity pages in {$outputDir}/");
+        $this->info("Generated {$pluCodes->count()} commodity pages in {$outputDir}");
 
         return Command::SUCCESS;
     }

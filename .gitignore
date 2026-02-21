@@ -1,7 +1,6 @@
 /.phpunit.cache
 /public/hot
 /public/storage
-/public/commodity/
 /public/plu-directory.html
 /public/sitemap.xml
 /storage/*.key

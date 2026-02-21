@@ -40,14 +40,15 @@ Route::get('/plu-directory', function () {
     abort(404, 'PLU directory not generated yet. Run: php artisan plu:generate-directory');
 })->name('plu.directory');
 
-// Commodity pages - static HTML pages for SEO
+// Commodity pages - static HTML pages for SEO (stored in storage to avoid public dir conflicts)
 Route::get('/commodity/{slug}', function ($slug) {
-    $filePath = public_path("commodity/{$slug}.html");
+    $filePath = storage_path("app/commodity/{$slug}.html");
     if (file_exists($filePath)) {
-        return response()->file($filePath);
+        return response($slug ? file_get_contents($filePath) : '', 200)
+            ->header('Content-Type', 'text/html');
     }
     abort(404, 'Commodity page not found.');
-})->name('commodity.show');
+})->where('slug', '[a-z0-9\-]+')->name('commodity.show');
 
 // Google OAuth routes
 Route::get('/auth/google', [GoogleController::class, 'redirect'])->name('auth.google');
