@@ -144,9 +144,14 @@
          x-show="showOfflineMessage" 
          x-transition
          class="fixed top-0 left-0 right-0 bg-orange-500 text-white text-center py-2 z-50">
-        <svg class="inline-block w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                  d="M18.364 5.636l-12.728 12.728m0-12.728l12.728 12.728"></path>
+        <svg class="inline-block w-5 h-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <path d="M12 20h.01" />
+            <path d="M8.5 16.429a5 5 0 0 1 7 0" />
+            <path d="M5 12.859a10 10 0 0 1 5.17-2.69" />
+            <path d="M19 12.859a10 10 0 0 0-2.007-1.523" />
+            <path d="M2 8.82a15 15 0 0 1 4.177-2.643" />
+            <path d="M22 8.82a15 15 0 0 0-11.288-3.764" />
+            <path d="m2 2 20 20" />
         </svg>
         You're offline - Changes will sync when reconnected
     </div>

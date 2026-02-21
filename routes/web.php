@@ -62,6 +62,32 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/lists/{userList}', ListsShow::class)->name('lists.show');
     Route::get('/lists/{userList}/edit', ListsEdit::class)->name('lists.edit');
 
+    // Beacon endpoint for syncing inventory on page unload
+    Route::post('/inventory/beacon', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'userListId' => 'required|integer',
+            'changes' => 'required|array',
+            'changes.*.listItemId' => 'required|integer',
+            'changes.*.value' => 'required|numeric|min:0',
+        ]);
+
+        $userList = \App\Models\UserList::where('id', $data['userListId'])
+            ->where('user_id', auth()->id())
+            ->first();
+
+        if ($userList) {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($userList, $data) {
+                foreach ($data['changes'] as $change) {
+                    $userList->listItems()
+                        ->where('id', $change['listItemId'])
+                        ->update(['inventory_level' => max(0, (float) $change['value'])]);
+                }
+            });
+        }
+
+        return response()->json(['success' => true]);
+    })->name('inventory.beacon');
+
     // Google OAuth unlink route
     Route::delete('/auth/google/unlink', [GoogleController::class, 'unlink'])->name('auth.google.unlink');
 });

@@ -105,7 +105,7 @@ $colCount = $hasActions ? 5 : 4;
             x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
             <div class="grid {{ $showInventory && $hasActions ? 'grid-cols-[3.5rem,3rem,1fr,auto,auto]' : ($showInventory ? 'grid-cols-[3.5rem,3rem,1fr,auto]' : ($hasActions ? 'grid-cols-[3.5rem,3rem,1fr,auto]' : 'grid-cols-[3.5rem,3rem,1fr]')) }} min-h-16"
                 @click="$dispatch('{{ $isUpcItem ? 'upcCodeSelected' : 'pluCodeSelected' }}', {{ $isUpcItem ? '[' . $upcCode->id . ']' : '[' . $pluCode->id . ', ' . (($listItem && $listItem->organic) ? 'true' : 'false') . ']' }})"
-                wire:key="{{ $isUpcItem ? 'upc' : 'plu' }}-row-{{ $listItem ? $listItem->id : ($isUpcItem ? $upcCode->id : $pluCode->id) }}-{{ $userListId }}-{{ $refreshToken ?? time() }}"
+                wire:key="{{ $isUpcItem ? 'upc' : 'plu' }}-row-{{ $listItem ? $listItem->id : ($isUpcItem ? $upcCode->id : $pluCode->id) }}-{{ $userListId }}"
                 data-{{ $isUpcItem ? 'upc' : 'plu' }}-id="{{ $isUpcItem ? $upcCode->id : $pluCode->id }}">
                 <div class="flex flex-col items-center justify-evenly">
                     @if($isUpcItem)
@@ -207,13 +207,84 @@ $colCount = $hasActions ? 5 : 4;
                     @if($readOnly)
                     <!-- Read-only inventory display -->
                     <div
-                        class="flex items-center justify-center w-12 h-8 bg-gray-100 text-gray-700 font-semibold text-base rounded border">
-                        {{ ($listItem->inventory_level ?? 0) > 0 ? ($listItem->inventory_level ?? 0) : '0' }}
+                        class="flex items-center justify-center w-12 h-8 bg-gray-100 text-gray-700 font-semibold text-base rounded border"
+                        x-text="($store.listManager.getInventory({{ $listItem->id }}) || 0) > 0 ? $store.listManager.getInventory({{ $listItem->id }}).toFixed(1) : '0'">
                     </div>
                     @else
-                    <!-- Interactive inventory component -->
-                    <livewire:inventory-level :listItemId="$listItem->id" :userListId="$userListId"
-                        :wire:key="'inv-level-' . $listItem->id . '-' . ($refreshToken ?? time())" />
+                    <!-- Interactive inventory component (Alpine, no Livewire) -->
+                    <div x-data="inventoryControl({{ $listItem->id }})" class="w-full">
+                        <div class="flex flex-col items-center space-y-1">
+                            <!-- Main controls row -->
+                            <div class="flex items-center w-full justify-center">
+                                <!-- Decrement button -->
+                                <button @click.stop="decrement()"
+                                        :disabled="value <= 0"
+                                        class="relative w-8 h-8 flex items-center justify-center bg-red-500 text-white rounded-md
+                                               hover:bg-red-600 active:scale-95 transition-all duration-100
+                                               disabled:bg-gray-300 disabled:cursor-not-allowed touch-manipulation
+                                               focus:outline-none focus:ring-1 focus:ring-red-400"
+                                        aria-label="Decrease inventory">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M20 12H4"></path>
+                                    </svg>
+                                </button>
+
+                                <!-- Value display -->
+                                <div class="w-14 text-center relative">
+                                    <input type="text"
+                                           inputmode="decimal"
+                                           x-model="editValue"
+                                           x-show="isEditing"
+                                           @focus="$el.select()"
+                                           @keydown.enter.stop="saveEdit($el.value)"
+                                           @keydown.escape.stop="cancelEdit()"
+                                           @blur.stop="saveEdit($el.value)"
+                                           @click.stop
+                                           class="w-14 h-8 text-lg font-semibold text-center border border-blue-400 rounded-md
+                                                  focus:outline-none focus:ring-1 focus:ring-blue-400
+                                                  [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                           min="0">
+
+                                    <div @click.stop="startEditing(); $nextTick(() => $el.previousElementSibling.focus())"
+                                         x-show="!isEditing"
+                                         class="w-14 h-8 text-lg font-semibold cursor-pointer hover:text-blue-600 transition-colors rounded-md hover:bg-blue-50 flex items-center justify-center"
+                                         x-text="(parseFloat(value) || 0).toFixed(1)">
+                                    </div>
+                                </div>
+
+                                <!-- Increment button -->
+                                <button @click.stop="increment()"
+                                        class="relative w-8 h-8 flex items-center justify-center bg-green-500 text-white rounded-md
+                                               hover:bg-green-600 active:scale-95 transition-all duration-100
+                                               touch-manipulation focus:outline-none focus:ring-1 focus:ring-green-400"
+                                        aria-label="Increase inventory">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <!-- Quick action buttons -->
+                            <div class="flex gap-1 w-full max-w-[180px]">
+                                <button @click.stop="clear()"
+                                        class="flex-1 px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded-md
+                                               hover:bg-gray-200 active:scale-95 transition-all duration-100 touch-manipulation
+                                               border border-gray-200">
+                                    Clear
+                                </button>
+
+                                <button @click.stop="toggleHalf()"
+                                        class="flex-1 px-2 py-1 text-xs font-medium rounded-md
+                                               active:scale-95 transition-all duration-100 touch-manipulation
+                                               border"
+                                        :class="(parseFloat(value) || 0) % 1 === 0.5 ?
+                                            'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' :
+                                            'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'"
+                                        x-text="(parseFloat(value) || 0) % 1 === 0.5 ? '-½' : '+½'">
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                     @endif
                     @endif
                 </div>
@@ -268,13 +339,33 @@ $colCount = $hasActions ? 5 : 4;
                 x-transition:leave-start="opacity-100 transform scale-100"
                 x-transition:leave-end="opacity-0 transform scale-90">
                 @if($listItem && !$onAdd && isset($listItem->id) && $listItem->id && !$isUpcItem)
-                <livewire:organic-toggle :list-item="$listItem"
-                    :wire:key="'organic-toggle-' . $listItem->id . '-' . ($refreshToken ?? time())" />
+                <div x-data="{ isOrganic: {{ $listItem->organic ? 'true' : 'false' }}, toggling: false }"
+                    x-init="$watch('toggling', v => { if (v) setTimeout(() => toggling = false, 3000) })">
+                    <button @click.stop="if (!toggling) { toggling = true; isOrganic = !isOrganic; $wire.call('toggleOrganic', {{ $listItem->id }}) }"
+                        class="px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200 ease-in-out inline-flex items-center space-x-1"
+                        :class="isOrganic
+                            ? 'bg-green-500 hover:bg-green-600 text-white'
+                            : 'bg-gray-200 hover:bg-gray-300 text-gray-500'"
+                        :title="isOrganic ? 'Click to make conventional' : 'Click to make organic'"
+                        :disabled="toggling">
+                        <template x-if="isOrganic">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </template>
+                        <template x-if="!isOrganic">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </template>
+                        <span>Organic</span>
+                    </button>
+                </div>
                 @endif
                 @if($hasActions && $onDelete && $listItem && isset($listItem->id) && $listItem->id)
                 <button x-show="showDeleteButtons" x-cloak
                     @click.stop="$event.preventDefault(); if(confirm('Are you sure you want to remove this {{ $isUpcItem ? 'UPC' : ($listItem->organic ? 'organic' : 'regular') }} item from your list?')) { $wire.call('removeListItem', {{ $listItem->id }}) }"
-                    wire:key="delete-button-{{ $listItem->id }}-{{ now() }}"
+                    wire:key="delete-button-{{ $listItem->id }}"
                     class=" px-3 py-1 mr-1 bg-red-500 hover:bg-red-700 text-white text-sm font-bold rounded-md flex items-center justify-center"
                     aria-label="Delete">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"

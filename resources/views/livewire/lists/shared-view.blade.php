@@ -38,21 +38,7 @@
                         </a>
                     @endauth
                     
-                    <!-- Read-only scan button -->
-                    @if($listItems->count() > 0)
-                        <button @click="carouselOpen = true; $dispatch('carousel-open')"
-                            class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1 transition-all duration-150 shadow-sm">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <!-- Corner brackets -->
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M3 7V5a2 2 0 012-2h2M3 17v2a2 2 0 002 2h2M21 17v2a2 2 0 01-2 2h-2M21 7V5a2 2 0 00-2-2h-2"></path>
-                                <!-- Simple barcode -->
-                                <rect x="9" y="9" width="1" height="6" fill="currentColor" />
-                                <rect x="11" y="9" width="2" height="6" fill="currentColor" />
-                                <rect x="14" y="9" width="1" height="6" fill="currentColor" />
-                            </svg>
-                        </button>
-                    @endif
+                    <!-- Scan button removed — carousel is now client-side on the main list view -->
                 </div>
             </div>
         </div>
@@ -178,9 +164,5 @@
         </div>
     </div>
 
-    <!-- Read-only carousel modal -->
-    <div wire:key="shared-carousel-{{ $userList->id }}" x-show="carouselOpen" x-cloak
-        @carousel-close.window="carouselOpen = false">
-        @livewire('item-carousel', ['userListId' => $userList->id, 'readOnly' => true])
-    </div>
+    <!-- Carousel removed — inventory carousel is now client-side on the main list view -->
 </div>

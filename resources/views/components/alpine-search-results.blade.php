@@ -80,10 +80,7 @@
                             <template x-if="!regularInList && !isAdding">
                                 <button @click.stop="
                                     isAdding = true;
-                                    // Trigger server action via window event
-                                    window.dispatchEvent(new CustomEvent('trigger-add-item', { 
-                                        detail: { pluCodeId: {{ $pluCode->id }}, organic: false }
-                                    }));
+                                    $store.listManager.addItem({ id: {{ $pluCode->id }}, organic: false }, {{ $userListId }});
                                 "
                                     class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs transition-colors">
                                     Add Regular
@@ -113,10 +110,7 @@
                             <template x-if="!organicInList && !isAddingOrganic">
                                 <button @click.stop="
                                     isAddingOrganic = true;
-                                    // Trigger server action via window event
-                                    window.dispatchEvent(new CustomEvent('trigger-add-item', { 
-                                        detail: { pluCodeId: {{ $pluCode->id }}, organic: true }
-                                    }));
+                                    $store.listManager.addItem({ id: {{ $pluCode->id }}, organic: true }, {{ $userListId }});
                                 "
                                     class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-xs transition-colors">
                                     Add Organic

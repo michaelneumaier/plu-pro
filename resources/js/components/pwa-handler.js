@@ -107,11 +107,6 @@ Alpine.data('networkStatus', () => ({
         window.addEventListener('offline', () => {
             this.online = false;
             this.showOfflineMessage = true;
-            
-            // Auto-hide after 5 seconds
-            setTimeout(() => {
-                this.showOfflineMessage = false;
-            }, 5000);
         });
     }
 }));

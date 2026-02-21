@@ -12,6 +12,7 @@ use Exception;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -69,7 +70,6 @@ class Show extends Component
 
     protected $listeners = [
         'retry-add-plu' => 'retryAddPlu',
-        'list-item-updated' => 'handleListItemUpdated',
         'upc-ready-for-list' => 'handleUPCReadyForList',
     ];
 
@@ -574,8 +574,6 @@ class Show extends Component
 
     public function addPLUCodeSilent($pluCodeId, $organic = false)
     {
-        // This method adds items without triggering component re-render
-        // Check if this specific version (regular or organic) already exists
         $exists = $this->userList->listItems()
             ->where('plu_code_id', $pluCodeId)
             ->where('organic', $organic)
@@ -589,32 +587,54 @@ class Show extends Component
                     'organic' => $organic,
                 ]);
 
-                // Load the PLU code data for the new item
                 $listItem->load('pluCode');
 
-                // Update the relationships and filter options INSIDE transaction like delete does
+                // Keep server state fresh for the eventual re-render
                 $this->userList->load(['listItems.pluCode', 'listItems.upcCode']);
-                $this->initializeFilterOptions();
-
-                // Update refresh token to reset wire:key values and prevent snapshot errors
-                $this->refreshToken = time();
 
                 return $listItem;
             });
 
-            // Dispatch browser event for Alpine.js components to catch
-            $this->js("
-                window.dispatchEvent(new CustomEvent('item-added-to-list', { 
-                    detail: { 
-                        pluCodeId: {$pluCodeId}, 
-                        organic: ".($organic ? 'true' : 'false').' 
-                    } 
-                }));
-            ');
+            // Resolve image URL like render() does
+            $imageUrl = null;
+            $hasImage = false;
+            foreach (['jpg', 'png'] as $ext) {
+                $path = "product_images/{$listItem->pluCode->plu}.{$ext}";
+                if (Storage::disk('public')->exists($path)) {
+                    $imageUrl = Storage::disk('public')->url($path);
+                    $hasImage = true;
+                    break;
+                }
+            }
 
-            // Return success without modifying component properties
-            return ['success' => true, 'listItem' => $listItem];
+            $displayCode = $organic ? '9'.$listItem->pluCode->plu : $listItem->pluCode->plu;
+
+            // Skip re-render — client adds item to Alpine store, then triggers one $refresh after queue drains
+            $this->skipRender();
+
+            return [
+                'success' => true,
+                'listItem' => [
+                    'id' => $listItem->id,
+                    'item_type' => 'plu',
+                    'plu_code_id' => $listItem->plu_code_id,
+                    'plu' => $listItem->pluCode->plu,
+                    'variety' => $listItem->pluCode->variety,
+                    'commodity' => $listItem->pluCode->commodity,
+                    'category' => $listItem->pluCode->category,
+                    'organic' => $organic,
+                    'inventory_level' => 0,
+                    'size' => $listItem->pluCode->size,
+                    'retail_price' => $listItem->pluCode->retail_price,
+                    'consumer_usage_tier' => $listItem->pluCode->consumer_usage_tier,
+                    'display_code' => $displayCode,
+                    'image_url' => $imageUrl,
+                    'has_image' => $hasImage,
+                ],
+            ];
         }
+
+        $this->skipRender();
 
         return ['success' => false, 'message' => 'This '.($organic ? 'organic' : 'regular').' item already exists in your list'];
     }
@@ -758,11 +778,31 @@ class Show extends Component
         $this->dispatch('inventory-cleared-refresh');
     }
 
-    public function handleListItemUpdated()
+    /**
+     * Batch update inventory levels from client-side store.
+     * The client is the source of truth — values are absolute, not deltas.
+     */
+    public function batchUpdateInventory(array $changes): array
     {
-        // Handle individual organic toggle updates
-        $this->refreshToken = time();
-        $this->userList->load(['listItems.pluCode', 'listItems.upcCode']);
+        DB::transaction(function () use ($changes) {
+            foreach ($changes as $change) {
+                $this->userList->listItems()
+                    ->where('id', $change['listItemId'])
+                    ->update(['inventory_level' => max(0, (float) $change['value'])]);
+            }
+        });
+
+        return ['success' => true, 'timestamp' => now()->timestamp * 1000];
+    }
+
+    public function toggleOrganic($listItemId)
+    {
+        $listItem = $this->userList->listItems()->where('id', $listItemId)->first();
+        if ($listItem) {
+            $listItem->update(['organic' => ! $listItem->organic]);
+            $this->userList->load(['listItems.pluCode', 'listItems.upcCode']);
+            $this->refreshToken = time();
+        }
     }
 
     public function updateListName($newName)
@@ -785,22 +825,6 @@ class Show extends Component
 
         // Update filter options in case organic status affected categories/commodities
         $this->initializeFilterOptions();
-    }
-
-    public function prepareAndOpenCarousel()
-    {
-        // Dispatch event to coordinate sync completion in frontend
-        $this->dispatch('prepare-carousel-sync');
-    }
-
-    public function finalizeCarouselOpen()
-    {
-        // This method will be called from frontend after all syncs complete
-        // Force a refresh of all list items to get latest values from database
-        $this->userList->load(['listItems.pluCode', 'listItems.upcCode']);
-
-        // Dispatch event to open carousel with fresh data
-        $this->dispatch('carousel-ready-to-open');
     }
 
     // Share functionality
@@ -949,27 +973,10 @@ class Show extends Component
             }
         }
 
-        // Get list items with server-side filtering and sorting
-        $query = $this->userList->listItems()
-            ->with(['pluCode', 'upcCode']);
-
-        // Get all items first, then filter and sort in PHP to handle mixed PLU/UPC items
-        $listItems = $query->get();
-
-        // Apply filtering if selected
-        if (! empty($this->selectedCategory)) {
-            $listItems = $listItems->filter(function ($item) {
-                return ($item->item_type === 'plu' && $item->pluCode->category === $this->selectedCategory) ||
-                    ($item->item_type === 'upc' && $item->upcCode->category === $this->selectedCategory);
-            });
-        }
-
-        if (! empty($this->selectedCommodity)) {
-            $listItems = $listItems->filter(function ($item) {
-                return ($item->item_type === 'plu' && $item->pluCode->commodity === $this->selectedCommodity) ||
-                    ($item->item_type === 'upc' && $item->upcCode->commodity === $this->selectedCommodity);
-            });
-        }
+        // Get ALL list items (no server-side filtering — filtering is client-side now)
+        $listItems = $this->userList->listItems()
+            ->with(['pluCode', 'upcCode'])
+            ->get();
 
         // Sort items with a single combined sort key: commodity + sort_priority + code
         // Order: Regular PLU, Organic PLU, UPC
@@ -1001,9 +1008,21 @@ class Show extends Component
             })
             ->keys();
 
-        // Prepare items data for JavaScript
+        // Prepare items data for JavaScript (enriched for client-side carousel + table)
         $allItemsData = $listItems->map(function ($item) {
             if ($item->item_type === 'plu') {
+                $displayCode = $item->organic ? '9'.$item->pluCode->plu : $item->pluCode->plu;
+                $imageUrl = null;
+                $hasImage = false;
+                foreach (['jpg', 'png'] as $ext) {
+                    $path = "product_images/{$item->pluCode->plu}.{$ext}";
+                    if (Storage::disk('public')->exists($path)) {
+                        $imageUrl = Storage::disk('public')->url($path);
+                        $hasImage = true;
+                        break;
+                    }
+                }
+
                 return [
                     'id' => $item->id,
                     'item_type' => 'plu',
@@ -1017,8 +1036,14 @@ class Show extends Component
                     'size' => $item->pluCode->size,
                     'retail_price' => $item->pluCode->retail_price,
                     'consumer_usage_tier' => $item->pluCode->consumer_usage_tier,
+                    'display_code' => $displayCode,
+                    'image_url' => $imageUrl,
+                    'has_image' => $hasImage,
                 ];
             } else {
+                $hasImage = $item->upcCode->has_image ?? false;
+                $imageUrl = $hasImage ? asset('storage/upc_images/'.$item->upcCode->upc.'.jpg') : null;
+
                 return [
                     'id' => $item->id,
                     'item_type' => 'upc',
@@ -1027,12 +1052,15 @@ class Show extends Component
                     'name' => $item->upcCode->name,
                     'commodity' => $item->upcCode->commodity,
                     'category' => $item->upcCode->category,
-                    'organic' => false, // UPC items don't have organic variants
+                    'organic' => false,
                     'inventory_level' => $item->inventory_level,
                     'brand' => $item->upcCode->brand,
+                    'display_code' => $item->upcCode->upc,
+                    'image_url' => $imageUrl,
+                    'has_image' => $hasImage,
                 ];
             }
-        })->values(); // Ensure it's a proper array, not an object
+        })->values();
 
         return view('livewire.lists.show', [
             'listItems' => $listItems,

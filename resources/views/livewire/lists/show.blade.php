@@ -28,8 +28,8 @@
     },
     
     init() {
-        // Initialize list manager store with server data
-        this.$store.listManager.init(@js($allItemsData));
+        // Initialize list manager store with server data + Show component ID
+        this.$store.listManager.init(@js($allItemsData), {{ $userList->id }}, '{{ $this->getId() }}');
         
         // Listen for notifications
         window.addEventListener('notify', (e) => {
@@ -38,18 +38,7 @@
             console.log(`${type}: ${message}`);
         });
         
-        // Listen for add-item events from Alpine store
-        window.addEventListener('trigger-add-item', (e) => {
-            const { pluCodeId, organic } = e.detail;
-            const addButton = document.getElementById(organic ? 'add-organic-btn' : 'add-regular-btn');
-            if (addButton) {
-                // Set the PLU code ID and trigger the click
-                addButton.setAttribute('data-plu-id', pluCodeId);
-                addButton.click();
-            }
-        });
-        
-        // Handle Livewire events - removed duplicate listener
+        // Add-item events now handled directly via JS queue in listManager store
     },
     
     clearInventoryStorage() {
@@ -64,53 +53,64 @@
         this.$store.listManager.clearAllInventory();
     },
 
-    // Coordinate all pending syncs before opening carousel
-    prepareCarouselSync() {
-        const syncPromises = [];
-        
-        // Find all inventory components with pending changes
-        document.querySelectorAll('[x-data*=inventoryItem]').forEach(el => {
-            if (el.__x && el.__x.$data && el.__x.$data.pendingDelta !== 0) {
-                if (el.__x.$data.syncTimeout) {
-                    clearTimeout(el.__x.$data.syncTimeout);
-                }
-                syncPromises.push(el.__x.$data.sync());
+    // Carousel data (computed from store)
+    get carouselItems() {
+        return this.$store.listManager.getItemsWithInventory();
+    },
+
+    carouselIndex: 0,
+
+    openCarousel() {
+        // Flush pending sync to keep server up-to-date, then open
+        this.$store.listManager.flushSync().then(() => {
+            this.carouselIndex = 0;
+            this.carouselOpen = true;
+        });
+    },
+
+    // Carousel touch/swipe support
+    carouselStartX: 0,
+    carouselCurrentX: 0,
+    carouselDragging: false,
+    carouselHasMoved: false,
+
+    onCarouselTouchStart(e) {
+        this.carouselStartX = e.touches[0].clientX;
+        this.carouselCurrentX = this.carouselStartX;
+        this.carouselDragging = true;
+        this.carouselHasMoved = false;
+    },
+    onCarouselTouchMove(e) {
+        if (!this.carouselDragging) return;
+        e.preventDefault();
+        this.carouselCurrentX = e.touches[0].clientX;
+        const deltaX = this.carouselCurrentX - this.carouselStartX;
+        const deltaY = e.touches[0].clientY - (this._carouselStartY || e.touches[0].clientY);
+        if (!this.carouselHasMoved && Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+            this.carouselHasMoved = true;
+        }
+    },
+    onCarouselTouchEnd() {
+        if (!this.carouselDragging) return;
+        this.carouselDragging = false;
+        if (!this.carouselHasMoved) return;
+        const deltaX = this.carouselCurrentX - this.carouselStartX;
+        if (Math.abs(deltaX) > 75) {
+            if (deltaX > 0 && this.carouselIndex > 0) {
+                this.carouselIndex--;
+                if (navigator.vibrate) navigator.vibrate(10);
+            } else if (deltaX < 0 && this.carouselIndex < this.carouselItems.length - 1) {
+                this.carouselIndex++;
+                if (navigator.vibrate) navigator.vibrate(10);
             }
-        });
-        
-        // Also check inventory-level-working components
-        document.querySelectorAll('[x-data*=localValue]').forEach(el => {
-            if (el.__x && el.__x.$data && el.__x.$data.pendingChanges !== 0) {
-                if (el.__x.$data.syncTimeout) {
-                    clearTimeout(el.__x.$data.syncTimeout);
-                }
-                syncPromises.push(el.__x.$data.syncToServer());
-            }
-        });
-        
-        // Wait for all syncs to complete, then finalize carousel open
-        Promise.allSettled(syncPromises).then(() => {
-            // Small delay to ensure all syncs have fully committed to database
-            setTimeout(() => {
-                try {
-                    // Try to call finalizeCarouselOpen, but fallback if component is gone
-                    this.$wire.call('finalizeCarouselOpen').catch(() => {
-                        // Fallback: directly dispatch the event
-                        this.$dispatch('carousel-ready-to-open');
-                    });
-                } catch (error) {
-                    // Fallback: directly dispatch the event
-                    this.$dispatch('carousel-ready-to-open');
-                }
-            }, 100);
-        });
+        }
     }
-}" @inventory-cleared.window="clearInventoryStorage()" @prepare-carousel-sync.window="prepareCarouselSync()"
+}" @inventory-cleared.window="clearInventoryStorage()"
         @barcode-scanned.window="
     $wire.set('searchTerm', processScannedCode($event.detail));
     showBarcodeScanner = false;
     $refs.barcodeScanner?.stopScanning?.();
- " @carousel-ready-to-open.window="carouselOpen = true; $dispatch('carousel-open')"
+ "
         class="min-h-screen md:p-2 md:rounded-lg bg-gray-50">
         <!-- Mobile-first header -->
         <div class="bg-white rounded-lg sticky top-0 z-40">
@@ -290,33 +290,37 @@
                 <div
                     class="flex flex-col md:flex-row mb-1 space-y-2 md:space-y-0 bg-black bg-opacity-10 rounded-md p-1">
                     <div class="flex flex-row w-full space-x-1 md:space-x-2 flex-grow">
-                        <!-- Category Filter -->
+                        <!-- Category Filter (client-side) -->
                         <div class="flex-1 md:p-1">
                             <label for="category" class="block text-sm font-medium text-gray-700 hidden">Category</label>
-                            <select wire:model.live="selectedCategory" id="category"
+                            <select x-model="$store.listManager.selectedCategory"
+                                @change="$store.listManager.applyFilters()"
+                                id="category"
                                 class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                                 <option value="">All Categories</option>
-                                @foreach($categories as $category)
-                                <option value="{{ $category }}">{{ ucwords(strtolower($category)) }}</option>
-                                @endforeach
+                                <template x-for="cat in $store.listManager.categories" :key="cat">
+                                    <option :value="cat" x-text="cat.toLowerCase().replace(/\b\w/g, l => l.toUpperCase())"></option>
+                                </template>
                             </select>
                         </div>
 
-                        <!-- Commodity Filter -->
+                        <!-- Commodity Filter (client-side) -->
                         <div class="flex-1 md:p-1">
                             <label for="commodity" class="block text-sm font-medium text-gray-700 hidden">Commodity</label>
-                            <select wire:model.live="selectedCommodity" id="commodity"
+                            <select x-model="$store.listManager.selectedCommodity"
+                                @change="$store.listManager.applyFilters()"
+                                id="commodity"
                                 class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-1 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                                 <option value="">All Commodities</option>
-                                @foreach($commodities as $commodity)
-                                <option value="{{ $commodity }}">{{ ucwords(strtolower($commodity)) }}</option>
-                                @endforeach
+                                <template x-for="comm in $store.listManager.commodities" :key="comm">
+                                    <option :value="comm" x-text="comm.toLowerCase().replace(/\b\w/g, l => l.toUpperCase())"></option>
+                                </template>
                             </select>
                         </div>
 
-                        <!-- Reset Filters Button -->
+                        <!-- Reset Filters Button (client-side) -->
                         <div class="flex-shrink-0 md:p-1 flex items-end">
-                            <button wire:click="resetFilters"
+                            <button @click="$store.listManager.resetFilters()"
                                 class="bg-gray-500 hover:bg-gray-700 text-white py-1 px-2 rounded">
                                 Reset
                             </button>
@@ -371,57 +375,191 @@
             </div>
         </div>
 
-        <!-- Hidden buttons for triggering add functionality -->
-        <div style="display: none;">
-            <button id="add-regular-btn" wire:click="addPLUCodeSilent($event.target.getAttribute('data-plu-id'), false)"
-                data-plu-id="">
-                Add Regular
-            </button>
-            <button id="add-organic-btn" wire:click="addPLUCodeSilent($event.target.getAttribute('data-plu-id'), true)"
-                data-plu-id="">
-                Add Organic
-            </button>
-        </div>
-
         <!-- Floating scan button - centered at bottom -->
         <div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-            <button wire:click="prepareAndOpenCarousel" wire:loading.attr="disabled"
-                class="flex flex-col items-center justify-center px-4 py-3 bg-green-600 text-white rounded-xl shadow-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-50 transition-all duration-200 active:scale-95 min-w-[80px] disabled:opacity-75 disabled:cursor-not-allowed">
-
-                <!-- Loading spinner -->
-                <div wire:loading wire:target="prepareAndOpenCarousel" class="w-6 h-6 mb-1">
-                    <svg class="animate-spin w-6 h-6" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
-                        </circle>
-                        <path class="opacity-75" fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                        </path>
-                    </svg>
-                </div>
+            <button @click="openCarousel()"
+                class="flex flex-col items-center justify-center px-4 py-3 bg-green-600 text-white rounded-xl shadow-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-50 transition-all duration-200 active:scale-95 min-w-[80px]">
 
                 <!-- QR/Barcode scanner icon -->
-                <svg wire:loading.remove wire:target="prepareAndOpenCarousel" class="w-6 h-6 mb-1" fill="none"
-                    stroke="currentColor" viewBox="0 0 24 24">
-                    <!-- Corner brackets -->
+                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M3 7V5a2 2 0 012-2h2M3 17v2a2 2 0 002 2h2M21 17v2a2 2 0 01-2 2h-2M21 7V5a2 2 0 00-2-2h-2">
                     </path>
-                    <!-- Simple barcode -->
                     <rect x="9" y="9" width="1" height="6" fill="currentColor" />
                     <rect x="11" y="9" width="2" height="6" fill="currentColor" />
                     <rect x="14" y="9" width="1" height="6" fill="currentColor" />
                 </svg>
-
-                <!-- Text -->
-                <span wire:loading.remove wire:target="prepareAndOpenCarousel" class="text-xs font-semibold">Scan
-                    List</span>
-                <span wire:loading wire:target="prepareAndOpenCarousel" class="text-xs font-semibold">Syncing...</span>
+                <span class="text-xs font-semibold">Scan List</span>
             </button>
         </div>
 
-        <div wire:key="carousel-{{ $userList->id }}" x-show="carouselOpen" x-cloak
-            @carousel-close.window="carouselOpen = false">
-            @livewire('item-carousel', ['userListId' => $userList->id])
+        <!-- Client-side Carousel (reads from Alpine store) -->
+        <div x-show="carouselOpen" x-cloak
+            x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+            class="fixed inset-0 bg-black bg-opacity-95 z-50 flex flex-col"
+            @keydown.left.window="carouselOpen && carouselIndex > 0 && (carouselIndex--, navigator.vibrate && navigator.vibrate(10))"
+            @keydown.right.window="carouselOpen && carouselIndex < carouselItems.length - 1 && (carouselIndex++, navigator.vibrate && navigator.vibrate(10))"
+            @keydown.escape.window="carouselOpen && (carouselOpen = false)"
+            @keydown.space.window="carouselOpen && ($event.preventDefault(), carouselIndex < carouselItems.length - 1 && (carouselIndex++, navigator.vibrate && navigator.vibrate(10)))">
+
+            <!-- Header Bar -->
+            <div class="flex items-center justify-between p-4 bg-black bg-opacity-50 backdrop-blur-sm">
+                <div class="flex items-center space-x-4">
+                    <button @click="carouselOpen = false"
+                        class="flex items-center justify-center w-10 h-10 rounded-full bg-white bg-opacity-20 text-white hover:bg-opacity-30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
+                        aria-label="Close Scanner">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                    <h1 class="text-white text-lg font-semibold">Scanner</h1>
+                </div>
+                <div class="text-white text-sm font-medium" x-show="carouselItems.length > 0">
+                    <span x-text="carouselIndex + 1"></span> of <span x-text="carouselItems.length"></span>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="flex-1 flex flex-col overflow-hidden"
+                @touchstart="onCarouselTouchStart($event)"
+                @touchmove="onCarouselTouchMove($event)"
+                @touchend="onCarouselTouchEnd()"
+                style="height: calc(100vh - 160px);">
+
+                <template x-if="carouselItems.length > 0">
+                    <div class="flex-1 relative overflow-hidden">
+                        <!-- Carousel Track -->
+                        <div class="flex h-full items-center transition-transform duration-300 ease-out"
+                            :style="`width: calc(${carouselItems.length} * 100vw); transform: translateX(-${carouselIndex * 100}vw);`">
+
+                            <template x-for="(item, idx) in carouselItems" :key="item.id">
+                                <div class="flex-shrink-0 flex items-center justify-center px-4 py-2"
+                                    style="width: 100vw; height: 100%;">
+                                    <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden max-h-full flex flex-col"
+                                        @click.stop>
+
+                                        <!-- Product Image Section -->
+                                        <div class="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200">
+                                            <div class="absolute inset-0 flex items-center justify-center">
+                                                <template x-if="item.has_image && item.image_url">
+                                                    <img :src="item.image_url" :alt="item.item_type === 'plu' ? item.variety : item.name"
+                                                         class="w-full h-full object-cover">
+                                                </template>
+                                                <template x-if="!item.has_image || !item.image_url">
+                                                    <div class="w-full h-full flex items-center justify-center bg-gray-200">
+                                                        <span class="text-gray-400 text-lg">No Image</span>
+                                                    </div>
+                                                </template>
+                                            </div>
+
+                                            <!-- Organic Badge -->
+                                            <template x-if="item.organic">
+                                                <div class="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg">
+                                                    Organic
+                                                </div>
+                                            </template>
+
+                                            <!-- Inventory Count Overlay -->
+                                            <div class="absolute top-4 right-4 bg-black bg-opacity-80 text-white px-4 py-2 rounded-full backdrop-blur-sm">
+                                                <span class="text-2xl font-bold" x-text="$store.listManager.getInventory(item.id).toFixed(1)"></span>
+                                                <span class="text-sm ml-1">in stock</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Product Information -->
+                                        <div class="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                                            <!-- Item Type Indicator -->
+                                            <div class="text-center">
+                                                <template x-if="item.item_type === 'plu'">
+                                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                                                        PLU Code
+                                                        <template x-if="item.organic"><span>&nbsp;• Organic</span></template>
+                                                    </span>
+                                                </template>
+                                                <template x-if="item.item_type === 'upc'">
+                                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                                        UPC Code
+                                                    </span>
+                                                </template>
+                                            </div>
+
+                                            <!-- Product Name -->
+                                            <div class="text-center">
+                                                <h2 class="text-2xl font-bold text-gray-900 leading-tight truncate"
+                                                    x-text="item.item_type === 'plu' ? item.variety : item.name"></h2>
+                                                <p class="text-lg text-gray-600 mt-1 truncate" x-text="item.commodity"></p>
+                                                <template x-if="item.item_type === 'plu' && item.size">
+                                                    <p class="text-sm text-gray-500 mt-1 truncate" x-text="'Size: ' + item.size"></p>
+                                                </template>
+                                                <template x-if="item.item_type === 'upc' && item.brand">
+                                                    <p class="text-sm text-gray-500 mt-1 truncate" x-text="'Brand: ' + item.brand"></p>
+                                                </template>
+                                            </div>
+
+                                            <!-- Code Display -->
+                                            <div class="bg-gray-50 rounded-lg p-3 text-center">
+                                                <p class="text-sm text-gray-600 mb-1" x-text="item.item_type === 'plu' ? 'PLU Code' : 'UPC Code'"></p>
+                                                <p class="text-2xl font-mono font-bold text-gray-900" x-text="item.display_code"></p>
+                                            </div>
+
+                                            <!-- Barcode Section -->
+                                            <div class="bg-white border border-gray-200 rounded-lg p-2">
+                                                <p class="text-xs text-gray-600 text-center mb-1">Barcode</p>
+                                                <div class="flex justify-center items-center" x-html="window.renderBarcode(item.display_code)"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="carouselItems.length === 0">
+                    <!-- Empty State -->
+                    <div class="flex-1 flex items-center justify-center">
+                        <div class="text-center text-white">
+                            <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2 2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4">
+                                </path>
+                            </svg>
+                            <h2 class="text-xl font-semibold mb-2">No Items to Scan</h2>
+                            <p class="text-gray-300">Add items with inventory to your list to start scanning.</p>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Navigation Controls -->
+            <div class="flex items-center justify-between p-4 bg-black bg-opacity-50 backdrop-blur-sm border-t border-white border-opacity-10">
+                <button @click="carouselIndex > 0 && (carouselIndex--, navigator.vibrate && navigator.vibrate(10))"
+                    class="flex items-center justify-center w-14 h-14 rounded-full bg-white bg-opacity-20 text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 hover:bg-opacity-30 active:scale-95"
+                    aria-label="Previous Item">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                </button>
+
+                <div class="text-white text-sm font-medium">
+                    <template x-if="carouselItems.length > 0">
+                        <span><span x-text="carouselIndex + 1"></span> of <span x-text="carouselItems.length"></span></span>
+                    </template>
+                    <template x-if="carouselItems.length === 0">
+                        <span>No items</span>
+                    </template>
+                </div>
+
+                <button @click="carouselIndex < carouselItems.length - 1 && (carouselIndex++, navigator.vibrate && navigator.vibrate(10))"
+                    class="flex items-center justify-center w-14 h-14 rounded-full bg-white bg-opacity-20 text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 hover:bg-opacity-30 active:scale-95"
+                    aria-label="Next Item">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </button>
+            </div>
         </div>
 
         <!-- Add PLU Codes Section - Mobile Slide-up Panel -->
@@ -615,30 +753,49 @@
 
                 @foreach($upcResults as $upcCode)
                 <div wire:key="upc-result-{{ $upcCode->upc ?? $loop->index }}"
-                    class="bg-white border border-gray-200 rounded-lg shadow-sm p-4 mb-3" x-data="{ 
+                    class="bg-white border border-gray-200 rounded-lg shadow-sm p-4 mb-3" x-data="{
                          isInList: {{ $userList->listItems->where('upc_code_id', $upcCode->id)->isNotEmpty() ? 'true' : 'false' }},
                          isAdding: false,
-                         
+                         pendingOffline: false,
+
                          init() {
-                             // Listen for item added event
                              this.handleItemAdded = (e) => {
                                  const data = e.detail;
                                  if (data.upcCodeId === {{ $upcCode->id }} && data.itemType === 'upc') {
                                      this.isInList = true;
                                      this.isAdding = false;
+                                     this.pendingOffline = false;
                                  }
                              };
-                             
+                             this._onlineHandler = () => {
+                                 if (this.pendingOffline) {
+                                     this.pendingOffline = false;
+                                     this.addToList();
+                                 }
+                             };
+
                              window.addEventListener('item-added-to-list', this.handleItemAdded);
+                             window.addEventListener('online', this._onlineHandler);
                          },
-                         
+
                          destroy() {
                              window.removeEventListener('item-added-to-list', this.handleItemAdded);
+                             window.removeEventListener('online', this._onlineHandler);
                          },
-                         
-                         addToList() {
+
+                         async addToList() {
                              this.isAdding = true;
-                             $wire.addUPCToList({{ $upcCode->id }});
+                             try {
+                                 await $wire.addUPCToList({{ $upcCode->id }});
+                             } catch (error) {
+                                 if (!navigator.onLine) {
+                                     this.pendingOffline = true;
+                                     $store.listManager.showNotification('Offline — will add when reconnected', 'info');
+                                 } else {
+                                     this.isAdding = false;
+                                     $store.listManager.showNotification('Failed to add item', 'error');
+                                 }
+                             }
                          }
                      }">
                     <div class="flex items-center justify-between">
@@ -726,7 +883,37 @@
 
     <!-- UPC Commodity Selection Modal -->
     @if($showCommodityModal && $pendingUpcItem)
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" x-data>
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+        x-data="{
+            confirming: false,
+            pendingConfirm: false,
+            async confirm() {
+                this.confirming = true;
+                try {
+                    await $wire.confirmUPCAddition();
+                } catch (error) {
+                    if (!navigator.onLine) {
+                        this.pendingConfirm = true;
+                        $store.listManager.showNotification('Offline — will confirm when reconnected', 'info');
+                    } else {
+                        $store.listManager.showNotification('Failed to add item', 'error');
+                    }
+                    this.confirming = false;
+                }
+            },
+            init() {
+                this._onlineHandler = () => {
+                    if (this.pendingConfirm) {
+                        this.pendingConfirm = false;
+                        this.confirm();
+                    }
+                };
+                window.addEventListener('online', this._onlineHandler);
+            },
+            destroy() {
+                window.removeEventListener('online', this._onlineHandler);
+            }
+        }">
         <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div class="mt-3">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">Select Category & Commodity</h3>
@@ -776,9 +963,17 @@
                         class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500">
                         Cancel
                     </button>
-                    <button wire:click="confirmUPCAddition"
-                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        Add to List
+                    <button @click="confirm()"
+                        :disabled="confirming"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50">
+                        <span x-show="!confirming">Add to List</span>
+                        <span x-show="confirming" x-cloak class="inline-flex items-center">
+                            <svg class="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Adding...
+                        </span>
                     </button>
                 </div>
             </div>
@@ -834,7 +1029,7 @@
                         class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">
                         Cancel
                     </button>
-                    <button wire:click="clearAllInventoryLevels" @click="showClearModal = false"
+                    <button @click="$store.listManager.clearAllInventory(); $wire.clearAllInventoryLevels(); showClearModal = false"
                         class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors">
                         Clear All Values
                     </button>
