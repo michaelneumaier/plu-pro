@@ -115,8 +115,9 @@ document.addEventListener('livewire:init', () => {
     },
     
     setValue(value) {
-        const numValue = parseFloat(value);
-        if (!isNaN(numValue) && numValue >= 0) {
+        const raw = parseFloat(value);
+        if (!isNaN(raw) && raw >= 0) {
+            const numValue = Math.round(raw * 2) / 2;
             const delta = numValue - this.localValue;
             this.updateValue(delta);
             this.provideFeedback();

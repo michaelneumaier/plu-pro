@@ -75,7 +75,8 @@ document.addEventListener('alpine:init', () => {
         },
 
         saveEdit(value) {
-            const numValue = parseFloat(value) || 0;
+            const raw = parseFloat(value) || 0;
+            const numValue = Math.round(raw * 2) / 2;
             if (numValue >= 0) {
                 Alpine.store('listManager').setInventory(this.itemId, numValue);
             }
