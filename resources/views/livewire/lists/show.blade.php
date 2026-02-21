@@ -231,32 +231,8 @@
 
                     <!-- Action buttons section -->
                     <div class="flex flex-col self-end items-end justify-end ml-3 flex-shrink-0">
-                        <!-- Top row: PWA Home, Share, Edit, Add -->
+                        <!-- Top row: Share, Edit, Add -->
                         <div class="flex items-center space-x-1">
-                            <!-- Set as PWA Home Button (only visible in PWA standalone mode) -->
-                            <template x-if="$store.offlineMode.isPWA">
-                                <button x-data="{ isDefault: window.getDefaultListId() == '{{ $userList->id }}' }"
-                                    @click="
-                                        if (isDefault) {
-                                            window.clearDefaultList();
-                                            isDefault = false;
-                                        } else {
-                                            window.setAsDefaultList({{ $userList->id }});
-                                            isDefault = true;
-                                        }
-                                    "
-                                    x-on:default-list-changed.window="isDefault = ($event.detail.listId == '{{ $userList->id }}')"
-                                    class="inline-flex items-center justify-center w-10 h-10 sm:w-10 sm:h-10 rounded-full transition-all duration-150 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1"
-                                    :class="isDefault ?
-                                        'bg-yellow-500 text-white hover:bg-yellow-600 focus:ring-yellow-400' :
-                                        'bg-gray-100 text-gray-500 hover:bg-gray-200 focus:ring-gray-400'"
-                                    :title="isDefault ? 'Remove as PWA home' : 'Set as PWA home'">
-                                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-                                    </svg>
-                                </button>
-                            </template>
-
                             <!-- Share Button -->
                             <button @click="$wire.toggleShareModal()" :disabled="deleteMode || $store.offlineMode.isOffline"
                                 class="inline-flex items-center justify-center w-10 h-10 sm:w-10 sm:h-10 rounded-full transition-all duration-150 shadow-sm"
