@@ -86,6 +86,12 @@ class Browse extends Component
         return view('livewire.marketplace.browse', [
             'lists' => $lists,
             'categories' => $categories,
-        ])->layout('layouts.app');
+        ])->layout('layouts.app')
+            ->title('PLU List Marketplace - Shared Produce Lists & Templates | PLU Pro')
+            ->layoutData([
+                'metaDescription' => 'Browse shared produce PLU lists and templates. Find pre-built grocery department lists, seasonal produce guides, and PLU list templates created by industry professionals.',
+                'metaKeywords' => 'shared produce lists, PLU list templates, grocery department lists, produce order guides, PLU marketplace',
+                'canonical' => url('/marketplace'),
+            ]);
     }
 }

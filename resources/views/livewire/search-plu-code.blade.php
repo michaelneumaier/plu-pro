@@ -1,4 +1,35 @@
 <div class="md:p-2 max-w-6xl mx-auto">
+    @push('structured-data')
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "PLU Pro",
+        "url": "{{ url('/') }}",
+        "description": "Search over 1,500 produce PLU codes instantly. Create custom PLU lists, track produce inventory, and generate scannable barcodes.",
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "{{ url('/') }}?searchTerm={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+        }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "PLU Pro",
+        "url": "{{ url('/') }}",
+        "logo": "{{ asset('icon-512.png') }}",
+        "description": "Professional produce PLU code management platform with search, list creation, barcode generation, and inventory tracking.",
+        "sameAs": []
+    }
+    </script>
+    @endpush
+
     <!-- Search and Filters Button -->
     <div class="flex flex-col md:flex-row md:items-end md:justify-between p-2 space-y-4 md:space-y-0">
         <!-- Search Input -->

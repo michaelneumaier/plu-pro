@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\PLUCode;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class GeneratePluDirectory extends Command
 {
@@ -59,6 +60,39 @@ class GeneratePluDirectory extends Command
     {
         $baseUrl = config('app.url');
 
+        // Build BreadcrumbList schema
+        $breadcrumbSchema = json_encode([
+            '@context' => 'https://schema.org',
+            '@type' => 'BreadcrumbList',
+            'itemListElement' => [
+                ['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => $baseUrl],
+                ['@type' => 'ListItem', 'position' => 2, 'name' => 'PLU Directory', 'item' => "{$baseUrl}/plu-directory"],
+            ],
+        ], JSON_UNESCAPED_SLASHES);
+
+        // Build ItemList schema
+        $itemListElements = [];
+        $pos = 1;
+        foreach ($pluCodesByCommidity as $commodity => $items) {
+            $commodityName = ucwords(strtolower($commodity));
+            $slug = Str::slug(strtolower($commodity));
+            $itemListElements[] = [
+                '@type' => 'ListItem',
+                'position' => $pos,
+                'name' => "{$commodityName} PLU Codes ({$items->count()} items)",
+                'url' => "{$baseUrl}/commodity/{$slug}",
+            ];
+            $pos++;
+        }
+        $itemListSchema = json_encode([
+            '@context' => 'https://schema.org',
+            '@type' => 'ItemList',
+            'name' => 'Complete PLU Code Directory',
+            'description' => "Comprehensive directory of all {$totalItems} produce PLU codes organized by commodity.",
+            'numberOfItems' => $pluCodesByCommidity->count(),
+            'itemListElement' => $itemListElements,
+        ], JSON_UNESCAPED_SLASHES);
+
         $html = <<<EOF
 <!DOCTYPE html>
 <html lang="en">
@@ -69,6 +103,17 @@ class GeneratePluDirectory extends Command
     <meta name="description" content="Complete searchable directory of all {$totalItems} PLU codes for produce items. Find both regular and organic PLU codes organized by commodity.">
     <meta name="keywords" content="PLU codes, produce lookup, organic PLU, fruit codes, vegetable codes, grocery PLU">
     <link rel="canonical" href="{$baseUrl}/plu-directory">
+    <meta property="og:title" content="Complete PLU Code Directory">
+    <meta property="og:description" content="Complete searchable directory of all {$totalItems} PLU codes for produce items.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{$baseUrl}/plu-directory">
+    <meta property="og:site_name" content="PLU Pro">
+    <meta property="og:image" content="{$baseUrl}/icon-512.png">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Complete PLU Code Directory">
+    <meta name="twitter:description" content="Complete searchable directory of all {$totalItems} PLU codes for produce items.">
+    <script type="application/ld+json">{$breadcrumbSchema}</script>
+    <script type="application/ld+json">{$itemListSchema}</script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f9fafb; }
         .container { max-width: 1200px; margin: 0 auto; background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -114,8 +159,9 @@ EOF;
 
         foreach ($pluCodesByCommidity as $commodity => $items) {
             $commodityName = ucwords(strtolower($commodity));
+            $commoditySlug = Str::slug(strtolower($commodity));
             $html .= "\n        <div class=\"commodity-group\" data-commodity=\"".strtolower($commodity)."\">\n";
-            $html .= "            <h2 class=\"commodity-title\">{$commodityName}</h2>\n";
+            $html .= "            <h2 class=\"commodity-title\"><a href=\"{$baseUrl}/commodity/{$commoditySlug}\" style=\"color: inherit; text-decoration: none;\">{$commodityName}</a></h2>\n";
             $html .= "            <div class=\"plu-grid\">\n";
 
             foreach ($items as $pluCode) {

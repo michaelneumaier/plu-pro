@@ -1,8 +1,26 @@
 <div class="min-h-screen bg-gray-50">
     <!-- SEO Structured Data -->
+    @push('structured-data')
     <script type="application/ld+json">
         @json($this->structuredData)
     </script>
+    <script type="application/ld+json">
+        @json($this->definedTermSchema)
+    </script>
+    <script type="application/ld+json">
+        @json($this->faqSchema)
+    </script>
+    <script type="application/ld+json">
+        @json($this->breadcrumbSchema)
+    </script>
+    @endpush
+
+    <!-- Breadcrumbs -->
+    <x-breadcrumbs :items="[
+        ['label' => 'Home', 'url' => url('/')],
+        ['label' => 'PLU Directory', 'url' => url('/plu-directory')],
+        ['label' => 'PLU ' . $displayPlu],
+    ]" />
 
     <!-- Hero Section -->
     <div class="bg-white border-b border-gray-200">
@@ -18,14 +36,14 @@
                         </span>
                     </div>
                 @endif
-                
+
                 <h1 class="text-4xl font-bold text-gray-900 mb-4">
                     PLU Code {{ $displayPlu }}: {{ $isOrganic ? 'Organic ' : '' }}{{ $pluCode->variety }}
                 </h1>
-                
+
+                <!-- Direct Answer Block for AI Overview extraction -->
                 <p class="text-lg text-gray-600 max-w-2xl mx-auto">
-                    Complete information for {{ $isOrganic ? 'organic ' : '' }}PLU code {{ $displayPlu }}. 
-                    Find barcode, commodity details, and everything you need to know about this produce code.
+                    {{ $this->directAnswer }}
                 </p>
             </div>
         </div>
@@ -75,13 +93,17 @@
                         </div>
                         @endif
                     </div>
+
+                    <p class="mt-4 text-xs text-gray-400">
+                        Source: <a href="https://www.ifpsglobal.com/plu-codes" target="_blank" rel="noopener" class="underline hover:text-gray-600">IFPS PLU Database</a>
+                    </p>
                 </div>
 
                 <!-- Product Image -->
                 <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Product Image</h3>
                     <div class="flex justify-center">
-                        <x-plu-image :plu="$pluCode->plu" size="xl" class="shadow-lg rounded-lg" />
+                        <x-plu-image :plu="$pluCode->plu" size="xl" class="shadow-lg rounded-lg" :variety="$pluCode->variety" :commodity="ucwords(strtolower($pluCode->commodity))" />
                     </div>
                 </div>
 
@@ -152,6 +174,10 @@
                             <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Type</dt>
                             <dd class="text-sm text-gray-900">{{ $isOrganic ? 'Organic Produce' : 'Conventional Produce' }}</dd>
                         </div>
+                        <div>
+                            <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Last Updated</dt>
+                            <dd class="text-sm text-gray-900">{{ $pluCode->updated_at ? $pluCode->updated_at->format('M j, Y') : now()->format('M j, Y') }}</dd>
+                        </div>
                     </dl>
                 </div>
 
@@ -203,6 +229,15 @@
                             @endif
                         </div>
                         @endforeach
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-gray-100">
+                        <a href="/commodity/{{ \Illuminate\Support\Str::slug(strtolower($pluCode->commodity)) }}"
+                           class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center">
+                            View all {{ ucwords(strtolower($pluCode->commodity)) }} PLU codes
+                            <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </a>
                     </div>
                 </div>
                 @endif

@@ -83,12 +83,19 @@ class PLUPage extends Component
 
     public function getStructuredDataProperty()
     {
-        return [
+        $variety = $this->pluCode->variety;
+        $commodity = ucwords(strtolower($this->pluCode->commodity));
+        $organicPrefix = $this->isOrganic ? 'Organic ' : '';
+        $imageUrl = $this->getProductImageUrl();
+
+        $product = [
             '@context' => 'https://schema.org',
             '@type' => 'Product',
-            'name' => ($this->isOrganic ? 'Organic ' : '').$this->pluCode->variety,
+            'name' => $organicPrefix.$variety,
             'productID' => "PLU{$this->displayPlu}",
-            'category' => ucwords(strtolower($this->pluCode->commodity)),
+            'sku' => "PLU-{$this->displayPlu}",
+            'url' => url("/{$this->displayPlu}"),
+            'category' => $commodity,
             'description' => $this->seoData['description'],
             'identifier' => [
                 '@type' => 'PropertyValue',
@@ -104,7 +111,7 @@ class PLUPage extends Component
                 [
                     '@type' => 'PropertyValue',
                     'name' => 'Commodity',
-                    'value' => ucwords(strtolower($this->pluCode->commodity)),
+                    'value' => $commodity,
                 ],
                 [
                     '@type' => 'PropertyValue',
@@ -113,18 +120,150 @@ class PLUPage extends Component
                 ],
             ],
         ];
+
+        if ($imageUrl) {
+            $product['image'] = $imageUrl;
+        }
+
+        return $product;
+    }
+
+    public function getDefinedTermSchemaProperty()
+    {
+        $variety = $this->pluCode->variety;
+        $commodity = ucwords(strtolower($this->pluCode->commodity));
+        $organicPrefix = $this->isOrganic ? 'Organic ' : '';
+
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'DefinedTerm',
+            'name' => "PLU {$this->displayPlu}",
+            'description' => "PLU {$this->displayPlu} is the price look-up code for {$organicPrefix}{$variety}, a {$commodity} product.",
+            'inDefinedTermSet' => [
+                '@type' => 'DefinedTermSet',
+                'name' => 'IFPS PLU Code System',
+                'url' => 'https://www.ifpsglobal.com/plu-codes',
+            ],
+        ];
+    }
+
+    public function getFaqSchemaProperty()
+    {
+        $variety = $this->pluCode->variety;
+        $commodity = ucwords(strtolower($this->pluCode->commodity));
+        $organicPrefix = $this->isOrganic ? 'organic ' : '';
+
+        $faqs = [
+            [
+                '@type' => 'Question',
+                'name' => "What does PLU {$this->displayPlu} mean?",
+                'acceptedAnswer' => [
+                    '@type' => 'Answer',
+                    'text' => "PLU {$this->displayPlu} is the standardized code for {$organicPrefix}{$variety}. PLU stands for \"Price Look-Up\" and helps cashiers and customers identify produce items quickly and accurately.",
+                ],
+            ],
+            [
+                '@type' => 'Question',
+                'name' => "Where can I use PLU {$this->displayPlu}?",
+                'acceptedAnswer' => [
+                    '@type' => 'Answer',
+                    'text' => "You can use this PLU code at most grocery stores, supermarkets, and farmers markets. It's especially helpful at self-checkout stations where you need to identify produce items.",
+                ],
+            ],
+            [
+                '@type' => 'Question',
+                'name' => "Is PLU {$this->displayPlu} available year-round?",
+                'acceptedAnswer' => [
+                    '@type' => 'Answer',
+                    'text' => 'Availability depends on the specific product and your location. Some produce items are seasonal, while others are available year-round through various growing regions and storage methods.',
+                ],
+            ],
+        ];
+
+        if ($this->isOrganic) {
+            array_splice($faqs, 1, 0, [[
+                '@type' => 'Question',
+                'name' => "Why does PLU {$this->displayPlu} start with 9?",
+                'acceptedAnswer' => [
+                    '@type' => 'Answer',
+                    'text' => "PLU codes starting with \"9\" indicate organic produce. The base code {$this->basePlu} represents the conventional version, while 9{$this->basePlu} identifies the same item grown under organic standards.",
+                ],
+            ]]);
+        }
+
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'FAQPage',
+            'mainEntity' => $faqs,
+        ];
+    }
+
+    public function getBreadcrumbSchemaProperty()
+    {
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'BreadcrumbList',
+            'itemListElement' => [
+                [
+                    '@type' => 'ListItem',
+                    'position' => 1,
+                    'name' => 'Home',
+                    'item' => url('/'),
+                ],
+                [
+                    '@type' => 'ListItem',
+                    'position' => 2,
+                    'name' => 'PLU Directory',
+                    'item' => url('/plu-directory'),
+                ],
+                [
+                    '@type' => 'ListItem',
+                    'position' => 3,
+                    'name' => "PLU {$this->displayPlu}",
+                    'item' => url("/{$this->displayPlu}"),
+                ],
+            ],
+        ];
+    }
+
+    public function getProductImageUrl()
+    {
+        if ($this->pluCode->has_image) {
+            return asset("storage/plu-images/{$this->pluCode->plu}.jpg");
+        }
+
+        return null;
+    }
+
+    public function getDirectAnswerProperty()
+    {
+        $variety = $this->pluCode->variety;
+        $commodity = ucwords(strtolower($this->pluCode->commodity));
+        $organicPrefix = $this->isOrganic ? 'organic ' : '';
+        $digits = strlen($this->displayPlu);
+        $organicNote = $this->isOrganic ? " The '9' prefix indicates organic certification." : '';
+
+        return "PLU {$this->displayPlu} is the price look-up code for {$organicPrefix}{$variety}, a {$commodity} product. This {$digits}-digit code is used at grocery store checkouts to identify this produce item.{$organicNote} PLU codes are administered by the International Federation for Produce Standards (IFPS).";
     }
 
     public function render()
     {
+        $layoutData = [
+            'metaDescription' => $this->seoData['description'],
+            'metaKeywords' => $this->seoData['keywords'],
+            'canonical' => $this->seoData['canonical'],
+            'ogType' => 'product',
+        ];
+
+        $imageUrl = $this->getProductImageUrl();
+        if ($imageUrl) {
+            $layoutData['ogImage'] = $imageUrl;
+            $layoutData['twitterCard'] = 'summary_large_image';
+        }
+
         return view('livewire.plu-page')
             ->layout('layouts.app')
             ->title($this->seoData['title'])
-            ->layoutData([
-                'metaDescription' => $this->seoData['description'],
-                'metaKeywords' => $this->seoData['keywords'],
-                'canonical' => $this->seoData['canonical'],
-                'structuredData' => $this->structuredData,
-            ]);
+            ->layoutData($layoutData);
     }
 }

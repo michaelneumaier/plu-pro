@@ -26,6 +26,7 @@ class Create extends Component
 
     public function render()
     {
-        return view('livewire.lists.create');
+        return view('livewire.lists.create')
+            ->layoutData(['noindex' => true]);
     }
 }

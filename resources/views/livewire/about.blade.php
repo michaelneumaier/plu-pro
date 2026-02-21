@@ -1,4 +1,19 @@
 <div class="min-h-screen bg-gray-50">
+    @push('structured-data')
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "PLU Pro",
+        "url": "{{ url('/') }}",
+        "logo": "{{ asset('icon-512.png') }}",
+        "description": "Professional produce PLU code management platform. PLU data sourced from the International Federation for Produce Standards (IFPS) and verified regularly.",
+        "foundingDate": "2024",
+        "knowsAbout": ["PLU codes", "produce identification", "grocery inventory management"]
+    }
+    </script>
+    @endpush
+
     <!-- Hero Section -->
     <div class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
         <div class="max-w-7xl mx-auto px-4 py-16 sm:py-24">

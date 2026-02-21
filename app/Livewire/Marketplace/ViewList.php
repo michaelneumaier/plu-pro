@@ -116,10 +116,18 @@ class ViewList extends Component
             })
             ->keys();
 
+        $title = $this->marketplaceList->marketplace_title ?? $this->marketplaceList->name;
+        $itemCount = $this->listItems->count();
+
         return view('livewire.marketplace.view-list', [
             'listItems' => $this->listItems,
             'dualVersionPluCodes' => $dualVersionPluCodes,
             'categories' => UserList::getMarketplaceCategories(),
-        ])->layout('layouts.app');
+        ])->layout('layouts.app')
+            ->title("{$title} - PLU List | PLU Pro")
+            ->layoutData([
+                'metaDescription' => "{$title} - A curated produce PLU list with {$itemCount} items. Browse, copy, and customize this list for your grocery department or produce operation.",
+                'canonical' => url("/marketplace/{$this->marketplaceList->share_code}"),
+            ]);
     }
 }

@@ -8,6 +8,59 @@
 
     <title>{{ $title ?? config('app.name', 'Laravel') }} - PLUPro</title>
 
+    <!-- SEO Meta Tags -->
+    @if(isset($metaDescription))
+        <meta name="description" content="{{ $metaDescription }}">
+    @endif
+    @if(isset($metaKeywords))
+        <meta name="keywords" content="{{ $metaKeywords }}">
+    @endif
+    @if(isset($canonical))
+        <link rel="canonical" href="{{ $canonical }}">
+    @endif
+    @if(isset($noindex))
+        <meta name="robots" content="noindex, nofollow">
+    @endif
+
+    <!-- Open Graph Tags -->
+    <meta property="og:site_name" content="PLU Pro">
+    @if(isset($title))
+        <meta property="og:title" content="{{ $title }}">
+    @endif
+    @if(isset($ogType))
+        <meta property="og:type" content="{{ $ogType }}">
+    @else
+        <meta property="og:type" content="website">
+    @endif
+    @if(isset($metaDescription))
+        <meta property="og:description" content="{{ $metaDescription }}">
+    @endif
+    @if(isset($ogImage))
+        <meta property="og:image" content="{{ $ogImage }}">
+    @else
+        <meta property="og:image" content="{{ asset('icon-512.png') }}">
+    @endif
+    @if(isset($canonical))
+        <meta property="og:url" content="{{ $canonical }}">
+    @endif
+
+    <!-- Twitter Card Tags -->
+    <meta name="twitter:card" content="{{ isset($twitterCard) ? $twitterCard : 'summary' }}">
+    @if(isset($title))
+        <meta name="twitter:title" content="{{ $title }}">
+    @endif
+    @if(isset($metaDescription))
+        <meta name="twitter:description" content="{{ $metaDescription }}">
+    @endif
+    @if(isset($ogImage))
+        <meta name="twitter:image" content="{{ $ogImage }}">
+    @else
+        <meta name="twitter:image" content="{{ asset('icon-512.png') }}">
+    @endif
+
+    <!-- Structured Data -->
+    @stack('structured-data')
+
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#10b981">
     <meta name="apple-mobile-web-app-capable" content="yes">

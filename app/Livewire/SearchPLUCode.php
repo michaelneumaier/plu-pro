@@ -274,13 +274,6 @@ class SearchPLUCode extends Component
      *
      * @return \Illuminate\View\View
      */
-    protected function getLayoutData()
-    {
-        return [
-            'title' => 'Search PLU Codes',
-        ];
-    }
-
     public function render()
     {
         $query = PLUCode::query();
@@ -324,10 +317,20 @@ class SearchPLUCode extends Component
         // Fetch paginated results
         $pluCodes = $query->paginate(25);
 
+        $totalPluCodes = Cache::remember('total_plu_count', 3600, function () {
+            return PLUCode::count();
+        });
+
         return view('livewire.search-plu-code', [
             'pluCodes' => $pluCodes,
             'upcResults' => $this->upcResults,
             'upcLookupInProgress' => $this->upcLookupInProgress,
-        ]);
+        ])->layout('layouts.app')
+            ->title('PLU Code Lookup - Search Produce PLU Codes | PLU Pro')
+            ->layoutData([
+                'metaDescription' => "Search over {$totalPluCodes} produce PLU codes instantly. Create custom PLU lists, track produce inventory, and generate scannable barcodes for grocery order guides. Free PLU lookup and produce inventory tool.",
+                'metaKeywords' => 'PLU codes, PLU lookup, produce PLU codes, produce inventory app, PLU barcode generator, grocery order guide, scan list, produce inventory',
+                'canonical' => url('/'),
+            ]);
     }
 }

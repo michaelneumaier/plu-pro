@@ -13,20 +13,31 @@ class PluImage extends Component
 
     public $class;
 
-    public function __construct($plu, $size = 'sm', $class = '')
+    public $variety;
+
+    public $commodity;
+
+    public function __construct($plu, $size = 'sm', $class = '', $variety = '', $commodity = '')
     {
         $this->plu = $plu;
         $this->size = $size;
         $this->class = $class;
+        $this->variety = $variety;
+        $this->commodity = $commodity;
     }
 
     public function render()
     {
         $imagePath = $this->findImage();
 
+        $altText = $this->variety
+            ? "{$this->variety} - PLU {$this->plu}".($this->commodity ? " - {$this->commodity}" : '')
+            : "PLU {$this->plu}";
+
         return view('components.plu-image', [
             'imagePath' => $imagePath,
             'sizeClasses' => $this->getSizeClasses(),
+            'altText' => $altText,
         ]);
     }
 

@@ -33,6 +33,11 @@ class About extends Component
     {
         return view('livewire.about')
             ->layout('layouts.app')
-            ->title('About PLU Pro - Professional Produce Code Management Platform');
+            ->title('About PLU Pro - Professional Produce Code Management Platform')
+            ->layoutData([
+                'metaDescription' => 'PLU Pro is the comprehensive platform for produce PLU code management. Search 1,500+ PLU codes, create custom lists with barcode scanning, track produce inventory offline, and build digital order guides for grocery departments.',
+                'metaKeywords' => 'PLU Pro, about PLU Pro, produce PLU codes, PLU code management, produce inventory, grocery order guide, PLU barcode generator',
+                'canonical' => url('/about'),
+            ]);
     }
 }

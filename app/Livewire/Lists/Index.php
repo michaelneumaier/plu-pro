@@ -242,6 +242,6 @@ class Index extends Component
 
         return view('livewire.lists.index', [
             'userLists' => $userLists,
-        ]);
+        ])->layoutData(['noindex' => true]);
     }
 }

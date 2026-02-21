@@ -16,11 +16,11 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements FilamentUser
 {
     use HasApiTokens;
+
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory;
 
     use HasProfilePhoto;
-
     use HasRoles;
     use Notifiable;
     use TwoFactorAuthenticatable;

@@ -136,9 +136,17 @@ class SharedView extends Component
             })
             ->keys();
 
+        $title = $this->userList->name;
+        $itemCount = $this->listItems->count();
+
         return view('livewire.lists.shared-view', [
             'listItems' => $this->listItems,
             'dualVersionPluCodes' => $dualVersionPluCodes,
-        ])->layout('layouts.app');
+        ])->layout('layouts.app')
+            ->title("{$title} - Shared PLU List | PLU Pro")
+            ->layoutData([
+                'metaDescription' => "{$title} - A shared produce PLU list with {$itemCount} items. View and copy this PLU code list for your grocery needs.",
+                'canonical' => url("/list/{$this->userList->share_code}"),
+            ]);
     }
 }

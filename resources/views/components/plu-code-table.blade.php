@@ -298,17 +298,10 @@ $colCount = $hasActions ? 5 : 4;
                                 </button>
                             </div>
 
-                            <!-- Quick action buttons -->
-                            <div class="flex gap-1 w-full max-w-[180px]">
-                                <button @click.stop="clear()"
-                                        class="flex-1 px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded-md
-                                               hover:bg-gray-200 active:scale-95 transition-all duration-100 touch-manipulation
-                                               border border-gray-200">
-                                    Clear
-                                </button>
-
+                            <!-- Half-unit toggle button -->
+                            <div class="w-full max-w-[180px]">
                                 <button @click.stop="toggleHalf()"
-                                        class="flex-1 px-2 py-1 text-xs font-medium rounded-md
+                                        class="w-full px-2 py-0 text-base font-medium rounded-md
                                                active:scale-95 transition-all duration-100 touch-manipulation
                                                border"
                                         :class="(parseFloat(value) || 0) % 1 === 0.5 ?

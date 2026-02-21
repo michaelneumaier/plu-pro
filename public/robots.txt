@@ -1,2 +1,8 @@
 User-agent: *
-Disallow:
+Disallow: /dashboard
+Disallow: /lists/
+Disallow: /pwa
+Disallow: /inventory/
+Disallow: /auth/
+
+Sitemap: https://plu.pro/sitemap.xml

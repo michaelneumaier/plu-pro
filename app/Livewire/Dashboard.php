@@ -238,6 +238,7 @@ class Dashboard extends Component
 
         return view('livewire.dashboard', [
             'lists' => $lists,
-        ])->layout('layouts.app');
+        ])->layout('layouts.app')
+            ->layoutData(['noindex' => true]);
     }
 }

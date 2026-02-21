@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\PLUCode;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class GenerateSitemap extends Command
 {
@@ -50,6 +51,14 @@ class GenerateSitemap extends Command
         // Add static pages
         $this->addUrl($xml, $urlset, "$baseUrl/about", $lastmod, 'monthly', '0.7');
         $this->addUrl($xml, $urlset, "$baseUrl/plu-directory", $lastmod, 'weekly', '0.9');
+        $this->addUrl($xml, $urlset, "$baseUrl/marketplace", $lastmod, 'daily', '0.7');
+
+        // Add commodity pages
+        $commodities = $pluCodes->pluck('commodity')->unique();
+        foreach ($commodities as $commodity) {
+            $slug = Str::slug(strtolower($commodity));
+            $this->addUrl($xml, $urlset, "$baseUrl/commodity/$slug", $lastmod, 'weekly', '0.8');
+        }
 
         $progressBar = $this->output->createProgressBar($pluCodes->count() * 2); // *2 for regular + organic
 
@@ -75,7 +84,7 @@ class GenerateSitemap extends Command
         // Also save to public root for easier access
         file_put_contents(public_path('sitemap.xml'), $sitemapContent);
 
-        $totalUrls = $pluCodes->count() * 2 + 3; // +3 for homepage, about, plu-directory
+        $totalUrls = $pluCodes->count() * 2 + 3 + 1 + $commodities->count(); // +3 static pages, +1 marketplace, + commodity pages
         $this->info("Sitemap generated successfully with {$totalUrls} URLs!");
         $this->info('Sitemap saved to: '.public_path('sitemap.xml'));
 

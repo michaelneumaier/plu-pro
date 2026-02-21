@@ -1,6 +1,6 @@
 <div class="{{ $sizeClasses }} {{ $class }} bg-gray-100 rounded-lg overflow-hidden">
     @if($imagePath)
-    <img src="{{ $imagePath }}" alt="PLU {{ $plu }}" class="w-full h-full object-cover"
+    <img src="{{ $imagePath }}" alt="{{ $altText }}" class="w-full h-full object-cover"
         onerror="this.onerror=null; this.src='{{ asset('images/placeholder.png') }}';">
     @else
     <div class="w-full h-full flex items-center justify-center bg-gray-200">

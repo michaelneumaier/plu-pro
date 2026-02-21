@@ -8,6 +8,7 @@ class Edit extends Component
 {
     public function render()
     {
-        return view('livewire.lists.edit');
+        return view('livewire.lists.edit')
+            ->layoutData(['noindex' => true]);
     }
 }
