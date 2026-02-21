@@ -245,7 +245,7 @@
                                             isDefault = true;
                                         }
                                     "
-                                    @default-list-changed.window="isDefault = ($event.detail.listId == '{{ $userList->id }}')"
+                                    x-on:default-list-changed.window="isDefault = ($event.detail.listId == '{{ $userList->id }}')"
                                     class="inline-flex items-center justify-center w-10 h-10 sm:w-10 sm:h-10 rounded-full transition-all duration-150 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1"
                                     :class="isDefault ?
                                         'bg-yellow-500 text-white hover:bg-yellow-600 focus:ring-yellow-400' :
