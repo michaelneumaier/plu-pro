@@ -50,6 +50,9 @@ document.addEventListener('alpine:init', () => {
                     if (this._addQueue.length > 0) {
                         this._processAddQueue();
                     }
+                    if (this._organicQueue.length > 0) {
+                        this._processOrganicQueue();
+                    }
                 });
 
                 window.addEventListener('beforeunload', (e) => {
@@ -216,13 +219,24 @@ document.addEventListener('alpine:init', () => {
                 }
             });
 
+            // Collect pending organic states from queue
+            const pendingOrganic = {};
+            this._organicQueue.forEach(entry => {
+                pendingOrganic[entry.itemId] = entry.organic;
+            });
+
             // Build new items list from server
             this.items = serverItems.map(serverItem => {
+                const merged = { ...serverItem };
                 // Preserve dirty inventory values
                 if (dirtyValues.hasOwnProperty(serverItem.id)) {
-                    return { ...serverItem, inventory_level: dirtyValues[serverItem.id] };
+                    merged.inventory_level = dirtyValues[serverItem.id];
                 }
-                return serverItem;
+                // Preserve pending organic state
+                if (pendingOrganic.hasOwnProperty(serverItem.id)) {
+                    merged.organic = pendingOrganic[serverItem.id];
+                }
+                return merged;
             });
         },
 
@@ -340,6 +354,61 @@ document.addEventListener('alpine:init', () => {
             if (addedCount > 0 && this.showComponentId) {
                 window.Livewire.find(this.showComponentId).$refresh();
             }
+        },
+
+        // Organic toggle queue
+        _organicQueue: [],
+        _organicProcessing: false,
+
+        toggleOrganic(itemId) {
+            const item = this.items.find(i => i.id === itemId);
+            if (!item) return;
+
+            // Optimistic toggle
+            item.organic = !item.organic;
+            this.applyFilters();
+
+            // Deduplicate: replace any existing queue entry for this item
+            const existingIndex = this._organicQueue.findIndex(e => e.itemId === itemId);
+            if (existingIndex !== -1) {
+                this._organicQueue[existingIndex].organic = item.organic;
+            } else {
+                this._organicQueue.push({ itemId, organic: item.organic });
+            }
+
+            this._processOrganicQueue();
+        },
+
+        async _processOrganicQueue() {
+            if (this._organicProcessing || this._organicQueue.length === 0) return;
+            if (!navigator.onLine) return;
+
+            this._organicProcessing = true;
+
+            while (this._organicQueue.length > 0) {
+                if (!navigator.onLine) {
+                    this.showNotification('Offline — changes will sync when reconnected', 'info');
+                    break;
+                }
+
+                const entry = this._organicQueue.shift();
+                try {
+                    if (!this.showComponentId) {
+                        console.error('No Show component ID available');
+                        continue;
+                    }
+                    await window.Livewire.find(this.showComponentId)
+                        .call('setOrganic', entry.itemId, entry.organic);
+                } catch (error) {
+                    console.error('Error setting organic:', error);
+                    // Put back at front of queue for retry
+                    this._organicQueue.unshift(entry);
+                    this.showNotification('Offline — changes will sync when reconnected', 'info');
+                    break;
+                }
+            }
+
+            this._organicProcessing = false;
         },
 
         removeItem(itemId) {

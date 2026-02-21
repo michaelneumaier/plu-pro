@@ -142,7 +142,7 @@
             <h3 class="text-lg font-semibold text-gray-900 mb-4">PLU Results</h3>
             @endif
             <x-plu-code-table :collection="$pluCodes" :showCommodityGroups="false" :showInventory="false"
-                :showPagination="false" />
+                :showPagination="false" :dispatchAdd="auth()->check()" />
         </div>
         @if($pluCodes instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator)
         <div class="mt-4">

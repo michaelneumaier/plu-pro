@@ -801,8 +801,20 @@ class Show extends Component
         if ($listItem) {
             $listItem->update(['organic' => ! $listItem->organic]);
             $this->userList->load(['listItems.pluCode', 'listItems.upcCode']);
-            $this->refreshToken = time();
         }
+        // Don't re-render — Alpine owns the toggle state. The full row
+        // visuals (background, PLU prefix, badge) update on next natural re-render.
+        $this->skipRender();
+    }
+
+    public function setOrganic($listItemId, $organic)
+    {
+        $listItem = $this->userList->listItems()->where('id', $listItemId)->first();
+        if ($listItem) {
+            $listItem->update(['organic' => (bool) $organic]);
+            $this->userList->load(['listItems.pluCode', 'listItems.upcCode']);
+        }
+        $this->skipRender();
     }
 
     public function updateListName($newName)

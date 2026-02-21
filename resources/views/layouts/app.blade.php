@@ -254,7 +254,10 @@
     @livewire('plu-code-detail-modal')
     @livewire('upc-code-detail-modal')
     @livewire('feedback-modal')
-    
+    @auth
+        @livewire('add-to-list-modal')
+    @endauth
+
     <!-- PWA Auth State Management -->
     <script>
         // Update PWA auth cache when user is authenticated

@@ -6,6 +6,7 @@
 'refreshToken' => null,
 'onDelete' => null,
 'onAdd' => null,
+'dispatchAdd' => false,
 'readOnly' => false,
 'showInventory' => true,
 'showCommodityGroups' => true,
@@ -15,7 +16,7 @@
 // Use the collection prop as pluCodes for backward compatibility
 $pluCodes = $collection;
 // Determine the number of columns based on the presence of actions
-$hasActions = $onDelete || $onAdd;
+$hasActions = $onDelete || $onAdd || $dispatchAdd;
 $colCount = $hasActions ? 5 : 4;
 @endphp
 
@@ -114,10 +115,21 @@ $colCount = $hasActions ? 5 : 4;
                         class="flex items-center justify-center w-12 h-7 sm:w-12 sm:h-8 bg-blue-100 text-xs text-blue-800 border border-blue-200 rounded overflow-hidden">
                         <span class="font-semibold">UPC</span>
                     </div>
-                    <div>
+                    <div x-show="!showDeleteButtons">
                         <!-- No usage indicator for UPC items -->
                         <div class="w-4 h-2"></div>
                     </div>
+                    @if(!$readOnly && $hasActions && $onDelete && $listItem && isset($listItem->id) && $listItem->id)
+                    <div x-show="showDeleteButtons" x-cloak>
+                        <button @click.stop="if(confirm('Remove this UPC item from your list?')) { $wire.call('removeListItem', {{ $listItem->id }}) }"
+                            class="w-7 h-7 flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                            wire:key="delete-btn-{{ $listItem->id }}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    @endif
                     @else
                     <!-- PLU Badge -->
                     <a href="{{ route('plu.show', $listItem && $listItem->organic ? '9' . $pluCode->plu : $pluCode->plu) }}"
@@ -131,7 +143,18 @@ $colCount = $hasActions ? 5 : 4;
                             @endif
                         </span>
                     </a>
-                    <div class=""><x-consumer-usage-indicator :tier="$pluCode->consumer_usage_tier" /></div>
+                    <div x-show="!showDeleteButtons"><x-consumer-usage-indicator :tier="$pluCode->consumer_usage_tier" /></div>
+                    @if(!$readOnly && $hasActions && $onDelete && $listItem && isset($listItem->id) && $listItem->id)
+                    <div x-show="showDeleteButtons" x-cloak>
+                        <button @click.stop="if(confirm('Remove this {{ $listItem->organic ? 'organic' : 'regular' }} item from your list?')) { $wire.call('removeListItem', {{ $listItem->id }}) }"
+                            class="w-7 h-7 flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                            wire:key="delete-btn-{{ $listItem->id }}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    @endif
                     @endif
                 </div>
                 <div class="flex items-center p-1">
@@ -202,7 +225,7 @@ $colCount = $hasActions ? 5 : 4;
                 </div>
                 @if($showInventory)
                 <!-- Inventory Level Component -->
-                <div class="flex items-center p-1">
+                <div class="flex items-center p-1" x-show="!showDeleteButtons">
                     @if($listItem && !$onAdd && isset($listItem->id) && $listItem->id)
                     @if($readOnly)
                     <!-- Read-only inventory display -->
@@ -288,12 +311,50 @@ $colCount = $hasActions ? 5 : 4;
                     @endif
                     @endif
                 </div>
+                <!-- Edit mode: Organic toggle (PLU only) -->
+                @if(!$readOnly)
+                <div class="flex items-center justify-center p-1" x-show="showDeleteButtons" x-cloak>
+                    @if($listItem && !$onAdd && isset($listItem->id) && $listItem->id && !$isUpcItem)
+                    <div x-data="{ get isOrganic() { const item = $store.listManager.items.find(i => i.id === {{ $listItem->id }}); return item ? item.organic : {{ $listItem->organic ? 'true' : 'false' }}; } }">
+                        <button @click.stop="$store.listManager.toggleOrganic({{ $listItem->id }})"
+                            class="px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200 ease-in-out inline-flex items-center space-x-1"
+                            :class="isOrganic
+                                ? 'bg-green-500 hover:bg-green-600 text-white'
+                                : 'bg-gray-200 hover:bg-gray-300 text-gray-500'"
+                            :title="isOrganic ? 'Click to make conventional' : 'Click to make organic'">
+                            <template x-if="isOrganic">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                            </template>
+                            <template x-if="!isOrganic">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </template>
+                            <span>Organic</span>
+                        </button>
+                    </div>
+                    @endif
+                </div>
+                @endif
                 @endif
 
                 @if($hasActions)
                 <div class="flex items-center">
 
-                    @if($onAdd)
+                    @if($dispatchAdd && !$isUpcItem)
+                    <div class="flex flex-col space-y-1 py-1">
+                        <button @click.stop="$dispatch('open-add-to-list-modal', { pluCodeId: {{ $pluCode->id }}, organic: false })"
+                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs transition-colors">
+                            Add
+                        </button>
+                        <button @click.stop="$dispatch('open-add-to-list-modal', { pluCodeId: {{ $pluCode->id }}, organic: true })"
+                            class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-xs transition-colors">
+                            Organic
+                        </button>
+                    </div>
+                    @elseif($onAdd)
                     <div class="flex space-x-2">
                         @if($isUpcItem)
                         <button @click.stop="$dispatch('disable-add-buttons')"
@@ -330,54 +391,6 @@ $colCount = $hasActions ? 5 : 4;
                 </div>
                 @endif
             </div>
-            @if(!$readOnly)
-            <div class="flex justify-between p-1 space-x-2 px-10 md:px-1" x-show=" showDeleteButtons" x-cloak
-                x-transition:enter="transition ease-out duration-300"
-                x-transition:enter-start="opacity-0 transform scale-90"
-                x-transition:enter-end="opacity-100 transform scale-100"
-                x-transition:leave="transition ease-in duration-200"
-                x-transition:leave-start="opacity-100 transform scale-100"
-                x-transition:leave-end="opacity-0 transform scale-90">
-                @if($listItem && !$onAdd && isset($listItem->id) && $listItem->id && !$isUpcItem)
-                <div x-data="{ isOrganic: {{ $listItem->organic ? 'true' : 'false' }}, toggling: false }"
-                    x-init="$watch('toggling', v => { if (v) setTimeout(() => toggling = false, 3000) })">
-                    <button @click.stop="if (!toggling) { toggling = true; isOrganic = !isOrganic; $wire.call('toggleOrganic', {{ $listItem->id }}) }"
-                        class="px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200 ease-in-out inline-flex items-center space-x-1"
-                        :class="isOrganic
-                            ? 'bg-green-500 hover:bg-green-600 text-white'
-                            : 'bg-gray-200 hover:bg-gray-300 text-gray-500'"
-                        :title="isOrganic ? 'Click to make conventional' : 'Click to make organic'"
-                        :disabled="toggling">
-                        <template x-if="isOrganic">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                            </svg>
-                        </template>
-                        <template x-if="!isOrganic">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </template>
-                        <span>Organic</span>
-                    </button>
-                </div>
-                @endif
-                @if($hasActions && $onDelete && $listItem && isset($listItem->id) && $listItem->id)
-                <button x-show="showDeleteButtons" x-cloak
-                    @click.stop="$event.preventDefault(); if(confirm('Are you sure you want to remove this {{ $isUpcItem ? 'UPC' : ($listItem->organic ? 'organic' : 'regular') }} item from your list?')) { $wire.call('removeListItem', {{ $listItem->id }}) }"
-                    wire:key="delete-button-{{ $listItem->id }}"
-                    class=" px-3 py-1 mr-1 bg-red-500 hover:bg-red-700 text-white text-sm font-bold rounded-md flex items-center justify-center"
-                    aria-label="Delete">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
-                        </path>
-                    </svg>
-                    Delete
-                </button>
-                @endif
-            </div>
-            @endif
         </div>
         @endforeach
     </div>
